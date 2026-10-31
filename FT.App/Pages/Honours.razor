@@ -1,0 +1,153 @@
+@page "/honours"
+@using FootballTactician.Data
+@using FootballTactician.World
+@inherits SessionPage
+
+<PageTitle>기록실 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <div class="empty">진행 중인 게임이 없습니다.</div>
+}
+else
+{
+    <div class="card">
+        <div class="card-head">
+            <h2>기록실</h2>
+            <span class="spacer"></span>
+            <span class="tiny dim">@club.name · @(club.history?.founded ?? 0)년 창단</span>
+        </div>
+
+        <div class="grid grid-4">
+            <div class="stat">
+                <div class="stat-label">리그 우승</div>
+                <div class="stat-value">@(club.history?.leagueTitles ?? 0)</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">컵 우승</div>
+                <div class="stat-value">@(club.history?.cupTitles ?? 0)</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">대륙 우승</div>
+                <div class="stat-value">@(club.history?.continentalTitles ?? 0)</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">내 임기 우승</div>
+                <div class="stat-value accent">@Session.TitlesUnderMe</div>
+                <div class="stat-sub">부임 이후</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h3>최근 시즌</h3></div>
+
+        @if (Session.RecentSeasons.Count == 0)
+        {
+            <div class="empty">아직 끝난 시즌이 없습니다.</div>
+        }
+        else
+        {
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th class="center">시즌</th><th class="center">순위</th>
+                        <th class="num">승점</th><th class="num">득점</th><th class="num">실점</th>
+                        <th class="num">득실</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Session.RecentSeasons)
+                    {
+                        <tr>
+                            <td class="center">@s.season</td>
+                            <td class="center">
+                                @if (s.finalPosition == 1)
+                                {
+                                    <span class="badge ok">@(s.finalPosition)위</span>
+                                }
+                                else
+                                {
+                                    @($"{s.finalPosition}위")
+                                }
+                            </td>
+                            <td class="num">@s.points</td>
+                            <td class="num">@s.goalsFor</td>
+                            <td class="num dim">@s.goalsAgainst</td>
+                            <td class="num">@((s.goalsFor - s.goalsAgainst) > 0 ? "+" : "")@(s.goalsFor - s.goalsAgainst)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>우리 리그 역대 수상</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">@(Session.MyLeagueAwards.Count)시즌</span>
+        </div>
+
+        @if (Session.MyLeagueAwards.Count == 0)
+        {
+            <p class="tiny dim">첫 시즌이 끝나면 수상자가 남습니다.</p>
+        }
+        else
+        {
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th class="center">시즌</th><th>최우수 선수</th>
+                        <th>득점왕</th><th>영플레이어</th><th>올해의 감독</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Session.MyLeagueAwards)
+                    {
+                        <tr>
+                            <td class="center">@a.year</td>
+                            <td class="nowrap">@(a.bestPlayerName ?? "—") <span class="dim tiny">@a.bestRating.ToString("F2")</span></td>
+                            <td class="nowrap">@(a.topScorerName ?? "—") <span class="dim tiny">@(a.topScorerGoals)골</span></td>
+                            <td class="nowrap">@(a.bestYoungName ?? "—")</td>
+                            <td class="nowrap">@(a.managerClubName ?? "—") <span class="dim tiny">+@a.managerPlacesGained</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <p class="tiny dim">
+                올해의 감독은 우승팀이 아니라 전력 기준보다 가장 높이 올라간 구단에 갑니다 —
+                우승팀에 주면 늘 가장 부유한 구단이 받습니다.
+            </p>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h3>우리 선수 통산 기록</h3></div>
+
+        <table class="ft">
+            <thead>
+                <tr>
+                    <th>선수</th><th class="center">나이</th>
+                    <th class="num">출전</th><th class="num">득점</th><th class="num">도움</th>
+                    <th class="num">평점</th><th class="num">A매치</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Session.CareerLeaders)
+                {
+                    <tr>
+                        <td class="nowrap"><a href="@($"player/{p.id}")">@p.FullName</a></td>
+                        <td class="center">@w.Age(p)</td>
+                        <td class="num">@(p.careerStats?.appearances ?? 0)</td>
+                        <td class="num">@(p.careerStats?.goals ?? 0)</td>
+                        <td class="num">@(p.careerStats?.assists ?? 0)</td>
+                        <td class="num dim">@((p.careerStats?.averageRating ?? 0f).ToString("F2"))</td>
+                        <td class="num dim">@p.caps</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="tiny dim">이번 시즌 기록은 시즌이 끝날 때 통산에 더해집니다.</p>
+    </div>
+}

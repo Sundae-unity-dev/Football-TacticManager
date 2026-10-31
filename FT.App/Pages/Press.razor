@@ -1,0 +1,179 @@
+@page "/press"
+@inherits SessionPage
+@using FootballTactician.Simulation
+
+<PageTitle>기자회견 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is null)
+{
+    <Redirect />
+}
+else
+{
+    <h1>기자회견</h1>
+
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="stat-label">언론 평판</div>
+            <div class="stat-value">@w.Manager.pressReputation</div>
+            <div class="stat-sub">@Mood(w.Manager.pressReputation)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">팬 지지도</div>
+            <div class="stat-value">@w.Manager.fanApproval</div>
+            <div class="stat-sub">입장 수입 @Pct(PressRoom.RevenueMultiplier(w.Manager))</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">이사회 신뢰도</div>
+            <div class="stat-value @(w.Manager.boardConfidence < 40 ? "bad" : "")">
+                @w.Manager.boardConfidence
+            </div>
+            <div class="stat-sub">경질선 @BalanceConfig.SackThreshold</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">남은 설득력</div>
+            <div class="stat-value">@Session.PressBoardLeft</div>
+            <div class="stat-sub">시즌당 @PressRoom.BoardBudgetPerSeason</div>
+        </div>
+    </div>
+
+    @if (Session.Press is { } session)
+    {
+        <div class="card">
+            <div class="card-head">
+                <h3>기자단 질문</h3>
+                <span class="spacer"></span>
+                <span class="tiny dim">내 성향 · @StyleName(w.Manager.pressStyle)</span>
+            </div>
+
+            <p style="font-size:1.05rem; margin:.3rem 0 1rem">“@session.questionText”</p>
+
+            <div class="press-options">
+                @for (int i = 0; i < session.options.Count; i++)
+                {
+                    var index = i;
+                    var opt = session.options[i];
+                    var mult = PressConferenceSystem.StyleMatchMultiplier(w.Manager.pressStyle, opt.tone);
+
+                    // 성향 배수를 먹인 실제 값을 보여준다. 적힌 대로 움직이지 않으면
+                    // 선택의 근거가 사라진다.
+                    var press = PressConferenceSystem.Scale(opt.pressDelta, mult);
+                    var fan = PressConferenceSystem.Scale(opt.fanDelta, mult);
+                    var board = Math.Min(PressConferenceSystem.Scale(opt.boardDelta, mult),
+                                         Session.PressBoardLeft);
+
+                    <button class="press-option" @onclick="() => Answer(index)">
+                        <div class="press-text">@opt.text</div>
+                        <div class="press-meta">
+                            <span class="badge @ToneClass(mult)">@StyleName(opt.tone)</span>
+                            @if (mult != 100)
+                            {
+                                <span class="tiny @(mult > 100 ? "good" : "bad")">효과 @(mult)%</span>
+                            }
+                            <span class="spacer"></span>
+                            @if (press != 0)
+                            {
+                                <span class="tiny @Sign(press)">언론 @Signed(press)</span>
+                            }
+                            @if (fan != 0)
+                            {
+                                <span class="tiny @Sign(fan)">팬 @Signed(fan)</span>
+                            }
+                            @if (board != 0)
+                            {
+                                <span class="tiny @Sign(board)">이사회 @Signed(board)</span>
+                            }
+                            @if (opt.boardDelta > 0 && board < PressConferenceSystem.Scale(opt.boardDelta, mult))
+                            {
+                                <span class="tiny dim">설득력 소진</span>
+                            }
+                        </div>
+                    </button>
+                }
+            </div>
+
+            <div class="btn-row mt1">
+                <button class="btn btn-ghost btn-sm" @onclick="Skip">회견 취소</button>
+                <span class="tiny dim">
+                    나가지 않으면 언론 평판이 1 떨어집니다.
+                </span>
+            </div>
+        </div>
+
+        <p class="tiny dim">
+            답변 성향이 내 성향과 맞으면 효과가 130%, 어긋나면 70%가 됩니다.
+            이사회 신뢰도는 시즌당 @(PressRoom.BoardBudgetPerSeason)까지만 올릴 수 있습니다 —
+            말로 성적을 대신할 수는 없습니다.
+        </p>
+    }
+    else if (Session.PressWaiting)
+    {
+        <div class="card center">
+            <p>기자단이 기다리고 있습니다.</p>
+            <button class="btn btn-primary" @onclick="Open">회견장 들어가기</button>
+        </div>
+    }
+    else
+    {
+        <div class="empty">
+            예정된 기자회견이 없습니다.
+            <div class="tiny dim mt1">@(PressRoom.MinRoundsBetween)경기마다 한 번 열립니다.</div>
+        </div>
+    }
+
+    @if (RecentPress(w) is { Count: > 0 } recent)
+    {
+        <div class="card">
+            <div class="card-head"><h3>지난 발언</h3></div>
+            <table class="ft">
+                <tbody>
+                    @foreach (var item in recent)
+                    {
+                        <tr>
+                            <td class="nowrap dim tiny" style="width:7rem">@Ui.DateLabel(item.date)</td>
+                            <td>@item.body</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    async Task Answer(int index) => await Session.AnswerPressAsync(index);
+    async Task Skip() => await Session.SkipPressAsync();
+    void Open() => Session.OpenPress();
+
+    static List<InboxItem> RecentPress(GameWorld w) =>
+        w.Inbox.Where(m => m.title == "기자회견").Take(6).ToList();
+
+    static string Mood(int v) => v switch
+    {
+        >= 75 => "우호적",
+        >= 55 => "호의적",
+        >= 45 => "중립",
+        >= 25 => "비판적",
+        _ => "적대적",
+    };
+
+    static string Pct(float mult)
+    {
+        int p = (int)MathF.Round((mult - 1f) * 100f);
+        return p == 0 ? "변동 없음" : p > 0 ? $"+{p}%" : $"{p}%";
+    }
+
+    static string Sign(int v) => v > 0 ? "good" : "bad";
+    static string Signed(int v) => v > 0 ? $"+{v}" : v.ToString();
+    static string ToneClass(int mult) => mult > 100 ? "good" : mult < 100 ? "warn" : "";
+
+    static string StyleName(ManagerPressStyle s) => s switch
+    {
+        ManagerPressStyle.Diplomatic => "외교적",
+        ManagerPressStyle.Passionate => "열정적",
+        ManagerPressStyle.Analytical => "분석적",
+        ManagerPressStyle.Reserved => "과묵함",
+        ManagerPressStyle.Confrontational => "공격적",
+        _ => s.ToString(),
+    };
+}

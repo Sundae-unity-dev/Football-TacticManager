@@ -1,0 +1,500 @@
+@page "/match"
+@inherits SessionPage
+
+<PageTitle>경기 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else if (Session.Live is { } live && Session.LiveFixture is { } lf)
+{
+    @* ── 진행 중인 경기 ───────────────────────────────────────────── *@
+    var homeClub = w.Club(lf.homeClubId)!;
+    var awayClub = w.Club(lf.awayClubId)!;
+    var us = Session.LiveIsHome;
+
+    <h1>@(live.Finished ? "경기 종료" : $"{live.Minute}분 진행 중")</h1>
+
+    <div class="scorebug">
+        <div class="side">
+            <span class="kit" style="background:@homeClub.colors.primaryHex"></span>
+            <div>
+                <div class="club">@homeClub.name</div>
+                <div class="meta">홈 · 점유 @live.HomePossession%</div>
+            </div>
+        </div>
+        <div class="score">
+            <span>@live.HomeGoals</span><span class="dim">:</span><span>@live.AwayGoals</span>
+        </div>
+        <div class="side away">
+            <span class="kit" style="background:@awayClub.colors.primaryHex"></span>
+            <div>
+                <div class="club">@awayClub.name</div>
+                <div class="meta">원정 · 점유 @(100 - live.HomePossession)%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="clock">
+        <div class="clock-bar"><i style="width:@(live.Minute * 100 / 100)%"></i></div>
+        <div class="tiny dim">
+            @live.Minute' / 90'+
+            @if (live.AtHalfTime) { <strong style="color:var(--amber)"> · 하프타임</strong> }
+        </div>
+    </div>
+
+    <div class="btn-row mt1">
+        @if (!live.Finished)
+        {
+            <button class="btn" @onclick="() => Session.LiveAdvance(1)">5분</button>
+            <button class="btn" @onclick="() => Session.LiveAdvance(3)">15분</button>
+            @if (!live.AtHalfTime && live.Minute < 45)
+            {
+                <button class="btn btn-primary" @onclick="Session.LiveAdvanceToHalfTime">하프타임까지</button>
+            }
+            else
+            {
+                <button class="btn btn-primary" @onclick="() => Session.LiveAdvance(99)">끝까지</button>
+            }
+        }
+        else
+        {
+            <button class="btn btn-primary btn-lg" @onclick="FinishLive" disabled="@busy">
+                @(busy ? "정리 중…" : "경기 종료하고 결과 반영")
+            </button>
+        }
+        <span class="tiny dim" style="align-self:center">
+            남은 교체 @(live.SubsLeft(us))회
+        </span>
+    </div>
+
+    <div class="grid grid-2 mt1">
+        <div class="card">
+            <div class="card-head">
+                <h3>우리 선수</h3>
+                <span class="spacer"></span>
+                @if (subTarget is not null)
+                {
+                    <span class="tiny" style="color:var(--amber)">@subTarget.FullName 을 뺄 선수 선택</span>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => subTarget = null">취소</button>
+                }
+            </div>
+
+            <table class="ft">
+                <thead><tr><th>자리</th><th>선수</th><th class="num">CA</th><th>컨디션</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var (slot, p) in live.OnPitch(us))
+                    {
+                        <tr class="@(subTarget?.id == p.id ? "me" : "")">
+                            <td><span class="badge pos @Ui.PosClass(slot.position)">@Ui.PosLabel(slot.position)</span></td>
+                            <td class="nowrap">@p.FullName</td>
+                            <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                            <td style="min-width:70px">
+                                <div class="bar @Ui.ConditionClass(p.condition)"><i style="width:@((int)p.condition)%"></i></div>
+                            </td>
+                            <td class="right">
+                                @if (!live.Finished && live.SubsLeft(us) > 0)
+                                {
+                                    <button class="btn btn-sm" @onclick="() => subTarget = p">빼기</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @if (subTarget is not null)
+            {
+                <div class="card-head mt1"><h3>투입할 선수</h3></div>
+                <table class="ft">
+                    <tbody>
+                        @foreach (var p in live.AvailableBench(us))
+                        {
+                            <tr>
+                                <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                                <td class="nowrap">@p.FullName</td>
+                                <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                                <td class="num">@((int)p.condition)%</td>
+                                <td class="right">
+                                    <button class="btn btn-sm btn-primary" @onclick="() => DoSub(p.id)">투입</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+            @if (subMessage is not null)
+            {
+                <p class="tiny mt1 mb0" style="color:var(--coral)">@subMessage</p>
+            }
+        </div>
+
+        <div>
+            <div class="card">
+                <div class="card-head"><h3>경기 중 지시</h3></div>
+                <label class="field">
+                    <span>멘탈리티 — @Ui.MentalityLabel(live.Instructions(us).mentality)</span>
+                    <input type="range" min="0" max="4" step="1"
+                           value="@((int)live.Instructions(us).mentality)"
+                           disabled="@live.Finished"
+                           @onchange="e => SetMentality(e.Value)" />
+                </label>
+                <label class="field mb0">
+                    <span>압박 강도 — @live.Instructions(us).pressingIntensity 단계</span>
+                    <input type="range" min="1" max="5" step="1"
+                           value="@live.Instructions(us).pressingIntensity"
+                           disabled="@live.Finished"
+                           @onchange="e => SetPressing(e.Value)" />
+                </label>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h3>진행 상황</h3></div>
+                @{
+                    var notable = live.Events
+                        .Where(e => e.eventType is MatchEventType.Goal or MatchEventType.YellowCard
+                                 or MatchEventType.RedCard or MatchEventType.SecondYellow
+                                 or MatchEventType.Substitution
+                                 // 세트피스 득점도 골이다. 빼면 점수는 오르는데 기록이 비어 있다.
+                                 or MatchEventType.CornerKickGoal or MatchEventType.FreeKickGoal
+                                 or MatchEventType.PenaltyScored or MatchEventType.PenaltyMissed
+                                 or MatchEventType.PenaltySaved)
+                        .OrderByDescending(e => e.minute)
+                        .Take(14)
+                        .ToList();
+                }
+                @if (notable.Count == 0)
+                {
+                    <div class="empty">아직 특별한 장면이 없습니다.</div>
+                }
+                else
+                {
+                    <div class="timeline">
+                        @foreach (var e in notable)
+                        {
+                            <div class="tl-row @(e.clubId == lf.awayClubId ? "away" : "")">
+                                <span class="tl-min">@e.minute'</span>
+                                <span class="@EventClass(e.eventType)">
+                                    @Ui.EventLabel(e.eventType)
+                                    @if (w.Player(e.playerId) is { } who)
+                                    {
+                                        <span class="muted"> · @who.FullName</span>
+                                    }
+                                    @if (e.assistPlayerId is int aid && w.Player(aid) is { } other)
+                                    {
+                                        <span class="tiny dim">
+                                            @(e.eventType == MatchEventType.Substitution ? " ← " : " (도움 ")@other.lastName@(e.eventType == MatchEventType.Substitution ? "" : ")")
+                                        </span>
+                                    }
+                                    <span class="tiny dim"> — @w.Club(e.clubId)?.shortName</span>
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h3>기록</h3></div>
+                <table class="ft">
+                    <thead><tr><th class="num">@homeClub.shortName</th><th class="center">항목</th><th class="num">@awayClub.shortName</th></tr></thead>
+                    <tbody>
+                        @StatRow("슈팅", live.HomeStats.shots, live.AwayStats.shots)
+                        @StatRow("유효 슈팅", live.HomeStats.shotsOnTarget, live.AwayStats.shotsOnTarget)
+                        @StatRow("기대 득점", live.HomeStats.xG.ToString("F2"), live.AwayStats.xG.ToString("F2"))
+                        @StatRow("빅찬스", live.HomeStats.bigChances, live.AwayStats.bigChances)
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    @* ── 지난 결과와 다음 경기 ────────────────────────────────────── *@
+    <h1>경기</h1>
+
+    @if (Session.LastResult is { } result && Session.LastFixture is { } fixture)
+    {
+        var homeClub = w.Club(fixture.homeClubId)!;
+        var awayClub = w.Club(fixture.awayClubId)!;
+        var weHome = fixture.homeClubId == club.id;
+        var us = weHome ? result.homeGoals : result.awayGoals;
+        var them = weHome ? result.awayGoals : result.homeGoals;
+
+        <div class="scorebug">
+            <div class="side">
+                <span class="kit" style="background:@homeClub.colors.primaryHex"></span>
+                <div>
+                    <div class="club">@homeClub.name</div>
+                    <div class="meta">홈 · 점유 @result.homeStats.possession%</div>
+                </div>
+            </div>
+            <div class="score">
+                <span>@result.homeGoals</span><span class="dim">:</span><span>@result.awayGoals</span>
+            </div>
+            <div class="side away">
+                <span class="kit" style="background:@awayClub.colors.primaryHex"></span>
+                <div>
+                    <div class="club">@awayClub.name</div>
+                    <div class="meta">원정 · 점유 @result.awayStats.possession%</div>
+                </div>
+            </div>
+        </div>
+
+        <p class="center mt1" style="font-family:var(--font-display); font-size:1.1rem;
+             color:@(us > them ? "var(--emerald)" : us == them ? "var(--text-dim)" : "var(--coral)")">
+            @(us > them ? "승리" : us == them ? "무승부" : "패배")
+            <span class="tiny dim">· @fixture.matchday 라운드 · @Ui.DateLabel(fixture.date)</span>
+        </p>
+
+        <div class="grid grid-2 mt1">
+            <div class="card">
+                <div class="card-head"><h3>경기 기록</h3></div>
+                <table class="ft">
+                    <thead>
+                        <tr><th class="num">@homeClub.shortName</th><th class="center">항목</th><th class="num">@awayClub.shortName</th></tr>
+                    </thead>
+                    <tbody>
+                        @StatRow("점유율", $"{result.homeStats.possession}%", $"{result.awayStats.possession}%")
+                        @StatRow("슈팅", result.homeStats.shots, result.awayStats.shots)
+                        @StatRow("유효 슈팅", result.homeStats.shotsOnTarget, result.awayStats.shotsOnTarget)
+                        @StatRow("기대 득점", result.homeStats.xG.ToString("F2"), result.awayStats.xG.ToString("F2"))
+                        @StatRow("빅찬스", result.homeStats.bigChances, result.awayStats.bigChances)
+                        @StatRow("빅찬스 실패", result.homeStats.bigChancesMissed, result.awayStats.bigChancesMissed)
+                        @StatRow("패스", result.homeStats.passes, result.awayStats.passes)
+                        @StatRow("태클", result.homeStats.tackles, result.awayStats.tackles)
+                        @StatRow("코너", result.homeStats.corners, result.awayStats.corners)
+                        @StatRow("파울", result.homeStats.fouls, result.awayStats.fouls)
+                        @StatRow("경고", result.homeStats.yellowCards, result.awayStats.yellowCards)
+                        @StatRow("퇴장", result.homeStats.redCards, result.awayStats.redCards)
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h3>타임라인</h3></div>
+                @{
+                    var notable = result.events
+                        .Where(e => e.eventType is MatchEventType.Goal or MatchEventType.YellowCard
+                                 or MatchEventType.RedCard or MatchEventType.SecondYellow
+                                 or MatchEventType.Substitution or MatchEventType.PostHit
+                                 or MatchEventType.BigSave
+                                 // 세트피스 득점도 골이다. 빼면 점수는 오르는데 기록이 비어 있다.
+                                 or MatchEventType.CornerKickGoal or MatchEventType.FreeKickGoal
+                                 or MatchEventType.PenaltyScored or MatchEventType.PenaltyMissed
+                                 or MatchEventType.PenaltySaved)
+                        .OrderBy(e => e.minute)
+                        .ToList();
+                }
+                @if (notable.Count == 0)
+                {
+                    <div class="empty">기록할 만한 장면이 없었습니다.</div>
+                }
+                else
+                {
+                    <div class="timeline">
+                        @foreach (var e in notable)
+                        {
+                            <div class="tl-row @(e.clubId == fixture.awayClubId ? "away" : "")">
+                                <span class="tl-min">@e.minute'</span>
+                                <span class="@EventClass(e.eventType)">
+                                    @Ui.EventLabel(e.eventType)
+                                    @if (w.Player(e.playerId) is { } who)
+                                    {
+                                        <span class="muted"> · @who.FullName</span>
+                                    }
+                                    @if (e.assistPlayerId is int aid2 && w.Player(aid2) is { } other2)
+                                    {
+                                        <span class="tiny dim"> (@(e.eventType == MatchEventType.Substitution ? "투입 " : "도움 ")@other2.lastName)</span>
+                                    }
+                                    <span class="tiny dim"> — @w.Club(e.clubId)?.shortName</span>
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        @if (w.Sacked)
+        {
+            <div class="empty">경질되어 더 진행할 수 없습니다.</div>
+        }
+        else if (Session.NextFixture is { } next)
+        {
+            var home = next.homeClubId == club.id;
+            var oppId = home ? next.awayClubId : next.homeClubId;
+            var opp = w.Club(oppId)!;
+            var league = w.MyLeague!;
+            var oppEntry = Standings.EntryOf(league, oppId)!;
+            var myEntry = Standings.EntryOf(league, club.id)!;
+
+            <div class="card-head"><h3>다음 경기 — @next.matchday 라운드</h3></div>
+
+            <div class="grid grid-2">
+                <div>
+                    <table class="ft">
+                        <tbody>
+                            <tr><td>상대</td><td class="right"><strong>@opp.name</strong></td></tr>
+                            <tr><td>장소</td><td class="right">@(home ? $"홈 · {club.stadium.name}" : $"원정 · {opp.stadium.name}")</td></tr>
+                            <tr><td>날짜</td><td class="right">@Ui.DateLabel(next.date)</td></tr>
+                            <tr><td>순위</td><td class="right">우리 @(myEntry.position)위 / 상대 @(oppEntry.position)위</td></tr>
+                            <tr><td>전력</td><td class="right">@Math.Round(w.Strength(club.id)) vs @Math.Round(w.Strength(oppId))</td></tr>
+                            <tr>
+                                <td>상대 최근</td>
+                                <td class="right">
+                                    @foreach (var c in Standings.RecentForm(league, oppId))
+                                    {
+                                        <span class="form-dot form-@c">@c</span>
+                                    }
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <div class="tiny muted">선발 11인 · @(w.AutoLineup ? "자동" : "감독 지정")</div>
+                    <table class="ft">
+                        <tbody>
+                            @foreach (var slot in (Session.ActiveTactics?.slots ?? []).OrderBy(s => s.slotIndex))
+                            {
+                                var p = w.Player(slot.assignedPlayerId);
+                                <tr>
+                                    <td style="width:46px"><span class="badge pos @Ui.PosClass(slot.position)">@Ui.PosLabel(slot.position)</span></td>
+                                    <td class="nowrap">@(p?.FullName ?? "공석")</td>
+                                    <td class="num">@(p is null ? "" : ((int)p.condition) + "%")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <a class="btn btn-sm mt1" href="tactics">전술 바꾸기</a>
+                </div>
+            </div>
+
+            @if (Unavailable.Any())
+            {
+                <p class="tiny mt1 mb0" style="color:var(--amber)">
+                    결장: @string.Join(", ", Unavailable.Select(p => $"{p.FullName} ({p.injury!.injuryType})"))
+                </p>
+            }
+
+            <div class="btn-row mt1">
+                <button class="btn btn-primary btn-lg" @onclick="StartLive" disabled="@busy">
+                    직접 치르기
+                </button>
+                <button class="btn" @onclick="() => Run(1)" disabled="@busy">
+                    @(busy ? "진행 중…" : "바로 결과 보기")
+                </button>
+                <button class="btn btn-ghost" @onclick="() => Run(5)" disabled="@busy">5라운드 빠르게</button>
+            </div>
+            <p class="tiny dim mt1 mb0">
+                직접 치르면 하프타임에 멈춰 교체와 지시를 바꿀 수 있습니다.
+            </p>
+        }
+        else if (Session.SeasonFinished)
+        {
+            <div class="empty">
+                @w.SeasonYear 시즌 일정이 모두 끝났습니다.
+                <div class="btn-row mt1" style="justify-content:center">
+                    <button class="btn btn-primary" @onclick="NextSeason" disabled="@busy">
+                        @(busy ? "준비 중…" : $"{w.SeasonYear + 1} 시즌 시작")
+                    </button>
+                    <a class="btn" href="table">최종 순위 보기</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="empty">예정된 경기가 없습니다.</div>
+        }
+    </div>
+}
+
+@code {
+    bool busy;
+    PlayerData? subTarget;
+    string? subMessage;
+
+    IEnumerable<PlayerData> Unavailable => Session.Squad.Where(p => p.IsInjured).Take(6);
+
+    void StartLive()
+    {
+        subTarget = null;
+        subMessage = null;
+        Session.BeginLiveMatch();
+    }
+
+    async Task FinishLive()
+    {
+        busy = true;
+        StateHasChanged();
+        await Task.Yield();
+        try { await Session.FinishLiveMatchAsync(); }
+        finally { busy = false; }
+    }
+
+    void DoSub(int inId)
+    {
+        if (subTarget is null) return;
+        var r = Session.LiveSubstitute(subTarget.id, inId);
+        subMessage = r switch
+        {
+            MatchSession.SubResult.Ok => null,
+            MatchSession.SubResult.NoSubsLeft => "교체 횟수를 모두 썼습니다.",
+            MatchSession.SubResult.NotOnBench => "벤치에 없는 선수입니다.",
+            MatchSession.SubResult.NotOnPitch => "그라운드에 없는 선수입니다.",
+            _ => "같은 선수입니다.",
+        };
+        if (r == MatchSession.SubResult.Ok) subTarget = null;
+    }
+
+    void SetMentality(object? value)
+    {
+        if (int.TryParse(value?.ToString(), out int v))
+            Session.LiveSetMentality((TeamMentality)Math.Clamp(v, 0, 4));
+    }
+
+    void SetPressing(object? value)
+    {
+        if (int.TryParse(value?.ToString(), out int v)) Session.LiveSetPressing(v);
+    }
+
+    async Task Run(int rounds)
+    {
+        busy = true;
+        StateHasChanged();
+        await Task.Yield();          // "진행 중" 표시를 먼저 그린다
+        try { await Session.PlayNextRoundAsync(rounds); }
+        finally { busy = false; }
+    }
+
+    async Task NextSeason()
+    {
+        busy = true;
+        StateHasChanged();
+        await Task.Yield();
+        try { await Session.StartNextSeasonAsync(); }
+        finally { busy = false; }
+    }
+
+    static string EventClass(MatchEventType t) => t switch
+    {
+        MatchEventType.Goal => "tl-goal",
+        MatchEventType.RedCard or MatchEventType.SecondYellow => "tl-red",
+        MatchEventType.YellowCard => "tl-card",
+        MatchEventType.Substitution => "tl-sub",
+        _ => "muted",
+    };
+
+    RenderFragment StatRow(string label, object home, object away) => @<tr>
+        <td class="num">@home</td>
+        <td class="center dim tiny">@label</td>
+        <td class="num">@away</td>
+    </tr>;
+}

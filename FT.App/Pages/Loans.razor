@@ -1,0 +1,206 @@
+@page "/loans"
+@inherits SessionPage
+
+<PageTitle>임대 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else
+{
+    var loanable = Session.Loanable.ToList();
+    var out_ = Session.LoansOut.ToList();
+
+    <h1>임대</h1>
+    <p class="muted">
+        @club.name · 내보낸 선수 @(out_.Count)명 · 보낼 수 있는 선수 @(loanable.Count)명
+    </p>
+
+    <div class="card">
+        <div class="card-head"><h3>내보낸 선수</h3></div>
+        @if (out_.Count == 0)
+        {
+            <div class="empty">임대 보낸 선수가 없습니다.</div>
+        }
+        else
+        {
+            <table class="ft">
+                <thead>
+                    <tr><th>선수</th><th>임대처</th><th class="num">나이</th><th class="num">CA</th>
+                        <th class="num">출전</th><th class="num">골</th><th class="num">평점</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var deal in out_)
+                    {
+                        var p = w.Player(deal.playerId);
+                        if (p is null) { continue; }
+                        <tr>
+                            <td class="nowrap"><a href="@($"player/{p.id}")">@p.FullName</a></td>
+                            <td class="nowrap tiny">@Session.ClubName(deal.hostClubId)</td>
+                            <td class="num">@w.Age(p)</td>
+                            <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                            <td class="num">@p.seasonStats.appearances</td>
+                            <td class="num">@p.seasonStats.goals</td>
+                            <td class="num">@(p.seasonStats.appearances > 0 ? p.seasonStats.averageRating.ToString("F2") : "—")</td>
+                            <td class="right">
+                                <button class="btn btn-sm" @onclick="() => Recall(p.id)" disabled="@busy">
+                                    불러들이기
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <p class="tiny dim mb0">
+                임대 중에는 받는 구단이 주급의 70%를 냅니다. 시즌이 끝나면 자동으로 돌아옵니다.
+            </p>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>보낼 수 있는 선수</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">23세 이하 · 선발 아님 · 성장 여지 10 이상</span>
+        </div>
+
+        @if (loanable.Count == 0)
+        {
+            <div class="empty">지금 임대 보낼 만한 선수가 없습니다.</div>
+        }
+        else
+        {
+            <table class="ft">
+                <thead>
+                    <tr><th>선수</th><th>포지션</th><th class="num">나이</th>
+                        <th class="num">CA</th><th class="num">PA</th><th class="num">남은 여지</th>
+                        <th class="num">올해 출전</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in loanable)
+                    {
+                        var ca = GameWorld.Ca(p);
+                        var pa = PlayerDevelopment.Pa(p);
+                        <tr class="@(selected?.id == p.id ? "me" : "")">
+                            <td class="nowrap"><a href="@($"player/{p.id}")">@p.FullName</a></td>
+                            <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                            <td class="num">@w.Age(p)</td>
+                            <td class="num">@Math.Round(ca)</td>
+                            <td class="num dim">@Math.Round(pa)</td>
+                            <td class="num">@Math.Round(pa - ca)</td>
+                            <td class="num @(p.seasonStats.appearances < 5 ? "" : "dim")">@p.seasonStats.appearances</td>
+                            <td class="right">
+                                <button class="btn btn-sm" @onclick="() => Select(p)">임대처 찾기</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <p class="tiny dim mb0">
+                1군에서 뛰지 못하는 어린 선수는 내보내는 편이 빨리 큽니다.
+                경기에 나가지 않으면 성장이 거의 멈춥니다.
+            </p>
+        }
+    </div>
+
+    @if (selected is { } target)
+    {
+        var suitors = Session.Suitors(target);
+
+        <div class="card" style="border-color:var(--emerald)">
+            <div class="card-head">
+                <h3>@target.FullName 임대처</h3>
+                <span class="spacer"></span>
+                <button class="btn btn-sm btn-ghost" @onclick="Close">닫기</button>
+            </div>
+
+            @if (suitors.Count == 0)
+            {
+                <div class="empty">지금 받아 줄 구단이 없습니다. 주전으로 뛸 수 있는 곳만 보여 줍니다.</div>
+            }
+            else
+            {
+                <table class="ft">
+                    <thead>
+                        <tr><th>구단</th><th>리그</th><th class="num">전력</th>
+                            <th class="num">훈련 시설</th><th class="num">주급 부담</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in suitors)
+                        {
+                            var league = w.LeagueOf(c.id);
+                            <tr>
+                                <td class="nowrap">@c.name</td>
+                                <td class="tiny nowrap">
+                                    @league?.shortName
+                                    <span class="badge">@((int)(league?.tier ?? LeagueTier.First))부</span>
+                                </td>
+                                <td class="num">@Math.Round(w.Strength(c.id))</td>
+                                <td class="mono">@(new string('★', c.trainingFacilitiesRating))</td>
+                                <td class="num">@Ui.Money(LoanMarket.WageShare(w, target, c))</td>
+                                <td class="right">
+                                    <button class="btn btn-sm btn-primary" @onclick="() => Send(c)" disabled="@busy">
+                                        보내기
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <p class="tiny dim mb0">
+                    훈련 시설이 좋고 수준이 맞는 곳 순입니다. 그 자리에서 주전으로 뛸 수 있는 구단만 나옵니다.
+                </p>
+            }
+
+            @if (outcome is { } o)
+            {
+                <div class="card mt1" style="margin-bottom:0; border-color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
+                    <strong style="color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
+                        @(o.Accepted ? "임대 완료" : "불가")
+                    </strong>
+                    <span class="muted">@o.Message</span>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    PlayerData? selected;
+    LoanMarket.Outcome? outcome;
+    bool busy;
+
+    void Select(PlayerData p)
+    {
+        selected = p;
+        outcome = null;
+    }
+
+    void Close()
+    {
+        selected = null;
+        outcome = null;
+    }
+
+    async Task Send(ClubData host)
+    {
+        if (selected is null) return;
+        busy = true;
+        StateHasChanged();
+        await Task.Yield();
+        try
+        {
+            outcome = await Session.SendOnLoanAsync(selected, host);
+            if (outcome.Accepted) selected = null;
+        }
+        finally { busy = false; }
+    }
+
+    async Task Recall(int playerId)
+    {
+        busy = true;
+        try { await Session.RecallLoanAsync(playerId); }
+        finally { busy = false; }
+    }
+}

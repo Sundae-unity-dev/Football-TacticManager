@@ -1,0 +1,135 @@
+@page "/finances"
+@inherits SessionPage
+
+<PageTitle>재정 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else
+{
+    var fin = club.finances;
+    var wageRatio = fin.annualRevenue == 0 ? 0f : fin.currentWageSpend * 52f / fin.annualRevenue;
+
+    <h1>재정</h1>
+    <p class="muted">@club.name · @Ui.FinanceLabel(fin.status)</p>
+
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="stat-label">보유 자금</div>
+            <div class="stat-value @(fin.balance >= 0 ? "accent" : "")" style="font-size:1.3rem">@Ui.Money(fin.balance)</div>
+            <div class="stat-sub">@Ui.FinanceLabel(fin.status)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">연 수입</div>
+            <div class="stat-value" style="font-size:1.3rem">@Ui.Money(fin.annualRevenue)</div>
+            <div class="stat-sub">주당 @Ui.Money(fin.annualRevenue / 52)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">주급 지출</div>
+            <div class="stat-value" style="font-size:1.3rem">@Ui.Money(fin.currentWageSpend)</div>
+            <div class="stat-sub">예산 @Ui.Money(fin.weeklyWageBudget)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">급여 비중</div>
+            <div class="stat-value" style="font-size:1.3rem">@((wageRatio * 100).ToString("F0"))%</div>
+            <div class="bar @RatioClass(wageRatio) mt1"><i style="width:@((int)Math.Clamp(wageRatio * 100, 0, 100))%"></i></div>
+        </div>
+    </div>
+
+    <div class="grid grid-2 mt1">
+        <div class="card">
+            <div class="card-head"><h3>규정</h3></div>
+            <table class="ft">
+                <tbody>
+                    <tr>
+                        <td>경고선</td>
+                        <td class="num">@((BalanceConfig.WageWarnRatio * 100).ToString("F0"))%</td>
+                        <td class="right">@(wageRatio > BalanceConfig.WageWarnRatio ? "초과" : "여유")</td>
+                    </tr>
+                    <tr>
+                        <td>제재선</td>
+                        <td class="num">@((BalanceConfig.WageSanctionRatio * 100).ToString("F0"))%</td>
+                        <td class="right">@(wageRatio > BalanceConfig.WageSanctionRatio ? "초과" : "여유")</td>
+                    </tr>
+                    <tr><td>이적 예산</td><td class="num" colspan="2">@Ui.Money(fin.transferBudget)</td></tr>
+                </tbody>
+            </table>
+            <p class="tiny dim mb0">
+                급여 비중이 제재선을 넘으면 영입이 막힙니다.
+                운영비(경기장·스탭·유스·원정)로 수입의 @((BalanceConfig.OverheadRatio * 100).ToString("F0"))% 가 따로 나갑니다.
+            </p>
+            <a class="btn btn-sm mt1" href="transfers">이적 시장으로</a>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>경기장과 스폰서</h3>
+                <span class="spacer"></span>
+                <span class="tiny dim">수입 배수 @Session.RevenueMultiplierLabel</span>
+            </div>
+
+            <table class="ft">
+                <tbody>
+                    <tr>
+                        <td>@(club.stadium?.name ?? "경기장")</td>
+                        <td class="num">@((club.stadium?.capacity ?? 0).ToString("N0"))석</td>
+                        <td class="num dim">분위기 @(club.stadium?.atmosphereRating.ToString("F0") ?? "—")</td>
+                    </tr>
+                    <tr>
+                        <td>@(club.finances.mainSponsor?.sponsorName ?? "스폰서 없음")</td>
+                        <td class="num">@Ui.Money(club.finances.mainSponsor?.annualFee ?? 0)</td>
+                        <td class="num dim">
+                            @if (club.finances.mainSponsor is { } sp)
+                            {
+                                @($"{sp.expiryDate.year}년 만료")
+                            }
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="tiny dim mb0">
+                좌석과 스폰서가 수입을 올립니다. 증축은 <a href="career">이사회</a>에 요청하며,
+                돈은 바로 나가고 수입은 다음 시즌부터 늘어납니다.
+                스폰서 금액은 최근 성적을 따릅니다 — 지금 @Session.FormLabel.
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="card-head"><h3>주급 상위</h3></div>
+            <table class="ft">
+                <thead><tr><th>선수</th><th class="num">CA</th><th class="num">주급</th><th class="num">비중</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Session.Squad.OrderByDescending(p => p.contract?.weeklyWage ?? 0).Take(10))
+                    {
+                        var wage = p.contract?.weeklyWage ?? 0;
+                        <tr>
+                            <td class="nowrap">@p.FullName</td>
+                            <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                            <td class="num">@Ui.Money(wage)</td>
+                            <td class="num dim">@(fin.currentWageSpend > 0 ? (wage * 100f / fin.currentWageSpend).ToString("F1") + "%" : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h3>경기장</h3></div>
+        <div class="grid grid-4">
+            <div class="stat"><div class="stat-label">이름</div><div class="stat-value" style="font-size:1rem">@(club.stadium?.name ?? "—")</div></div>
+            <div class="stat"><div class="stat-label">수용 인원</div><div class="stat-value" style="font-size:1.2rem">@((club.stadium?.capacity ?? 0).ToString("N0"))</div></div>
+            <div class="stat"><div class="stat-label">평균 점유율</div><div class="stat-value" style="font-size:1.2rem">@((int)(club.stadium?.averageAttendanceRate ?? 0))%</div></div>
+            <div class="stat"><div class="stat-label">분위기</div><div class="stat-value" style="font-size:1.2rem">@((int)club.stadium!.atmosphereRating)</div></div>
+        </div>
+    </div>
+}
+
+@code {
+    static string RatioClass(float ratio)
+        => ratio > BalanceConfig.WageSanctionRatio ? "bad"
+         : ratio > BalanceConfig.WageWarnRatio ? "warn" : "";
+}

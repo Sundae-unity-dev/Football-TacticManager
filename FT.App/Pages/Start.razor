@@ -1,0 +1,209 @@
+@page "/"
+@inject GameSession Session
+@inject SaveStore Store
+@inject NavigationManager Nav
+
+<PageTitle>Football Tactician</PageTitle>
+
+@if (Session.HasGame)
+{
+    <div class="splash"><div class="splash-card card">
+        <h2>이미 진행 중인 판이 있습니다</h2>
+        <div class="btn-row mt1">
+            <a class="btn btn-primary" href="dashboard">이어서 하기</a>
+            <button class="btn" @onclick="() => step = Step.Intro">새로 시작</button>
+        </div>
+    </div></div>
+}
+else
+{
+<div class="splash">
+    <div class="splash-card">
+
+        @if (step == Step.Intro)
+        {
+            <div class="card">
+                <h1>FOOTBALL <b>TACTICIAN</b></h1>
+                <p class="muted">브라우저에서 바로 돌아가는 축구 감독 시뮬레이션. 설치도, 내려받기도 없습니다.</p>
+
+                <label class="field mt1">
+                    <span>감독 이름</span>
+                    <input type="text" @bind="managerName" placeholder="이름을 입력하세요" style="width:100%" />
+                </label>
+
+                <label class="field">
+                    <span>세계 시드 — 같은 시드는 같은 세계를 만듭니다</span>
+                    <div style="display:flex; gap:.5rem">
+                        <input type="number" @bind="seed" style="flex:1" />
+                        <button class="btn" @onclick="RollSeed">무작위</button>
+                    </div>
+                </label>
+
+                <div class="btn-row mt1">
+                    <button class="btn btn-primary btn-lg" @onclick="CreateWorld" disabled="@busy">
+                        @(busy ? "세계를 만드는 중…" : "새 게임 시작")
+                    </button>
+                    @if (hasSave)
+                    {
+                        <button class="btn btn-lg" @onclick="LoadAsync" disabled="@busy">이어하기</button>
+                    }
+                </div>
+
+                @if (hasSave && saveMeta is not null)
+                {
+                    <p class="tiny dim mt1 mb0">저장된 판: @saveMeta</p>
+                }
+                @if (error is not null)
+                {
+                    <p class="tiny mt1 mb0" style="color:var(--coral)">@error</p>
+                }
+            </div>
+
+            <p class="tiny dim center">
+                등장하는 국가·리그·구단·선수는 모두 가상입니다.
+            </p>
+        }
+        else if (step == Step.PickNation)
+        {
+            <div class="card">
+                <div class="card-head">
+                    <h2>어느 나라에서 시작할까요</h2>
+                    <span class="spacer"></span>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => step = Step.Intro">뒤로</button>
+                </div>
+                <p class="tiny dim">하위 리그에서 시작해 올라가는 쪽이 커리어로는 더 재미있습니다.</p>
+                <div class="grid grid-2">
+                    @foreach (var n in Session.World!.Nations)
+                    {
+                        @foreach (var lid in n.LeagueIds)
+                        {
+                            var league = Session.World.League(lid)!;
+                            <button class="stat" style="text-align:left; cursor:pointer; border-color:var(--line)"
+                                    @onclick="() => PickNation(lid)">
+                                <div class="stat-label">@n.Country · @((int)league.tier)부</div>
+                                <div class="stat-value" style="font-size:1.05rem">@league.name</div>
+                                <div class="stat-sub">
+                                    @(league.clubIds.Count)개 구단 ·
+                                    평균 수입 @Ui.Money((long)league.clubIds.Average(id => Session.World.Club(id)!.finances.annualRevenue))
+                                </div>
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-head">
+                    <h2>맡을 구단을 고르세요</h2>
+                    <span class="spacer"></span>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => step = Step.PickNation">뒤로</button>
+                </div>
+                <p class="tiny dim">별이 많을수록 자원이 넉넉하지만 이사회 요구도 높습니다.</p>
+
+                <div style="max-height:52vh; overflow:auto">
+                    <table class="ft">
+                        <thead>
+                            <tr>
+                                <th>구단</th><th>평판</th><th class="num">전력</th>
+                                <th class="num">연 수입</th><th class="num">수용</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var club in ClubsOfLeague)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="kit" style="background:@club.colors.primaryHex; width:14px; height:14px; display:inline-block; vertical-align:-2px; margin-right:.4rem; border-radius:4px"></span>
+                                        @club.name
+                                    </td>
+                                    <td class="mono">@(new string('★', club.reputation))</td>
+                                    <td class="num">@Math.Round(Session.World!.Strength(club.id))</td>
+                                    <td class="num">@Ui.Money(club.finances.annualRevenue)</td>
+                                    <td class="num">@club.stadium.capacity.ToString("N0")</td>
+                                    <td class="right">
+                                        <button class="btn btn-sm btn-primary" @onclick="() => Take(club.id)">맡기</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+}
+
+@code {
+    enum Step { Intro, PickNation, PickClub }
+
+    Step step = Step.Intro;
+    string managerName = "";
+    int seed = Random.Shared.Next(1, 1_000_000);
+    int chosenLeagueId = -1;
+    bool busy, hasSave;
+    string? saveMeta, error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hasSave = await Store.HasSaveAsync();
+        if (hasSave) saveMeta = await Store.MetaAsync();
+    }
+
+    IEnumerable<ClubData> ClubsOfLeague
+    {
+        get
+        {
+            var league = Session.World?.League(chosenLeagueId);
+            if (league is null) return [];
+            return league.clubIds
+                .Select(id => Session.World!.Club(id)!)
+                .OrderByDescending(c => c.reputation)
+                .ThenByDescending(c => Session.World!.Strength(c.id));
+        }
+    }
+
+    void RollSeed() => seed = Random.Shared.Next(1, 1_000_000);
+
+    async Task CreateWorld()
+    {
+        busy = true;
+        error = null;
+        StateHasChanged();
+        await Task.Yield();          // 생성 전에 "만드는 중" 표시를 그린다
+        try
+        {
+            Session.NewWorld(seed);
+            step = Step.PickNation;
+        }
+        catch (Exception ex) { error = $"세계를 만들지 못했습니다: {ex.Message}"; }
+        finally { busy = false; }
+    }
+
+    void PickNation(int leagueId)
+    {
+        chosenLeagueId = leagueId;
+        step = Step.PickClub;
+    }
+
+    async Task Take(int clubId)
+    {
+        await Session.TakeChargeAsync(clubId, managerName);
+        Nav.NavigateTo("dashboard");
+    }
+
+    async Task LoadAsync()
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            if (await Session.LoadAsync()) Nav.NavigateTo("dashboard");
+            else error = "저장된 판을 찾지 못했습니다.";
+        }
+        catch (Exception ex) { error = $"세이브를 읽지 못했습니다: {ex.Message}"; }
+        finally { busy = false; }
+    }
+}

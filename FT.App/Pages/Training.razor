@@ -1,0 +1,149 @@
+@page "/training"
+@inherits SessionPage
+
+<PageTitle>훈련 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club || Session.Training is not { } plan)
+{
+    <Redirect />
+}
+else
+{
+    <h1>훈련</h1>
+    <p class="muted">
+        @club.name · 훈련 시설 @(new string('★', club.trainingFacilitiesRating)) ·
+        아카데미 @(new string('★', club.academyRating))
+    </p>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-head"><h3>주간 계획</h3></div>
+
+            <label class="field">
+                <span>강도 — @TrainingPlan.IntensityLabel(plan.Intensity)</span>
+                <input type="range" min="1" max="5" step="1"
+                       value="@plan.Intensity"
+                       @onchange="e => SetIntensity(e.Value)" />
+            </label>
+
+            <label class="field">
+                <span>중점</span>
+                <select value="@((int)plan.Focus)" @onchange="e => SetFocus(e.Value)" style="width:100%">
+                    @foreach (var f in Enum.GetValues<TrainingFocus>())
+                    {
+                        <option value="@((int)f)">@TrainingPlan.FocusLabel(f)</option>
+                    }
+                </select>
+            </label>
+
+            <label class="tiny muted" style="display:flex; align-items:center; gap:.4rem">
+                <input type="checkbox" checked="@plan.YouthPriority"
+                       @onchange="e => SetYouthPriority(e.Value)" />
+                U21 선수에게 출전 시간을 몰아준다
+            </label>
+            <p class="tiny dim">
+                어린 선수가 빨리 크지만 당장의 전력은 떨어집니다.
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="card-head"><h3>이 선택이 바꾸는 것</h3></div>
+            <table class="ft">
+                <thead><tr><th>항목</th><th class="num">배수</th><th></th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td>성장 속도</td>
+                        <td class="num">×@plan.GrowthFactor.ToString("F2")</td>
+                        <td style="width:40%"><div class="bar"><i style="width:@Pct(plan.GrowthFactor)%"></i></div></td>
+                    </tr>
+                    <tr>
+                        <td>주간 회복</td>
+                        <td class="num">×@plan.RecoveryFactor.ToString("F2")</td>
+                        <td><div class="bar @(plan.RecoveryFactor < 0.9f ? "warn" : "")"><i style="width:@Pct(plan.RecoveryFactor)%"></i></div></td>
+                    </tr>
+                    <tr>
+                        <td>부상 위험</td>
+                        <td class="num">×@plan.InjuryFactor.ToString("F2")</td>
+                        <td><div class="bar @(plan.InjuryFactor > 1.2f ? "bad" : plan.InjuryFactor > 1f ? "warn" : "")"><i style="width:@Pct(plan.InjuryFactor)%"></i></div></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="tiny dim mb0">
+                강하게 굴리면 빨리 크지만 컨디션이 덜 돌아오고 부상이 늡니다.
+                공짜로 얻는 것은 없습니다.
+            </p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>선수별 효과</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">현 중점: @TrainingPlan.FocusLabel(plan.Focus)</span>
+        </div>
+
+        <div style="overflow-x:auto">
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th>선수</th><th>포지션</th><th class="num">나이</th>
+                        <th class="num">CA</th><th class="num">PA</th><th class="num">남은 여지</th>
+                        <th class="num">중점 배수</th><th>컨디션</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Session.Squad
+                        .OrderByDescending(p => PlayerDevelopment.Pa(p) - GameWorld.Ca(p))
+                        .ThenByDescending(GameWorld.Ca))
+                    {
+                        var ca = GameWorld.Ca(p);
+                        var pa = PlayerDevelopment.Pa(p);
+                        var room = Math.Max(0, pa - ca);
+                        var bonus = plan.FocusBonusFor(p, w.Age(p));
+                        <tr>
+                            <td class="nowrap">@p.FullName</td>
+                            <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                            <td class="num">@w.Age(p)</td>
+                            <td class="num">@Math.Round(ca)</td>
+                            <td class="num dim">@Math.Round(pa)</td>
+                            <td class="num @(room > 20 ? "" : "dim")">@Math.Round(room)</td>
+                            <td class="num">
+                                <span class="badge @(bonus >= 1.15f ? "good" : bonus < 0.95f ? "warn" : "")">
+                                    ×@bonus.ToString("F2")
+                                </span>
+                            </td>
+                            <td style="min-width:70px">
+                                <div class="bar @Ui.ConditionClass(p.condition)"><i style="width:@((int)p.condition)%"></i></div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="tiny dim mb0">
+            남은 여지(PA − CA)가 큰 선수일수록 훈련 효과가 큽니다. 여지가 없으면 무엇을 해도 크지 않습니다.
+        </p>
+    </div>
+}
+
+@code {
+    static int Pct(float factor) => (int)Math.Clamp(factor / 1.8f * 100f, 5, 100);
+
+    async Task SetIntensity(object? value)
+    {
+        if (int.TryParse(value?.ToString(), out int v))
+            await Session.SetTrainingAsync(p => p.Intensity = Math.Clamp(v, 1, 5));
+    }
+
+    async Task SetFocus(object? value)
+    {
+        if (int.TryParse(value?.ToString(), out int v))
+            await Session.SetTrainingAsync(p => p.Focus = (TrainingFocus)Math.Clamp(v, 0, 5));
+    }
+
+    async Task SetYouthPriority(object? value)
+    {
+        bool on = value is bool b ? b : bool.TryParse(value?.ToString(), out var p2) && p2;
+        await Session.SetTrainingAsync(p => p.YouthPriority = on);
+    }
+}

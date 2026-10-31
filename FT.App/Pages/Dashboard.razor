@@ -1,0 +1,236 @@
+@page "/dashboard"
+@inherits SessionPage
+
+<PageTitle>대시보드 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else
+{
+    var league = w.MyLeague!;
+    var me = Standings.EntryOf(league, club.id)!;
+    var form = Standings.RecentForm(league, club.id);
+
+    <h1>@club.name</h1>
+    <p class="muted">@league.name · @league.regionName · @w.SeasonYear 시즌</p>
+
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="stat-label">리그 순위</div>
+            <div class="stat-value accent">@me.position<span style="font-size:.9rem">위</span></div>
+            <div class="stat-sub">@(me.played)경기 · 승점 @me.points</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">최근 5경기</div>
+            <div class="stat-value" style="font-size:1.1rem; padding-top:.35rem">
+                @if (form.Count == 0) { <span class="dim" style="font-size:.9rem">아직 없음</span> }
+                @foreach (var c in form)
+                {
+                    <span class="form-dot form-@c">@c</span>
+                }
+            </div>
+            <div class="stat-sub">@(me.won)승 @(me.drawn)무 @(me.lost)패</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">팀 전력</div>
+            <div class="stat-value">@Math.Round(w.Strength(club.id))</div>
+            <div class="stat-sub">리그 @(StrengthRank)위 / @league.clubIds.Count</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">이사회 신뢰</div>
+            <div class="stat-value @(w.Manager.boardConfidence >= 50 ? "accent" : "")">@w.Manager.boardConfidence</div>
+            <div class="stat-sub">@Ui.BoardLabel(BoardSystem.ConfidenceLevel(w.Manager.boardConfidence))</div>
+        </div>
+    </div>
+
+    <div class="grid grid-2 mt1">
+        <div class="card">
+            <div class="card-head"><h3>다음 경기</h3></div>
+            @if (Session.NextFixture is { } next)
+            {
+                var home = next.homeClubId == club.id;
+                var oppId = home ? next.awayClubId : next.homeClubId;
+                var opp = w.Club(oppId)!;
+                var oppEntry = Standings.EntryOf(league, oppId)!;
+
+                <div class="scorebug">
+                    <div class="side">
+                        <span class="kit" style="background:@(home ? club.colors.primaryHex : opp.colors.primaryHex)"></span>
+                        <div>
+                            <div class="club">@Session.ClubName(next.homeClubId)</div>
+                            <div class="meta">홈</div>
+                        </div>
+                    </div>
+                    <div class="score"><span class="dim" style="font-size:1rem">@next.matchday R</span></div>
+                    <div class="side away">
+                        <span class="kit" style="background:@(home ? opp.colors.primaryHex : club.colors.primaryHex)"></span>
+                        <div>
+                            <div class="club">@Session.ClubName(next.awayClubId)</div>
+                            <div class="meta">원정</div>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="tiny muted mt1 mb0">
+                    @Ui.DateLabel(next.date) · 상대 @(oppEntry.position)위 ·
+                    전력 @Math.Round(w.Strength(oppId)) (우리 @Math.Round(w.Strength(club.id)))
+                </p>
+                <div class="btn-row mt1">
+                    <a class="btn btn-primary" href="match">경기로 이동</a>
+                    <a class="btn" href="tactics">전술 점검</a>
+                </div>
+            }
+            else
+            {
+                <div class="empty">시즌 일정이 모두 끝났습니다.</div>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>이사회 목표</h3>
+            </div>
+            @if (w.Objectives.Count == 0)
+            {
+                <div class="empty">아직 목표가 없습니다.</div>
+            }
+            else
+            {
+                <table class="ft">
+                    <tbody>
+                        @foreach (var o in w.Objectives)
+                        {
+                            <tr>
+                                <td>@o.description</td>
+                                <td class="right nowrap">
+                                    <span class="badge @ObjBadge(o.result)">@ObjLabel(o.result)</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-head">
+                <h3>순위표</h3><span class="spacer"></span>
+                <a class="btn btn-sm btn-ghost" href="table">전체 보기</a>
+            </div>
+            <table class="ft">
+                <thead><tr><th>#</th><th>구단</th><th class="num">경기</th><th class="num">승점</th><th class="num">득실</th></tr></thead>
+                <tbody>
+                    @foreach (var e in NearbyTable)
+                    {
+                        <tr class="@(e.clubId == club.id ? "me" : "")">
+                            <td class="mono">@e.position</td>
+                            <td>@Session.ClubName(e.clubId)</td>
+                            <td class="num">@e.played</td>
+                            <td class="num">@e.points</td>
+                            <td class="num">@e.GoalDifference.ToString("+0;-0;0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>받은 소식</h3><span class="spacer"></span>
+                <a class="btn btn-sm btn-ghost" href="inbox">전체 보기</a>
+            </div>
+            @if (w.Inbox.Count == 0)
+            {
+                <div class="empty">아직 소식이 없습니다.</div>
+            }
+            else
+            {
+                @foreach (var item in w.Inbox.Take(5))
+                {
+                    <div class="inbox-item kind-@item.kind">
+                        <div class="inbox-date">@Ui.DateLabel(item.date)</div>
+                        <div class="inbox-title">@item.title</div>
+                        <div class="inbox-body">@item.body</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>주목할 선수</h3><span class="spacer"></span>
+            <a class="btn btn-sm btn-ghost" href="squad">스쿼드 전체</a>
+        </div>
+        <div class="grid grid-3">
+            @foreach (var p in TopPlayers)
+            {
+                <a class="stat" href="@($"player/{p.id}")" style="text-decoration:none; display:block">
+                    <div class="stat-label">
+                        <span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span>
+                        @(w.Age(p))세
+                    </div>
+                    <div class="stat-value" style="font-size:1rem">@p.FullName</div>
+                    <div class="stat-sub">
+                        CA @Math.Round(GameWorld.Ca(p)) ·
+                        @(p.seasonStats.goals)골 @(p.seasonStats.assists)도움
+                        @if (p.IsInjured) { <span class="badge bad">@p.injury!.injuryType</span> }
+                    </div>
+                </a>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    int StrengthRank
+    {
+        get
+        {
+            var w = Session.World!;
+            var league = w.MyLeague!;
+            return league.clubIds
+                .OrderByDescending(id => w.Strength(id))
+                .ToList()
+                .IndexOf(w.ManagedClubId) + 1;
+        }
+    }
+
+    IEnumerable<StandingEntry> NearbyTable
+    {
+        get
+        {
+            var w = Session.World!;
+            var table = w.MyLeague!.currentSeason.standings;
+            int idx = table.FindIndex(e => e.clubId == w.ManagedClubId);
+            int start = Math.Clamp(idx - 2, 0, Math.Max(0, table.Count - 6));
+            return table.Skip(start).Take(6);
+        }
+    }
+
+    IEnumerable<PlayerData> TopPlayers =>
+        Session.Squad
+            .OrderByDescending(p => p.seasonStats.goals * 3 + p.seasonStats.assists * 2)
+            .ThenByDescending(GameWorld.Ca)
+            .Take(3);
+
+    static string ObjLabel(BoardObjectiveResult r) => r switch
+    {
+        BoardObjectiveResult.Achieved => "달성",
+        BoardObjectiveResult.Failed => "실패",
+        BoardObjectiveResult.PartiallyMet => "부분 달성",
+        _ => "진행 중",
+    };
+
+    static string ObjBadge(BoardObjectiveResult r) => r switch
+    {
+        BoardObjectiveResult.Achieved => "good",
+        BoardObjectiveResult.Failed => "bad",
+        BoardObjectiveResult.PartiallyMet => "warn",
+        _ => "",
+    };
+}

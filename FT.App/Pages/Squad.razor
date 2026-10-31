@@ -1,0 +1,162 @@
+@page "/squad"
+@inherits SessionPage
+@inject NavigationManager Nav
+
+<PageTitle>스쿼드 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else
+{
+    var tactics = Session.ActiveTactics;
+    var starters = tactics?.slots.Select(s => s.assignedPlayerId).ToHashSet() ?? [];
+
+    <h1>스쿼드</h1>
+    <p class="muted">
+        @club.name · @(Session.Squad.Count())명 ·
+        주급 합계 @Ui.Money(club.finances.currentWageSpend)/주 ·
+        부상 @(Session.Squad.Count(p => p.IsInjured))명
+        @if (Session.LoansOut.Any())
+        {
+            <span>· <a href="loans">임대 중 @(Session.LoansOut.Count())명</a></span>
+        }
+        <span class="@(Session.MeetsHomegrown ? "" : "warn")">· 유스 출신 @Session.HomegrownLabel</span>
+    </p>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>선수 목록</h3>
+            <span class="spacer"></span>
+            <select @bind="sort" @bind:after="StateHasChanged">
+                <option value="ca">기량 순</option>
+                <option value="pos">포지션 순</option>
+                <option value="age">나이 순</option>
+                <option value="value">가치 순</option>
+                <option value="goals">득점 순</option>
+                <option value="rating">평점 순</option>
+            </select>
+            <label class="tiny muted nowrap" style="display:flex; align-items:center; gap:.3rem">
+                <input type="checkbox" @bind="startersOnly" @bind:after="StateHasChanged" /> 선발만
+            </label>
+        </div>
+
+        <div style="overflow-x:auto">
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th></th><th>이름</th><th>포지션</th>
+                        <th class="num">나이</th><th class="num">CA</th><th class="num">PA</th>
+                        <th>컨디션</th><th>사기</th>
+                        <th class="num">경기</th><th class="num">골</th><th class="num">도움</th><th class="num">평점</th>
+                        <th class="num">가치</th><th class="num">주급</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Rows(starters))
+                    {
+                        var ca = GameWorld.Ca(p);
+                        var pa = PlayerDevelopment.Pa(p);
+                        <tr class="clickable @(starters.Contains(p.id) ? "me" : "")"
+                            @onclick="() => Open(p.id)">
+                            <td class="center">
+                                @if (starters.Contains(p.id)) { <span class="badge good" title="선발">XI</span> }
+                                else if (p.IsInjured) { <span class="badge bad" title="@p.injury!.injuryType">부상</span> }
+                            </td>
+                            <td class="nowrap">@p.FullName <span class="tiny dim">@Ui.NationCode(p.nationality)</span></td>
+                            <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                            <td class="num">@w.Age(p)</td>
+                            <td class="num">@Math.Round(ca)</td>
+                            <td class="num dim">@Math.Round(pa)</td>
+                            <td style="min-width:72px">
+                                <div class="bar @Ui.ConditionClass(p.condition)"><i style="width:@((int)p.condition)%"></i></div>
+                            </td>
+                            <td style="min-width:72px">
+                                <div class="bar @Ui.BarClass(p.morale / 100f)"><i style="width:@((int)p.morale)%"></i></div>
+                            </td>
+                            <td class="num">@p.seasonStats.appearances</td>
+                            <td class="num">@p.seasonStats.goals</td>
+                            <td class="num">@p.seasonStats.assists</td>
+                            <td class="num">@(p.seasonStats.appearances > 0 ? p.seasonStats.averageRating.ToString("F2") : "—")</td>
+                            <td class="num">@Ui.Money(p.marketValue)</td>
+                            <td class="num">@Ui.Money(p.contract?.weeklyWage ?? 0)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Session.ReserveSquad is { Count: > 0 } reserves)
+    {
+        <div class="card">
+            <div class="card-head">
+                <h3>2군</h3>
+                <span class="spacer"></span>
+                <span class="tiny dim">
+                    @(reserves.Count)명 ·
+                    @(Session.NextReserveMatchday > 0 ? $"다음 {Session.NextReserveMatchday} 라운드 주" : "올해 일정 끝")
+                </span>
+            </div>
+
+            <p class="tiny dim">
+                1군 명단에 없는 선수들이 뜁니다. 벤치에 앉아 있는 것보다 낫지만 1군만 못합니다 —
+                내보내지 않고 데리고 있으면서 키울 수 있습니다.
+            </p>
+
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th>선수</th><th class="center">나이</th><th class="num">CA</th>
+                        <th class="num">2군 출전</th><th class="num">1군 출전</th><th>컨디션</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in reserves)
+                    {
+                        <tr>
+                            <td class="nowrap"><a href="@($"player/{p.id}")">@p.FullName</a></td>
+                            <td class="center">@w.Age(p)</td>
+                            <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                            <td class="num">@p.reserveAppearances</td>
+                            <td class="num dim">@(p.seasonStats?.appearances ?? 0)</td>
+                            <td style="min-width:70px">
+                                <div class="bar @Ui.ConditionClass(p.condition)"><i style="width:@((int)p.condition)%"></i></div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    void Open(int playerId) => Nav.NavigateTo($"player/{playerId}");
+
+    string sort = "ca";
+    bool startersOnly;
+
+    IEnumerable<PlayerData> Rows(HashSet<int> starters)
+    {
+        var w = Session.World!;
+        var list = Session.Squad.AsEnumerable();
+        if (startersOnly) list = list.Where(p => starters.Contains(p.id));
+
+        return sort switch
+        {
+            "pos" => list.OrderBy(p => PosOrder(p)).ThenByDescending(GameWorld.Ca),
+            "age" => list.OrderBy(p => w.Age(p)).ThenByDescending(GameWorld.Ca),
+            "value" => list.OrderByDescending(p => p.marketValue),
+            "goals" => list.OrderByDescending(p => p.seasonStats.goals).ThenByDescending(p => p.seasonStats.assists),
+            "rating" => list.OrderByDescending(p => p.seasonStats.appearances > 0 ? p.seasonStats.averageRating : 0),
+            _ => list.OrderByDescending(GameWorld.Ca),
+        };
+    }
+
+    static int PosOrder(PlayerData p) => Ui.PosClassOf(p) switch
+    {
+        "gk" => 0, "def" => 1, "mid" => 2, _ => 3,
+    };
+}

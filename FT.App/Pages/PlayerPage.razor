@@ -1,0 +1,301 @@
+@page "/player/{Id:int}"
+@inherits SessionPage
+
+<PageTitle>@(Player?.FullName ?? "선수") · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w)
+{
+    <Redirect />
+}
+else if (Player is not { } p)
+{
+    <div class="empty">선수를 찾을 수 없습니다. <a href="squad">스쿼드로</a></div>
+}
+else
+{
+    var ca = GameWorld.Ca(p);
+    var pa = PlayerDevelopment.Pa(p);
+    var club = w.Club(p.clubId);
+
+    <h1>@p.FullName</h1>
+    <p class="muted">
+        <span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span>
+        @club?.name · @(w.Age(p))세 · @Ui.NationCode(p.nationality) · @p.height cm / @p.weight kg ·
+        @(p.preferredFoot == PreferredFoot.Left ? "왼발" : p.preferredFoot == PreferredFoot.Right ? "오른발" : "양발")
+    </p>
+
+    @if (p.IsInjured)
+    {
+        <div class="card" style="border-color:var(--coral)">
+            <strong style="color:var(--coral)">@p.injury!.injuryType</strong>
+            <span class="muted">
+                · @Ui.SeverityLabel(p.injury.severity)
+                · 복귀 예정 @Ui.DateLabel(p.injury.expectedReturnDate)
+            </span>
+        </div>
+    }
+
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="stat-label">현재 기량 (CA)</div>
+            <div class="stat-value accent">@Math.Round(ca)</div>
+            <div class="bar mt1"><i style="width:@Ui.CaBar(ca)%"></i></div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">잠재력 (PA)</div>
+            <div class="stat-value">@Math.Round(pa)</div>
+            <div class="stat-sub">실현율 @((ca / Math.Max(1f, pa) * 100f).ToString("F0"))%</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">시장 가치</div>
+            <div class="stat-value" style="font-size:1.25rem">@Ui.Money(p.marketValue)</div>
+            <div class="stat-sub">주급 @Ui.Money(p.contract?.weeklyWage ?? 0)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">컨디션 · 사기</div>
+            <div class="stat-value" style="font-size:1.25rem">@((int)p.condition)%</div>
+            <div class="stat-sub">@Ui.MoraleLabel(p.morale)</div>
+        </div>
+    </div>
+
+    <div class="grid grid-2 mt1">
+        <div class="card">
+            <div class="card-head"><h3>기술</h3></div>
+            @Attr("패스", p.technical.passing)
+            @Attr("드리블", p.technical.dribbling)
+            @Attr("슈팅", p.technical.shooting)
+            @Attr("마무리", p.technical.finishing)
+            @Attr("헤더", p.technical.heading)
+            @Attr("크로스", p.technical.crossing)
+            @Attr("태클", p.technical.tackling)
+            @Attr("마킹", p.technical.marking)
+            @Attr("퍼스트터치", p.technical.firstTouch)
+            @Attr("롱패스", p.technical.longPassing)
+            @Attr("세트피스", p.technical.setPieces)
+        </div>
+
+        <div class="card">
+            <div class="card-head"><h3>신체</h3></div>
+            @Attr("속도", p.physical.speed)
+            @Attr("가속", p.physical.acceleration)
+            @Attr("체력", p.physical.stamina)
+            @Attr("몸싸움", p.physical.strength)
+            @Attr("점프", p.physical.jumping)
+            @Attr("민첩", p.physical.agility)
+            @Attr("밸런스", p.physical.balance)
+
+            <div class="card-head mt1"><h3>정신</h3></div>
+            @Attr("시야", p.mental.vision)
+            @Attr("침착", p.mental.composure)
+            @Attr("리더십", p.mental.leadership)
+            @Attr("투지", p.mental.courage)
+            @Attr("활동량", p.mental.workRate)
+            @Attr("집중", p.mental.concentration)
+            @Attr("판단", p.mental.decisions)
+            @Attr("위치선정", p.mental.positioning)
+            @Attr("적극성", p.mental.aggression)
+            @Attr("팀워크", p.mental.teamwork)
+            @Attr("오프더볼", p.mental.offTheBall)
+        </div>
+    </div>
+
+    @if ((p.positionFlags & Position.GK) != 0)
+    {
+        <div class="card">
+            <div class="card-head"><h3>골키퍼</h3></div>
+            <div class="grid grid-2">
+                <div>
+                    @Attr("핸들링", p.goalkeeper.handling)
+                    @Attr("다이빙", p.goalkeeper.diving)
+                    @Attr("반사신경", p.goalkeeper.reflexes)
+                    @Attr("위치선정", p.goalkeeper.positioning)
+                    @Attr("커맨드", p.goalkeeper.commandArea)
+                </div>
+                <div>
+                    @Attr("일대일", p.goalkeeper.oneOnOne)
+                    @Attr("제공권", p.goalkeeper.aerialAbility)
+                    @Attr("킥", p.goalkeeper.kicking)
+                    @Attr("스로", p.goalkeeper.throwing)
+                    @Attr("소통", p.goalkeeper.communication)
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-head"><h3>이번 시즌</h3></div>
+            <table class="ft">
+                <tbody>
+                    <tr><td>출전</td><td class="num">@p.seasonStats.appearances 경기</td></tr>
+                    <tr><td>득점 · 도움</td><td class="num">@p.seasonStats.goals · @p.seasonStats.assists</td></tr>
+                    <tr><td>평균 평점</td><td class="num">@(p.seasonStats.appearances > 0 ? p.seasonStats.averageRating.ToString("F2") : "—")</td></tr>
+                    <tr><td>출전 시간</td><td class="num">@((int)p.seasonStats.minutesPlayed) 분</td></tr>
+                    <tr><td>경고 · 퇴장</td><td class="num">@p.seasonStats.yellowCards · @p.seasonStats.redCards</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <div class="card-head"><h3>계약</h3></div>
+            <table class="ft">
+                <tbody>
+                    <tr><td>주급</td><td class="num">@Ui.Money(p.contract?.weeklyWage ?? 0)</td></tr>
+                    <tr><td>만료</td><td class="num">@(p.contract is null ? "—" : Ui.DateLabel(p.contract.expiryDate))</td></tr>
+                    <tr><td>성향</td><td class="num">@p.personality</td></tr>
+                    <tr><td>프로의식</td><td class="num">@p.hidden.professionalism / 20</td></tr>
+                    <tr><td>부상 성향</td><td class="num">@p.hidden.injuryProneness / 20</td></tr>
+                    <tr><td>회복력</td><td class="num">@p.hidden.recoveryRate / 20</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (p.clubId == Session.World?.ManagedClubId && Session.GoalsOf(p) is { Count: > 0 } goals)
+    {
+        <div class="card">
+            <div class="card-head">
+                <h3>올해 바라는 것</h3>
+                <span class="spacer"></span>
+                <span class="tiny dim">시즌 @((int)(Session.SeasonProgress * 100))% 진행</span>
+            </div>
+            <table class="ft">
+                <tbody>
+                    @foreach (var g in goals)
+                    {
+                        <tr>
+                            <td class="nowrap" style="width:12rem">@g.Text</td>
+                            <td style="min-width:90px">
+                                <div class="bar @(g.Met ? "good" : "")">
+                                    <i style="width:@((int)(g.Ratio * 100))%"></i>
+                                </div>
+                            </td>
+                            <td class="right nowrap tiny" style="width:5rem">
+                                @if (g.Met)
+                                {
+                                    <span class="badge good">이룸</span>
+                                }
+                                else if (g.Target > 1)
+                                {
+                                    <span class="dim">@g.Progress / @g.Target</span>
+                                }
+                                else
+                                {
+                                    <span class="dim">아직</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <p class="tiny dim">못 이룬 채 시즌이 흐르면 불만이 쌓이고, 끝내 이적을 요청합니다.</p>
+        </div>
+    }
+
+    @if (p.caps > 0 || Session.IsNationalCandidate(p))
+    {
+        <div class="card">
+            <div class="card-head"><h3>국가대표</h3></div>
+            <table class="ft">
+                <tbody>
+                    <tr><td>국적</td><td class="num">@p.nationality</td></tr>
+                    <tr><td>A매치 출전</td><td class="num">@p.caps</td></tr>
+                    <tr><td>대표팀 득점</td><td class="num">@p.internationalGoals</td></tr>
+                    <tr>
+                        <td>발탁선</td>
+                        <td class="num">
+                            CA @Session.CallUpThreshold(p).ToString("F0")
+                            <span class="tiny dim">(현재 @Math.Round(GameWorld.Ca(p)))</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (BestRoles(p) is { Count: > 0 } roles)
+    {
+        <div class="card">
+            <div class="card-head">
+                <h3>어울리는 역할</h3>
+                <span class="spacer"></span>
+                <span class="tiny dim">능력치의 치우침으로 봅니다</span>
+            </div>
+            <table class="ft">
+                <tbody>
+                    @foreach (var (role, fit) in roles)
+                    {
+                        var def = RoleDatabase.Get(role);
+                        <tr>
+                            <td class="nowrap" style="width:10rem">@def.displayName</td>
+                            <td class="tiny dim">@def.shortDescription</td>
+                            <td class="right" style="width:3.5rem">
+                                <span class="badge @(fit >= 65 ? "good" : fit < 45 ? "warn" : "")">@fit</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (p.clubId == Session.World?.ManagedClubId && Session.RelationsOf(p) is { Count: > 0 } relations)
+    {
+        <div class="card">
+            <div class="card-head">
+                <h3>탈의실에서</h3>
+                <span class="spacer"></span>
+                <a class="tiny" href="room">탈의실 전체 보기</a>
+            </div>
+            <table class="ft">
+                <tbody>
+                    @foreach (var rel in relations.Take(6))
+                    {
+                        <tr>
+                            <td class="nowrap" style="width:7rem">@RelName(rel.type)</td>
+                            <td class="nowrap">
+                                <a href="@($"player/{rel.targetPlayerId}")">
+                                    @Session.World!.Player(rel.targetPlayerId)?.FullName
+                                </a>
+                            </td>
+                            <td class="right mono dim tiny">@rel.strength</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <a class="btn" href="squad">스쿼드로 돌아가기</a>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    PlayerData? Player => Session.Player(Id);
+
+    /// <summary>그 선수가 소화할 수 있는 자리에서 가장 잘 맞는 역할 다섯 가지.</summary>
+    static List<(PlayerRole role, int fit)> BestRoles(PlayerData p)
+        => RoleDatabase.All.Values
+            .Where(d => (d.applicablePositions & p.positionFlags) != 0)
+            .Select(d => (d.role, fit: RoleFit.Percent(p, d)))
+            .OrderByDescending(x => x.fit)
+            .Take(5)
+            .ToList();
+
+    static string RelName(RelationshipType t) => t switch
+    {
+        RelationshipType.Captain => "주장",
+        RelationshipType.Mentor => "멘토",
+        RelationshipType.Mentee => "멘티",
+        RelationshipType.Rival => "경쟁자",
+        RelationshipType.NationalTeam => "동향",
+        _ => "동료",
+    };
+
+    RenderFragment Attr(string name, int value) => @<div class="attr-row">
+        <span class="name">@name</span>
+        <span class="bar @Ui.BarClass(value / 20f)"><i style="width:@(value * 5)%"></i></span>
+        <span class="val">@value</span>
+    </div>;
+}

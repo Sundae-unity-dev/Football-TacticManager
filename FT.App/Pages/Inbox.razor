@@ -1,0 +1,75 @@
+@page "/inbox"
+@inherits SessionPage
+
+<PageTitle>받은 소식 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w)
+{
+    <Redirect />
+}
+else
+{
+    <h1>받은 소식</h1>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>@(w.Inbox.Count)건</h3>
+            <span class="spacer"></span>
+            <select @bind="filter" @bind:after="StateHasChanged">
+                <option value="">전체</option>
+                <option value="Board">이사회</option>
+                <option value="Match">경기</option>
+                <option value="Injury">부상</option>
+                <option value="News">소식</option>
+            </select>
+            <button class="btn btn-sm" @onclick="MarkAllRead">모두 읽음</button>
+        </div>
+
+        @if (!Items.Any())
+        {
+            <div class="empty">표시할 소식이 없습니다.</div>
+        }
+        else
+        {
+            @foreach (var item in Items)
+            {
+                <div class="inbox-item kind-@item.kind">
+                    <div class="inbox-date">@Ui.DateLabel(item.date) · @KindLabel(item.kind)</div>
+                    <div class="inbox-title">@item.title</div>
+                    <div class="inbox-body">@item.body</div>
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    string filter = "";
+
+    IEnumerable<InboxItem> Items
+    {
+        get
+        {
+            var all = Session.World?.Inbox ?? [];
+            return string.IsNullOrEmpty(filter)
+                ? all
+                : all.Where(i => i.kind.ToString() == filter);
+        }
+    }
+
+    void MarkAllRead()
+    {
+        foreach (var i in Session.World?.Inbox ?? []) i.read = true;
+        Session.NotifyChanged();
+    }
+
+    static string KindLabel(InboxKind k) => k switch
+    {
+        InboxKind.Board => "이사회",
+        InboxKind.Match => "경기",
+        InboxKind.Injury => "부상",
+        InboxKind.Transfer => "이적",
+        InboxKind.Staff => "스태프",
+        _ => "소식",
+    };
+}

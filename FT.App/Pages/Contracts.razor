@@ -1,0 +1,234 @@
+@page "/contracts"
+@inherits SessionPage
+
+<PageTitle>계약 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else
+{
+    var expiring = Session.ExpiringContracts.ToList();
+    var urgent = expiring.Count(p => Session.MonthsLeft(p) <= 6);
+
+    <h1>계약</h1>
+    <p class="muted">
+        @club.name · 주급 합계 @Ui.Money(club.finances.currentWageSpend)/주 ·
+        급여 비중 @((club.finances.currentWageSpend * 52f / Math.Max(1, club.finances.annualRevenue)).ToString("P0"))
+    </p>
+
+    @if (urgent > 0)
+    {
+        <div class="card" style="border-color:var(--coral)">
+            <strong style="color:var(--coral)">@(urgent)명의 계약이 6개월 안에 끝납니다.</strong>
+            <span class="muted">재계약하지 않으면 시즌이 끝날 때 이적료 없이 떠납니다.</span>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-head">
+            <h3>만료가 가까운 선수</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">@(expiring.Count)명 · 18개월 이내</span>
+        </div>
+
+        @if (expiring.Count == 0)
+        {
+            <div class="empty">당분간 만료되는 계약이 없습니다.</div>
+        }
+        else
+        {
+            <div style="overflow-x:auto">
+                <table class="ft">
+                    <thead>
+                        <tr>
+                            <th>선수</th><th>포지션</th><th class="num">나이</th><th class="num">CA</th>
+                            <th class="num">남은 기간</th><th class="num">현재 주급</th>
+                            <th class="num">요구 주급</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in expiring)
+                        {
+                            var months = Session.MonthsLeft(p);
+                            var want = ContractTalks.DemandedWage(w, p);
+                            var now = p.contract?.weeklyWage ?? 0;
+                            <tr class="@(selected?.id == p.id ? "me" : "")">
+                                <td class="nowrap">
+                                    <a href="@($"player/{p.id}")">@p.FullName</a>
+                                </td>
+                                <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                                <td class="num">@w.Age(p)</td>
+                                <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                                <td class="num">
+                                    <span class="badge @(months <= 6 ? "bad" : months <= 12 ? "warn" : "")">
+                                        @(months)개월
+                                    </span>
+                                </td>
+                                <td class="num dim">@Ui.Money(now)</td>
+                                <td class="num">
+                                    @Ui.Money(want)
+                                    @if (want > now)
+                                    {
+                                        <span class="tiny dim">(+@((want / (float)Math.Max(1, now) - 1).ToString("P0")))</span>
+                                    }
+                                </td>
+                                <td class="right">
+                                    <button class="btn btn-sm" @onclick="() => Select(p)">재계약</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @if (selected is { } target)
+    {
+        var wantWage = ContractTalks.DemandedWage(w, target);
+        var wantYears = ContractTalks.DemandedYears(w, target);
+        float afterRatio = (club.finances.currentWageSpend
+                            - (target.contract?.weeklyWage ?? 0) + offerWage) * 52f
+                         / Math.Max(1, club.finances.annualRevenue);
+
+        <div class="card" style="border-color:var(--emerald)">
+            <div class="card-head">
+                <h3>@target.FullName 재계약</h3>
+                <span class="spacer"></span>
+                <button class="btn btn-sm btn-ghost" @onclick="Close">닫기</button>
+            </div>
+
+            <div class="grid grid-2">
+                <div>
+                    <table class="ft">
+                        <tbody>
+                            <tr><td>나이 · 포지션</td><td class="right">@(w.Age(target))세 · @Ui.PosLabelOf(target)</td></tr>
+                            <tr><td>기량 · 잠재력</td><td class="right">@Math.Round(GameWorld.Ca(target)) · @Math.Round(PlayerDevelopment.Pa(target))</td></tr>
+                            <tr><td>현재 주급</td><td class="right dim">@Ui.Money(target.contract?.weeklyWage ?? 0)</td></tr>
+                            <tr><td>요구 주급</td><td class="right"><strong>@Ui.Money(wantWage)</strong></td></tr>
+                            <tr><td>원하는 기간</td><td class="right">@(wantYears)년</td></tr>
+                            <tr><td>만료</td><td class="right">@(target.contract is null ? "—" : Ui.DateLabel(target.contract.expiryDate))</td></tr>
+                            <tr><td>이번 시즌</td><td class="right">@(target.seasonStats.appearances)경기 @(target.seasonStats.goals)골</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <label class="field">
+                        <span>주급 — @Ui.Money(offerWage)</span>
+                        <input type="range" min="1000" max="@MaxWage" step="1000"
+                               @bind="offerWage" @bind:event="oninput" />
+                    </label>
+                    <label class="field">
+                        <span>계약 기간 — @(offerYears)년</span>
+                        <input type="range" min="1" max="5" step="1"
+                               @bind="offerYears" @bind:event="oninput" />
+                    </label>
+
+                    <div class="stat" style="margin-bottom:.8rem">
+                        <div class="stat-label">재계약 후</div>
+                        <div class="tiny">
+                            급여 비중 @afterRatio.ToString("P0")
+                            @if (afterRatio > BalanceConfig.WageSanctionRatio)
+                            {
+                                <span class="badge bad">제재선 초과</span>
+                            }
+                            else if (afterRatio > BalanceConfig.WageWarnRatio)
+                            {
+                                <span class="badge warn">경고선 초과</span>
+                            }
+                        </div>
+                        <div class="bar @(afterRatio > BalanceConfig.WageSanctionRatio ? "bad" : afterRatio > BalanceConfig.WageWarnRatio ? "warn" : "") mt1">
+                            <i style="width:@((int)Math.Clamp(afterRatio * 100, 0, 100))%"></i>
+                        </div>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-primary" @onclick="Send" disabled="@busy">
+                            @(busy ? "협상 중…" : "제안 보내기")
+                        </button>
+                        <button class="btn btn-sm" @onclick="() => FillDemand(target)">요구대로 채우기</button>
+                    </div>
+                </div>
+            </div>
+
+            @if (outcome is { } o)
+            {
+                <div class="card mt1" style="margin-bottom:0; border-color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
+                    <strong style="color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
+                        @(o.Accepted ? "재계약 완료" : "거절")
+                    </strong>
+                    <span class="muted">@o.Message</span>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-head"><h3>전체 계약 현황</h3></div>
+        <table class="ft">
+            <thead><tr><th>선수</th><th class="num">CA</th><th class="num">주급</th><th class="num">만료</th><th class="num">남은 기간</th></tr></thead>
+            <tbody>
+                @foreach (var p in Session.Squad.OrderBy(p => p.contract?.expiryDate ?? default))
+                {
+                    var months = Session.MonthsLeft(p);
+                    <tr>
+                        <td class="nowrap">@p.FullName</td>
+                        <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                        <td class="num">@Ui.Money(p.contract?.weeklyWage ?? 0)</td>
+                        <td class="num tiny dim">@(p.contract is null ? "—" : Ui.DateLabel(p.contract.expiryDate))</td>
+                        <td class="num">
+                            <span class="badge @(months <= 6 ? "bad" : months <= 12 ? "warn" : "")">@(months)개월</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    PlayerData? selected;
+    ContractTalks.Outcome? outcome;
+    int offerWage = 10_000;
+    int offerYears = 3;
+    bool busy;
+
+    int MaxWage => Math.Max(20_000, (int)((Session.World?.MyClub?.finances.annualRevenue ?? 0) / 52 / 3));
+
+    void Select(PlayerData p)
+    {
+        selected = p;
+        outcome = null;
+        FillDemand(p);
+    }
+
+    void FillDemand(PlayerData p)
+    {
+        if (Session.World is not { } w) return;
+        offerWage = ContractTalks.DemandedWage(w, p);
+        offerYears = ContractTalks.DemandedYears(w, p);
+    }
+
+    void Close()
+    {
+        selected = null;
+        outcome = null;
+    }
+
+    async Task Send()
+    {
+        if (selected is null) return;
+        busy = true;
+        StateHasChanged();
+        await Task.Yield();
+        try
+        {
+            outcome = await Session.OfferRenewalAsync(selected, offerWage, offerYears);
+            if (outcome.Accepted) selected = null;
+        }
+        finally { busy = false; }
+    }
+}

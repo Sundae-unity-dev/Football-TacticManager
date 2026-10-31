@@ -1,0 +1,15 @@
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+
+# 테스트·배포 산출물
+TestResults/
+publish/
+*.binlog
+
+# 편집기
+.idea/
+*.swp
+.DS_Store

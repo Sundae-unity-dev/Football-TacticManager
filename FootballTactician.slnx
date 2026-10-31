@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="FT.App/FT.App.csproj" />
+  <Project Path="FT.Core.Tests/FT.Core.Tests.csproj" />
+  <Project Path="FT.Core/FT.Core.csproj" />
+  <Project Path="FT.Sim/FT.Sim.csproj" />
+</Solution>

@@ -1,0 +1,112 @@
+@page "/fixtures"
+@inherits SessionPage
+
+<PageTitle>일정 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else
+{
+    var league = w.MyLeague!;
+    var mine = league.currentSeason.fixtures
+        .Where(f => f.homeClubId == club.id || f.awayClubId == club.id)
+        .OrderBy(f => f.matchday)
+        .ToList();
+
+    <h1>일정</h1>
+    <p class="muted">@club.name · @w.SeasonYear 시즌 · @mine.Count(f => f.isPlayed) / @mine.Count 경기</p>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>우리 구단 일정</h3>
+            <span class="spacer"></span>
+            <label class="tiny muted nowrap" style="display:flex; align-items:center; gap:.3rem">
+                <input type="checkbox" @bind="upcomingOnly" @bind:after="StateHasChanged" /> 남은 경기만
+            </label>
+        </div>
+
+        <table class="ft">
+            <thead>
+                <tr><th class="num">R</th><th>날짜</th><th>상대</th><th class="center">홈/원정</th><th class="center">결과</th><th class="num">상대 전력</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var f in upcomingOnly ? mine.Where(x => !x.isPlayed) : mine)
+                {
+                    var home = f.homeClubId == club.id;
+                    var oppId = home ? f.awayClubId : f.homeClubId;
+                    <tr class="@(f.id == Session.NextFixture?.id ? "me" : "")">
+                        <td class="mono">@f.matchday</td>
+                        <td class="tiny dim">@Ui.DateLabel(f.date)</td>
+                        <td class="nowrap">
+                            <span class="kit" style="background:@w.Club(oppId)!.colors.primaryHex; width:12px; height:12px; display:inline-block; vertical-align:-1px; margin-right:.4rem; border-radius:3px"></span>
+                            @Session.ClubName(oppId)
+                        </td>
+                        <td class="center"><span class="badge">@(home ? "홈" : "원정")</span></td>
+                        <td class="center">
+                            @if (f.isPlayed && f.result is { } r)
+                            {
+                                var us = home ? r.homeGoals : r.awayGoals;
+                                var them = home ? r.awayGoals : r.homeGoals;
+                                var mark = us > them ? 'W' : us == them ? 'D' : 'L';
+                                <span class="form-dot form-@mark">@mark</span>
+                                <span class="mono">@us-@them</span>
+                            }
+                            else
+                            {
+                                <span class="dim">—</span>
+                            }
+                        </td>
+                        <td class="num dim">@Math.Round(w.Strength(oppId))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>@RoundLabel 라운드 전체 경기</h3>
+            <span class="spacer"></span>
+            <button class="btn btn-sm" @onclick="() => Shift(-1)" disabled="@(round <= 1)">이전</button>
+            <button class="btn btn-sm" @onclick="() => Shift(1)" disabled="@(round >= league.currentSeason.totalMatchdays)">다음</button>
+        </div>
+
+        <table class="ft">
+            <tbody>
+                @foreach (var f in league.currentSeason.fixtures.Where(x => x.matchday == Round(league)).OrderBy(x => x.id))
+                {
+                    <tr class="@((f.homeClubId == club.id || f.awayClubId == club.id) ? "me" : "")">
+                        <td class="right nowrap" style="width:40%">@Session.ClubName(f.homeClubId)</td>
+                        <td class="center mono" style="width:20%">
+                            @(f.isPlayed && f.result is { } r ? $"{r.homeGoals} : {r.awayGoals}" : "vs")
+                        </td>
+                        <td class="nowrap" style="width:40%">@Session.ClubName(f.awayClubId)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    bool upcomingOnly;
+    int round;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        round = Session.NextFixture?.matchday ?? 1;
+    }
+
+    int Round(LeagueData league) => Math.Clamp(round, 1, league.currentSeason.totalMatchdays);
+    string RoundLabel => round.ToString();
+
+    void Shift(int delta)
+    {
+        var league = Session.World?.MyLeague;
+        if (league is null) return;
+        round = Math.Clamp(round + delta, 1, league.currentSeason.totalMatchdays);
+    }
+}

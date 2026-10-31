@@ -1,0 +1,143 @@
+@page "/staff"
+@using FootballTactician.Data
+@using FootballTactician.World
+@using FootballTactician.Balance
+@inject GameSession Session
+@implements IDisposable
+
+<PageTitle>스태프 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <div class="empty">진행 중인 게임이 없습니다.</div>
+}
+else
+{
+    <div class="card">
+        <div class="card-head">
+            <h2>스태프</h2>
+            <span class="spacer"></span>
+            <span class="tiny dim">
+                주급 @Ui.Money(Session.StaffWageBill) ·
+                여유 @Ui.Money(Session.WageHeadroom)
+            </span>
+        </div>
+
+        <p class="tiny dim">
+            스태프 주급은 선수와 같은 지갑에서 나갑니다. 좋은 코치를 두면 그만큼 선수에 쓸 돈이 줄어듭니다.
+        </p>
+
+        <div class="grid grid-4">
+            @foreach (var g in Session.StaffStrengths)
+            {
+                <div class="stat">
+                    <div class="stat-label">@g.label</div>
+                    <div class="stat-value">@g.power.ToString("F2")</div>
+                    <div class="stat-sub">@g.effect</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>우리 스태프</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">@(Session.MyStaff.Count)명</span>
+        </div>
+
+        @if (Session.MyStaff.Count == 0)
+        {
+            <div class="empty">스태프가 없습니다. 아래에서 데려오세요.</div>
+        }
+        else
+        {
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th>이름</th><th>역할</th><th>갈래</th>
+                        <th class="center">나이</th><th class="center">평판</th>
+                        <th class="num">주급</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Session.MyStaff)
+                    {
+                        <tr>
+                            <td class="nowrap">@s.FullName</td>
+                            <td class="nowrap">@StaffRoom.RoleLabel(s.role)</td>
+                            <td><span class="badge">@StaffRoom.GroupLabel(s.role)</span></td>
+                            <td class="center">@s.age</td>
+                            <td class="center nowrap mono">@(new string('★', s.reputation))</td>
+                            <td class="num">@Ui.Money(StaffRoom.WeeklyWage(s))</td>
+                            <td class="right">
+                                <button class="btn btn-sm btn-ghost"
+                                        @onclick="() => Release(s.id)">내보내기</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>데려올 수 있는 사람</h3>
+            <span class="spacer"></span>
+            <select class="input input-sm" value="@filter" @onchange="OnFilter">
+                <option value="">모든 역할</option>
+                @foreach (var r in GameSession.StaffRoles)
+                {
+                    <option value="@r">@StaffRoom.RoleLabel(r)</option>
+                }
+            </select>
+        </div>
+
+        <table class="ft">
+            <thead>
+                <tr>
+                    <th>이름</th><th>역할</th>
+                    <th class="center">나이</th><th class="center">평판</th>
+                    <th class="num">요구 주급</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Session.StaffMarket(filter))
+                {
+                    var verdict = Session.CanHire(s);
+                    <tr>
+                        <td class="nowrap">@s.FullName</td>
+                        <td class="nowrap">@StaffRoom.RoleLabel(s.role)</td>
+                        <td class="center">@s.age</td>
+                        <td class="center nowrap mono">@(new string('★', s.reputation))</td>
+                        <td class="num">@Ui.Money(StaffRoom.AskingWage(s))</td>
+                        <td class="right">
+                            @if (verdict == StaffRoom.HireVerdict.Ok)
+                            {
+                                <button class="btn btn-sm" @onclick="() => Hire(s.id)">영입</button>
+                            }
+                            else
+                            {
+                                <span class="tiny dim">@Session.HireReason(verdict)</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    string filter = "";
+
+    protected override void OnInitialized() => Session.Changed += OnChanged;
+    public void Dispose() => Session.Changed -= OnChanged;
+    void OnChanged() => InvokeAsync(StateHasChanged);
+
+    void OnFilter(ChangeEventArgs e) => filter = e.Value?.ToString() ?? "";
+
+    async Task Hire(int id) => await Session.HireStaffAsync(id);
+    async Task Release(int id) => await Session.ReleaseStaffAsync(id);
+}

@@ -1,0 +1,363 @@
+@page "/transfers"
+@inherits SessionPage
+
+<PageTitle>이적 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else
+{
+    <h1>이적</h1>
+    <p class="muted">
+        @Session.WindowLabel ·
+        이적 예산 @Ui.Money(club.finances.transferBudget) ·
+        주급 여력 @Ui.Money(Math.Max(0, WageRoom(club)))/주
+    </p>
+
+    @if (!Session.WindowOpen)
+    {
+        <div class="card" style="border-color:var(--amber)">
+            <strong style="color:var(--amber)">이적 창구가 닫혀 있습니다.</strong>
+            <span class="muted">영입은 여름(7~8월)과 겨울(1월) 창구에서만 가능합니다. 지금은 둘러보기만 됩니다.</span>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-head">
+            <h3>선수 검색</h3>
+            <span class="spacer"></span>
+            <label class="tiny muted nowrap" style="display:flex; align-items:center; gap:.3rem">
+                <input type="checkbox" @bind="filter.ListedOnly" @bind:after="Search" /> 이적 목록만
+            </label>
+        </div>
+
+        <div class="grid grid-4">
+            <label class="field mb0">
+                <span>이름</span>
+                <input type="text" @bind="filter.Name" @bind:after="Search" placeholder="전체" style="width:100%" />
+            </label>
+            <label class="field mb0">
+                <span>포지션</span>
+                <select @bind="posKey" @bind:after="Search" style="width:100%">
+                    <option value="">전체</option>
+                    @foreach (var p in SearchablePositions)
+                    {
+                        <option value="@p">@Ui.PosLabel(p)</option>
+                    }
+                </select>
+            </label>
+            <label class="field mb0">
+                <span>최대 나이 — @(filter.MaxAge)세</span>
+                <input type="range" min="17" max="38" step="1" @bind="filter.MaxAge" @bind:after="Search" />
+            </label>
+            <label class="field mb0">
+                <span>최소 기량 — CA @minCa</span>
+                <input type="range" min="60" max="190" step="5" @bind="minCa" @bind:after="Search" />
+            </label>
+        </div>
+
+        <div class="btn-row mt1">
+            <button class="btn btn-sm" @onclick="BudgetOnly">예산 안에서만 보기</button>
+            <button class="btn btn-sm btn-ghost" @onclick="Reset">조건 초기화</button>
+            <span class="tiny dim" style="align-self:center">@(results.Count)명</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h3>검색 결과</h3></div>
+        <p class="tiny dim">
+            남의 선수는 능력치를 정확히 알 수 없습니다. 관찰할수록 구간이 좁아집니다 —
+            이번 주 관찰 가능 <strong>@(Session.ScoutingLeft)회</strong>.
+        </p>
+
+        @if (results.Count == 0)
+        {
+            <div class="empty">조건에 맞는 선수가 없습니다.</div>
+        }
+        else
+        {
+            <div style="overflow-x:auto">
+                <table class="ft">
+                    <thead>
+                        <tr>
+                            <th>선수</th><th>소속</th><th>포지션</th>
+                            <th class="num">나이</th><th class="num">CA</th><th class="num">PA</th>
+                            <th class="num">호가</th><th class="num">요구 주급</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in results)
+                        {
+                            var ask = TransferMarket.AskingPrice(w, p);
+                            var wage = TransferMarket.ExpectedWage(w, p, club);
+                            <tr class="@(selected?.id == p.id ? "me" : "")">
+                                <td class="nowrap">
+                                    <a href="@($"player/{p.id}")">@p.FullName</a>
+                                    @if (p.transferStatus == TransferStatus.ListedForTransfer)
+                                    {
+                                        <span class="badge warn">이적 목록</span>
+                                    }
+                                </td>
+                                <td class="nowrap tiny">@Session.ClubName(p.clubId)</td>
+                                <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                                <td class="num">@w.Age(p)</td>
+                                <td class="num @(Session.KnowsFully(p) ? "" : "dim")">@Session.CaLabel(p)</td>
+                                <td class="num dim">@Session.PaLabel(p)</td>
+                                <td class="num">@Ui.Money(ask)</td>
+                                <td class="num">@Ui.Money(wage)</td>
+                                <td class="right nowrap">
+                                    @if (Session.CanScout(p))
+                                    {
+                                        <button class="btn btn-sm btn-ghost" title="@Session.ConfidenceOf(p)"
+                                                @onclick="() => Scout(p.id)">관찰</button>
+                                    }
+                                    <button class="btn btn-sm" disabled="@(!Session.WindowOpen)"
+                                            @onclick="() => Select(p)">제안</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @if (selected is { } target)
+    {
+        <div class="card" style="border-color:var(--emerald)">
+            <div class="card-head">
+                <h3>@target.FullName 영입 제안</h3>
+                <span class="spacer"></span>
+                <button class="btn btn-sm btn-ghost" @onclick="() => { selected = null; outcome = null; }">닫기</button>
+            </div>
+
+            <div class="grid grid-2">
+                <div>
+                    <table class="ft">
+                        <tbody>
+                            <tr><td>소속</td><td class="right">@Session.ClubName(target.clubId)</td></tr>
+                            <tr><td>나이 · 포지션</td><td class="right">@(w.Age(target))세 · @Ui.PosLabelOf(target)</td></tr>
+                            <tr><td>기량 · 잠재력</td><td class="right">@Math.Round(GameWorld.Ca(target)) · @Math.Round(PlayerDevelopment.Pa(target))</td></tr>
+                            <tr><td>호가</td><td class="right"><strong>@Ui.Money(TransferMarket.AskingPrice(w, target))</strong></td></tr>
+                            <tr><td>요구 주급</td><td class="right">@Ui.Money(TransferMarket.ExpectedWage(w, target, club))</td></tr>
+                            <tr><td>현재 주급</td><td class="right dim">@Ui.Money(target.contract?.weeklyWage ?? 0)</td></tr>
+                            <tr><td>계약 만료</td><td class="right dim">@(target.contract is null ? "—" : Ui.DateLabel(target.contract.expiryDate))</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <label class="field">
+                        <span>이적료 — @Ui.Money(offerFee)</span>
+                        <input type="range" min="0" max="@MaxFee" step="250000" @bind="offerFee" @bind:event="oninput" />
+                    </label>
+                    <label class="field">
+                        <span>주급 — @Ui.Money(offerWage)</span>
+                        <input type="range" min="1000" max="@MaxWage" step="1000" @bind="offerWage" @bind:event="oninput" />
+                    </label>
+                    <label class="field">
+                        <span>계약 기간 — @(offerYears)년</span>
+                        <input type="range" min="1" max="5" step="1" @bind="offerYears" @bind:event="oninput" />
+                    </label>
+
+                    @{
+                        float afterRatio = (club.finances.currentWageSpend + offerWage) * 52f
+                                         / Math.Max(1, club.finances.annualRevenue);
+                        bool overSanction = afterRatio > BalanceConfig.WageSanctionRatio;
+                        bool overWarn = afterRatio > BalanceConfig.WageWarnRatio;
+                        long afterBudget = club.finances.transferBudget - offerFee;
+                    }
+                    <div class="stat mb0" style="margin-bottom:.8rem">
+                        <div class="stat-label">영입 후</div>
+                        <div class="tiny">
+                            이적 예산 @Ui.Money(Math.Max(0, afterBudget))
+                            @if (afterBudget < 0) { <span class="badge bad">예산 초과</span> }
+                        </div>
+                        <div class="tiny">
+                            급여 비중 @((afterRatio * 100).ToString("F0"))%
+                            @if (overSanction) { <span class="badge bad">제재선 초과</span> }
+                            else if (overWarn) { <span class="badge warn">경고선 초과</span> }
+                        </div>
+                        <div class="bar @(overSanction ? "bad" : overWarn ? "warn" : "") mt1">
+                            <i style="width:@((int)Math.Clamp(afterRatio * 100, 0, 100))%"></i>
+                        </div>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-primary" @onclick="SendOffer" disabled="@(busy || !Session.WindowOpen)">
+                            @(busy ? "협상 중…" : "제안 보내기")
+                        </button>
+                        <button class="btn btn-sm" @onclick="() => SetAsking(target)">호가대로 채우기</button>
+                    </div>
+                </div>
+            </div>
+
+            @if (outcome is { } o)
+            {
+                <div class="card mt1" style="margin-bottom:0; border-color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
+                    <strong style="color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
+                        @(o.Accepted ? "영입 완료" : "거절")
+                    </strong>
+                    <span class="muted">@o.Message</span>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-head"><h3>내 구단 이적 목록</h3></div>
+            <p class="tiny dim">목록에 올리면 다른 구단이 관심을 보입니다.</p>
+            <table class="ft">
+                <thead><tr><th>선수</th><th class="num">CA</th><th class="num">호가</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var p in Session.Squad.OrderByDescending(GameWorld.Ca))
+                    {
+                        <tr>
+                            <td class="nowrap">
+                                @p.FullName
+                                @if (p.transferStatus == TransferStatus.ListedForTransfer)
+                                {
+                                    <span class="badge warn">등록</span>
+                                }
+                            </td>
+                            <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                            <td class="num">@Ui.Money(TransferMarket.AskingPrice(w, p))</td>
+                            <td class="right">
+                                <button class="btn btn-sm" @onclick="() => Toggle(p)">
+                                    @(p.transferStatus == TransferStatus.ListedForTransfer ? "내리기" : "올리기")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <div class="card-head"><h3>최근 이적</h3></div>
+            @if (w.Transfers.Count == 0)
+            {
+                <div class="empty">아직 성사된 이적이 없습니다.</div>
+            }
+            else
+            {
+                <table class="ft">
+                    <thead><tr><th>선수</th><th>이동</th><th class="num">이적료</th><th class="num">날짜</th></tr></thead>
+                    <tbody>
+                        @foreach (var t in w.Transfers.Take(20))
+                        {
+                            <tr class="@(t.toClubId == club.id || t.fromClubId == club.id ? "me" : "")">
+                                <td class="nowrap">@t.playerName</td>
+                                <td class="tiny nowrap">
+                                    @Session.ClubShort(t.fromClubId) → @Session.ClubShort(t.toClubId)
+                                </td>
+                                <td class="num">@Ui.Money(t.fee)</td>
+                                <td class="num tiny dim">@Ui.DateLabel(t.date)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    async Task Scout(int id) => await Session.ScoutAsync(id);
+
+    static readonly Position[] SearchablePositions =
+    {
+        Position.GK, Position.CB, Position.LB, Position.RB,
+        Position.CDM, Position.CM, Position.CAM,
+        Position.LM, Position.RM, Position.LW, Position.RW,
+        Position.ST, Position.CF,
+    };
+
+    // 기본 나이 상한을 슬라이더 범위(17~38) 안에 둔다. 모델 기본값 40 이면 라벨과 손잡이가 어긋난다.
+    TransferMarket.ScoutFilter filter = new() { MaxAge = 38 };
+    string posKey = "";
+    int minCa = 100;
+    List<PlayerData> results = new();
+
+    PlayerData? selected;
+    TransferMarket.OfferOutcome? outcome;
+    long offerFee;
+    int offerWage = 10_000;
+    int offerYears = 3;
+    bool busy;
+
+    long MaxFee => Math.Max(1_000_000, (Session.World?.MyClub?.finances.transferBudget ?? 0) * 2L);
+    int MaxWage => Math.Max(20_000, (int)((Session.World?.MyClub?.finances.annualRevenue ?? 0) / 52 / 3));
+
+    static long WageRoom(ClubData club)
+        => (long)(club.finances.annualRevenue * BalanceConfig.WageSanctionRatio / 52) - club.finances.currentWageSpend;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Search();
+    }
+
+    void Search()
+    {
+        if (Session.World is not { } w) return;
+        filter.MinCa = minCa;
+        filter.Position = string.IsNullOrEmpty(posKey) ? Position.None : Enum.Parse<Position>(posKey);
+        results = TransferMarket.Scout(w, filter).ToList();
+    }
+
+    void BudgetOnly()
+    {
+        filter.MaxFee = Session.World?.MyClub?.finances.transferBudget ?? long.MaxValue;
+        Search();
+    }
+
+    void Reset()
+    {
+        filter = new TransferMarket.ScoutFilter { MaxAge = 38 };
+        posKey = "";
+        minCa = 100;
+        Search();
+    }
+
+    void Select(PlayerData p)
+    {
+        selected = p;
+        outcome = null;
+        SetAsking(p);
+    }
+
+    void SetAsking(PlayerData p)
+    {
+        if (Session.World is not { } w || w.MyClub is not { } club) return;
+        offerFee = TransferMarket.AskingPrice(w, p);
+        offerWage = TransferMarket.ExpectedWage(w, p, club);
+        offerYears = w.Age(p) >= 30 ? 2 : 4;
+    }
+
+    async Task SendOffer()
+    {
+        if (selected is null) return;
+        busy = true;
+        StateHasChanged();
+        await Task.Yield();
+        try
+        {
+            outcome = await Session.MakeOfferAsync(selected, offerFee, offerWage, offerYears);
+            if (outcome.Accepted)
+            {
+                selected = null;
+                Search();
+            }
+        }
+        finally { busy = false; }
+    }
+
+    async Task Toggle(PlayerData p)
+    {
+        await Session.ToggleTransferListAsync(p);
+    }
+}

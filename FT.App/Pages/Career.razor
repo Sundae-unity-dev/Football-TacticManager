@@ -1,0 +1,260 @@
+@page "/career"
+@inherits SessionPage
+
+<PageTitle>커리어 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w)
+{
+    <Redirect />
+}
+else
+{
+    var jobs = Session.OpenJobs(10);
+
+    <h1>감독 커리어</h1>
+    <p class="muted">@w.ManagerName · @(w.MyClub?.name ?? "무소속")</p>
+
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="stat-label">감독 평판</div>
+            <div class="stat-value accent">@w.ManagerReputation</div>
+            <div class="bar mt1"><i style="width:@w.ManagerReputation%"></i></div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">통산 전적</div>
+            <div class="stat-value" style="font-size:1.2rem">
+                @(w.Manager.totalWins)승 @(w.Manager.totalDraws)무 @(w.Manager.totalLosses)패
+            </div>
+            <div class="stat-sub">승률 @(WinRate(w).ToString("P0"))</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">거쳐온 구단</div>
+            <div class="stat-value">@(w.CareerHistory.Count + (w.ManagedClubId > 0 ? 1 : 0))</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">이사회 신뢰</div>
+            <div class="stat-value @(w.Manager.boardConfidence >= 50 ? "accent" : "")">
+                @w.Manager.boardConfidence
+            </div>
+            <div class="stat-sub">@Ui.BoardLabel(BoardSystem.ConfidenceLevel(w.Manager.boardConfidence))</div>
+        </div>
+    </div>
+
+    @if (w.Sacked)
+    {
+        <div class="card" style="border-color:var(--coral)">
+            <h3 style="color:var(--coral)">경질되었습니다</h3>
+            <p class="muted mb0">@w.SackReason 아래에서 새 자리를 고르세요.</p>
+        </div>
+    }
+
+    @if (!w.Sacked && w.MyClub is not null)
+    {
+        <div class="card">
+            <div class="card-head">
+                <h3>이사회와 이야기하기</h3>
+                <span class="spacer"></span>
+                <span class="tiny dim">
+                    신뢰도 @(w.Manager?.boardConfidence ?? 0) ·
+                    @(Session.BoardAskReady ? "지금 가능" : $"{Session.DaysUntilBoardAsk}일 뒤")
+                </span>
+            </div>
+
+            <p class="tiny dim">
+                무엇을 요청하든 신뢰도를 씁니다. 거절당해도 깎이므로, 성적이 좋을 때 조르는 편이 낫습니다.
+                지금 순위는 전력 기준보다 @Session.ExpectationGapLabel.
+            </p>
+
+            <div class="grid grid-4">
+                @foreach (var a in GameSession.BoardAsks)
+                {
+                    <div class="stat">
+                        <div class="stat-label">@BoardTalks.AskLabel(a)</div>
+                        <div class="stat-value">@($"{Session.BoardOdds(a) * 100:F0}%")</div>
+                        <div class="stat-sub">신뢰도 −@Session.BoardCost(a)</div>
+                        <button class="btn btn-sm" disabled="@(!Session.BoardAskReady)"
+                                @onclick="() => AskBoard(a)">요청</button>
+                    </div>
+                }
+            </div>
+
+            @if (lastAnswer is not null)
+            {
+                <p class="tiny @(lastAnswer.verdict == BoardTalks.Verdict.Granted ? "ok" : "dim")">
+                    <strong>@lastAnswer.headline</strong> @lastAnswer.detail
+                </p>
+            }
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-head">
+            <h3>감독을 구하는 구단</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">@(jobs.Count)곳</span>
+        </div>
+
+        @if (jobs.Count == 0)
+        {
+            <div class="empty">
+                지금 평판으로 갈 수 있는 자리가 없습니다.
+                @if (w.VacantClubs.Count > 0)
+                {
+                    <div class="tiny mt1">빈자리는 @(w.VacantClubs.Count)곳 있지만 평판이 모자랍니다.</div>
+                }
+                <div class="tiny mt1">시즌을 마치면 자리가 새로 납니다.</div>
+            </div>
+        }
+        else
+        {
+            <p class="tiny dim">맡으면 지금 구단을 떠납니다. 평판과 통산 기록은 따라갑니다.</p>
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th>구단</th><th>리그</th><th>평판</th>
+                        <th class="num">전력</th><th class="num">수입</th>
+                        <th class="num">요구 평판</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var job in jobs)
+                    {
+                        var club = w.Club(job.clubId)!;
+                        var league = w.League(job.leagueId);
+                        <tr>
+                            <td class="nowrap">
+                                <span class="kit" style="background:@club.colors.primaryHex; width:12px; height:12px; display:inline-block; vertical-align:-1px; margin-right:.4rem; border-radius:3px"></span>
+                                @club.name
+                            </td>
+                            <td class="tiny nowrap">
+                                @league?.name
+                                <span class="badge">@((int)(league?.tier ?? LeagueTier.First))부</span>
+                            </td>
+                            <td class="mono">@(new string('★', club.reputation))</td>
+                            <td class="num">@Math.Round(w.Strength(club.id))</td>
+                            <td class="num">@Ui.Money(club.finances.annualRevenue)</td>
+                            <td class="num dim">@job.requiredReputation</td>
+                            <td class="right">
+                                <button class="btn btn-sm btn-primary" @onclick="() => Take(job.clubId)"
+                                        disabled="@busy">맡기</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h3>거쳐온 구단</h3></div>
+        @if (w.CareerHistory.Count == 0 && w.ManagedClubId <= 0)
+        {
+            <div class="empty">아직 기록이 없습니다.</div>
+        }
+        else
+        {
+            <table class="ft">
+                <thead>
+                    <tr><th>구단</th><th>기간</th><th class="num">경기</th><th class="num">승·무·패</th><th class="num">승률</th><th>끝</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var spell in w.CareerHistory.AsEnumerable().Reverse())
+                    {
+                        <tr>
+                            <td class="nowrap">@spell.clubName</td>
+                            <td class="tiny dim">@spell.fromYear–@spell.toYear</td>
+                            <td class="num">@spell.Games</td>
+                            <td class="num">@(spell.wins)·@(spell.draws)·@(spell.losses)</td>
+                            <td class="num">@spell.WinRate.ToString("P0")</td>
+                            <td>
+                                @if (spell.endedSacked)
+                                {
+                                    <span class="badge bad">경질</span>
+                                }
+                                else
+                                {
+                                    <span class="badge">이직</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (w.MyClub is { } current)
+                    {
+                        <tr class="me">
+                            <td class="nowrap">@current.name</td>
+                            <td class="tiny dim">@w.CurrentSpellStartYear–현재</td>
+                        <td class="num">@((w.Manager?.totalWins ?? 0) + (w.Manager?.totalDraws ?? 0) + (w.Manager?.totalLosses ?? 0) - PastGames(w))</td>
+                            <td class="num">진행 중</td>
+                            <td class="num">—</td>
+                            <td><span class="badge good">재직</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h3>평판에 따라 맡을 수 있는 구단</h3></div>
+        <table class="ft">
+            <thead><tr><th>구단 수준</th><th class="num">1부 요구 평판</th><th class="num">2부 요구 평판</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var stars in new[] { 5, 4, 3, 2, 1 })
+                {
+                    var sample1 = w.Clubs.Values.FirstOrDefault(c =>
+                        c.reputation == stars && w.TierOf(c.id) == LeagueTier.First);
+                    var sample2 = w.Clubs.Values.FirstOrDefault(c =>
+                        c.reputation == stars && w.TierOf(c.id) == LeagueTier.Second);
+                    int need1 = sample1 is null ? -1 : ManagerCareer.RequiredReputation(w, sample1);
+                    int need2 = sample2 is null ? -1 : ManagerCareer.RequiredReputation(w, sample2);
+                    <tr>
+                        <td class="mono">@(new string('★', stars))</td>
+                        <td class="num">@(need1 < 0 ? "—" : need1.ToString())</td>
+                        <td class="num">@(need2 < 0 ? "—" : need2.ToString())</td>
+                        <td>
+                            @if (need1 >= 0 && w.ManagerReputation >= need1)
+                            {
+                                <span class="badge good">가능</span>
+                            }
+                            else if (need2 >= 0 && w.ManagerReputation >= need2)
+                            {
+                                <span class="badge warn">2부만</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="tiny dim mb0">
+            평판은 시즌 성적이 구단 평판 대비 기대를 넘는 만큼 오릅니다. 컵 우승은 따로 더해집니다.
+        </p>
+    </div>
+}
+
+@code {
+    BoardTalks.Answer? lastAnswer;
+
+    async Task AskBoard(BoardTalks.Ask ask)
+    {
+        lastAnswer = await Session.AskBoardAsync(ask);
+    }
+
+    bool busy;
+
+    static float WinRate(GameWorld w)
+    {
+        int games = w.Manager.totalWins + w.Manager.totalDraws + w.Manager.totalLosses;
+        return games == 0 ? 0f : w.Manager.totalWins / (float)games;
+    }
+
+    static int PastGames(GameWorld w) => w.CareerHistory.Sum(s => s.Games);
+
+    async Task Take(int clubId)
+    {
+        busy = true;
+        StateHasChanged();
+        await Task.Yield();
+        try { await Session.TakeJobAsync(clubId); }
+        finally { busy = false; }
+    }
+}

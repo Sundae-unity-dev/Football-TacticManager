@@ -1,0 +1,88 @@
+@page "/stats"
+@inherits SessionPage
+@inject NavigationManager Nav
+
+<PageTitle>기록 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w)
+{
+    <Redirect />
+}
+else
+{
+    var league = w.MyLeague!;
+    var players = league.clubIds
+        .SelectMany(id => w.Squad(id))
+        .Where(p => p.seasonStats.appearances > 0)
+        .ToList();
+
+    <h1>리그 기록</h1>
+    <p class="muted">@league.name · @league.currentSeason.currentMatchday 라운드까지</p>
+
+    @if (players.Count == 0)
+    {
+        <div class="empty">아직 기록이 없습니다. 경기를 치르면 쌓입니다.</div>
+    }
+    else
+    {
+        <div class="grid grid-3">
+            @Leaderboard("득점", players.OrderByDescending(p => p.seasonStats.goals).ThenByDescending(p => p.seasonStats.assists).Take(10), p => p.seasonStats.goals.ToString())
+            @Leaderboard("도움", players.OrderByDescending(p => p.seasonStats.assists).ThenByDescending(p => p.seasonStats.goals).Take(10), p => p.seasonStats.assists.ToString())
+            @Leaderboard("평점", players.Where(p => p.seasonStats.appearances >= 5).OrderByDescending(p => p.seasonStats.averageRating).Take(10), p => p.seasonStats.averageRating.ToString("F2"))
+        </div>
+
+        <div class="card">
+            <div class="card-head"><h3>구단 공격과 수비</h3></div>
+            <table class="ft">
+                <thead><tr><th>#</th><th>구단</th><th class="num">득점</th><th class="num">실점</th><th class="num">경기당 득점</th><th class="num">무실점</th></tr></thead>
+                <tbody>
+                    @foreach (var e in league.currentSeason.standings)
+                    {
+                        <tr class="@(e.clubId == w.ManagedClubId ? "me" : "")">
+                            <td class="mono">@e.position</td>
+                            <td>@Session.ClubName(e.clubId)</td>
+                            <td class="num">@e.goalsFor</td>
+                            <td class="num">@e.goalsAgainst</td>
+                            <td class="num">@(e.played > 0 ? (e.goalsFor / (float)e.played).ToString("F2") : "—")</td>
+                            <td class="num dim">@CleanSheets(e.clubId)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    void Open(int playerId) => Nav.NavigateTo($"player/{playerId}");
+
+    int CleanSheets(int clubId)
+    {
+        var league = Session.World!.MyLeague!;
+        return league.currentSeason.fixtures.Count(f =>
+            f.isPlayed && f.result is not null &&
+            ((f.homeClubId == clubId && f.result.awayGoals == 0) ||
+             (f.awayClubId == clubId && f.result.homeGoals == 0)));
+    }
+
+    RenderFragment Leaderboard(string title, IEnumerable<PlayerData> rows, Func<PlayerData, string> value) =>
+        @<div class="card">
+            <div class="card-head"><h3>@title</h3></div>
+            <table class="ft">
+                <tbody>
+                    @{ int rank = 0; }
+                    @foreach (var p in rows)
+                    {
+                        rank++;
+                        <tr class="clickable @(p.clubId == Session.World!.ManagedClubId ? "me" : "")"
+                            @onclick="() => Open(p.id)">
+                            <td class="mono dim" style="width:22px">@rank</td>
+                            <td class="nowrap">@p.FullName</td>
+                            <td class="tiny dim">@Session.ClubShort(p.clubId)</td>
+                            <td class="num"><strong>@value(p)</strong></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>;
+}

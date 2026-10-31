@@ -1,0 +1,189 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject GameSession Session
+@inject NavigationManager Nav
+
+@if (resuming)
+{
+    <div class="splash"><div class="splash-card card center">저장된 판을 불러오는 중…</div></div>
+}
+else if (!Session.HasGame)
+{
+    @Body
+}
+else
+{
+    var w = Session.World!;
+    var club = w.MyClub!;
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">FOOTBALL <b>TACTICIAN</b></div>
+                <div class="brand-sub">@w.MyLeague?.name</div>
+            </div>
+
+            <div class="club-chip">
+                <span class="kit" style="background:@club.colors.primaryHex"></span>
+                <div>
+                    <div class="club-chip-name">@club.name</div>
+                    <div class="club-chip-sub">@w.ManagerName · @Ui.DateLabel(w.Date)</div>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <div class="nav-group-title">구단</div>
+                <NavLink href="dashboard" ActiveClass="active">대시보드</NavLink>
+                <NavLink href="squad" ActiveClass="active">스쿼드</NavLink>
+                <NavLink href="tactics" ActiveClass="active">전술</NavLink>
+                <NavLink href="training" ActiveClass="active">훈련</NavLink>
+                <NavLink href="staff" ActiveClass="active">스태프</NavLink>
+                <NavLink href="honours" ActiveClass="active">기록실</NavLink>
+                <NavLink href="room" ActiveClass="active">
+                    탈의실
+                    @if (Session.HasRequests) { <span class="nav-badge warn">이적 요청</span> }
+                    else if (Session.Room is { discontent: > 30 }) { <span class="nav-badge warn">불만</span> }
+                </NavLink>
+                <NavLink href="contracts" ActiveClass="active">
+                    계약
+                    @if (UrgentContracts > 0) { <span class="nav-badge">@UrgentContracts</span> }
+                </NavLink>
+                <NavLink href="finances" ActiveClass="active">재정</NavLink>
+                <NavLink href="loans" ActiveClass="active">임대</NavLink>
+                <NavLink href="transfers" ActiveClass="active">
+                    이적
+                    @if (Session.WindowOpen) { <span class="nav-badge" style="background:var(--emerald); color:#06241A">열림</span> }
+                </NavLink>
+
+                <div class="nav-group-title">경쟁</div>
+                <NavLink href="fixtures" ActiveClass="active">일정</NavLink>
+                <NavLink href="table" ActiveClass="active">순위표</NavLink>
+                <NavLink href="stats" ActiveClass="active">기록</NavLink>
+                <NavLink href="cup" ActiveClass="active">
+                    컵
+                    @if (Session.StillInCup) { <span class="nav-badge" style="background:var(--emerald); color:#06241A">생존</span> }
+                </NavLink>
+
+                <div class="nav-group-title">감독</div>
+                <NavLink href="press" ActiveClass="active">
+                    기자회견
+                    @if (Session.PressWaiting) { <span class="nav-badge">대기</span> }
+                </NavLink>
+                <NavLink href="career" ActiveClass="active">
+                    커리어
+                    @if (Session.World!.Sacked) { <span class="nav-badge">!</span> }
+                </NavLink>
+
+                <div class="nav-group-title">소식</div>
+                <NavLink href="inbox" ActiveClass="active">
+                    받은 소식
+                    @if (Unread > 0) { <span class="nav-badge">@Unread</span> }
+                </NavLink>
+            </nav>
+        </aside>
+
+        <div class="main">
+            <header class="topbar">
+                <span class="topbar-date">@Ui.DateLabel(w.Date)</span>
+                @if (Session.NextFixture is { } next)
+                {
+                    <span class="tiny muted nowrap">
+                        다음 @next.matchday 라운드 ·
+                        @(next.homeClubId == club.id ? "홈" : "원정")
+                        @Session.ClubName(next.homeClubId == club.id ? next.awayClubId : next.homeClubId)
+                    </span>
+                }
+                <span class="topbar-spacer"></span>
+
+                <span class="badge @BoardBadge">이사회 @w.Manager.boardConfidence</span>
+                <button class="btn btn-sm" @onclick="SaveAsync" disabled="@saving">
+                    @(saving ? "저장 중" : "저장")
+                </button>
+                @if (Session.NextFixture is null && Session.SeasonFinished && !w.Sacked)
+                {
+                    <button class="btn btn-primary btn-sm" @onclick="NextSeason" disabled="@busy">
+                        @(busy ? "준비 중" : $"{w.SeasonYear + 1} 시즌 시작")
+                    </button>
+                }
+                else if (Session.NextFixture is { } up && up.date > w.Date)
+                {
+                    @* 경기 주가 아직 아니면 한 주씩 넘길 수 있게 한다 — 이적 창구가 그 사이에 돈다 *@
+                    <button class="btn btn-sm" @onclick="SkipWeek" disabled="@busy">한 주 넘기기</button>
+                    <button class="btn btn-primary btn-sm" @onclick="GoMatch" disabled="@w.Sacked">경기 진행</button>
+                }
+                else
+                {
+                    <button class="btn btn-primary btn-sm" @onclick="GoMatch" disabled="@(w.Sacked || Session.NextFixture is null)">
+                        경기 진행
+                    </button>
+                }
+            </header>
+
+            <div class="content">
+                @if (w.Sacked)
+                {
+                    <div class="card" style="border-color:var(--coral)">
+                        <h2 style="color:var(--coral)">경질되었습니다</h2>
+                        <p class="muted">@w.SackReason</p>
+                        <div class="btn-row mb0">
+                            <a class="btn btn-primary" href="career">새 자리 알아보기</a>
+                            <a class="btn btn-ghost" href="">처음으로</a>
+                        </div>
+                    </div>
+                }
+                @Body
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    bool saving;
+
+    int Unread => Session.World?.Inbox.Count(i => !i.read) ?? 0;
+
+    int UrgentContracts => Session.ExpiringContracts.Count(p => Session.MonthsLeft(p) <= 6);
+
+    string BoardBadge => (Session.World?.Manager.boardConfidence ?? 50) switch
+    {
+        >= 60 => "good",
+        >= 35 => "warn",
+        _ => "bad",
+    };
+
+    bool resuming = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnChanged;
+        // 새로고침으로 메모리가 비었으면 저장된 판을 되살린다.
+        try { await Session.TryResumeAsync(); }
+        finally { resuming = false; }
+    }
+    public void Dispose() => Session.Changed -= OnChanged;
+    void OnChanged() => InvokeAsync(StateHasChanged);
+
+    void GoMatch() => Nav.NavigateTo("match");
+
+    bool busy;
+
+    async Task NextSeason()
+    {
+        busy = true;
+        try { await Session.StartNextSeasonAsync(); }
+        finally { busy = false; }
+    }
+
+    async Task SkipWeek()
+    {
+        busy = true;
+        try { await Session.AdvanceWeekAsync(); }
+        finally { busy = false; }
+    }
+
+    async Task SaveAsync()
+    {
+        saving = true;
+        try { await Session.SaveAsync(); }
+        finally { saving = false; }
+    }
+}

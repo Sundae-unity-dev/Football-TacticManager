@@ -1,0 +1,752 @@
+@page "/tactics"
+@inherits SessionPage
+
+<PageTitle>전술 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else if (Session.ActiveTactics is not { } tac)
+{
+    <div class="empty">전술이 없습니다.</div>
+}
+else
+{
+    var lineup = MatchDay.BuildLineup(w, club.id);
+    var power = lineup is null ? default : MatchEngine.TeamPower(lineup, w.Lookup);
+
+    <h1>전술</h1>
+    <p class="muted">
+        @club.name ·
+        @(w.AutoLineup ? "자동 선발" : "감독 지정 선발")
+    </p>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-head">
+                <h3>@tac.formationShape</h3>
+                <span class="spacer"></span>
+                <select @bind="formation" @bind:after="ChangeFormation">
+                    @foreach (var preset in FormationDatabase.All.OrderBy(p => p.shape))
+                    {
+                        <option value="@preset.id">@preset.displayName</option>
+                    }
+                </select>
+            </div>
+
+            <PitchBoard Tactics="tac"
+                        Lookup="id => w.Player(id)"
+                        Primary="@club.colors.primaryHex"
+                        SelectedSlot="selectedSlot"
+                        OnSlotClick="SelectSlot" />
+
+            <div class="btn-row mt1">
+                <button class="btn btn-sm" @onclick="ResetLineup">최적 선발 자동 배치</button>
+                @if (selectedSlot >= 0)
+                {
+                    <button class="btn btn-sm btn-ghost" @onclick="() => selectedSlot = -1">선택 해제</button>
+                }
+            </div>
+
+            <div class="grid grid-4 mt1">
+                <div class="stat">
+                    <div class="stat-label">공격</div>
+                    <div class="stat-value" style="font-size:1.2rem">@power.attack.ToString("F2")</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">수비</div>
+                    <div class="stat-value" style="font-size:1.2rem">@power.defense.ToString("F2")</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">중원</div>
+                    <div class="stat-value" style="font-size:1.2rem">@power.midfield.ToString("F2")</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">골키퍼</div>
+                    <div class="stat-value" style="font-size:1.2rem">@power.gk.ToString("F2")</div>
+                </div>
+            </div>
+            <p class="tiny dim mt1 mb0">
+                매치 엔진이 쓰는 값 그대로입니다. 공격은 상대 수비와의 비율로 기회 수가 정해집니다.
+            </p>
+        </div>
+
+        <div>
+            <div class="card">
+                <div class="card-head">
+                    <h3>@(selectedSlot >= 0 ? $"{Ui.PosLabel(SlotOf(tac, selectedSlot)!.position)} 자리에 넣을 선수" : "선발 명단")</h3>
+                </div>
+
+                @if (selectedSlot >= 0)
+                {
+                    var slot = SlotOf(tac, selectedSlot)!;
+                    var here = w.Player(slot.assignedPlayerId);
+
+                    <div class="role-pick">
+                        <label class="field">
+                            <span>역할</span>
+                            <select value="@((int)(slot.role?.role ?? RoleDefaults.ForPosition(slot.position)))"
+                                    @onchange="e => SetRole(slot, e.Value)">
+                                @foreach (var r in RoleFit.For(slot.position)
+                                                          .OrderByDescending(r => here is null
+                                                              ? 0 : RoleFit.Score(here, RoleDatabase.Get(r))))
+                                {
+                                    <option value="@((int)r)">
+                                        @RoleDatabase.Get(r).displayName
+                                        @(here is null ? "" : $" · 적합 {RoleFit.Percent(here, RoleDatabase.Get(r))}")
+                                    </option>
+                                }
+                            </select>
+                        </label>
+
+                        @if (slot.role is not null && RoleDatabase.Get(slot.role.role) is { } rdef)
+                        {
+                            <p class="trade">@rdef.shortDescription</p>
+
+                            <div class="btn-row">
+                                @foreach (var duty in new[] { RoleDuty.Defend, RoleDuty.Support, RoleDuty.Attack })
+                                {
+                                    var allowed = RoleFit.Allows(rdef, duty);
+                                    <button class="btn btn-sm @(slot.role.duty == duty ? "btn-primary" : "")"
+                                            disabled="@(!allowed)"
+                                            @onclick="() => SetDuty(slot, duty)">@DutyName(duty)</button>
+                                }
+                                <span class="trade">@DutyNote(rdef, slot.role.duty)</span>
+                            </div>
+                        }
+
+                        @if (here is not null)
+                        {
+                            var pi = slot.customInstructions ?? new PlayerInstructions();
+                            <div class="pi-grid">
+                                @foreach (var opt in PlayerOptions(pi))
+                                {
+                                    <label class="field">
+                                        <span>@opt.label</span>
+                                        <select value="@opt.current" @onchange="e => opt.apply(slot, e.Value)">
+                                            @foreach (var (value, name) in opt.choices)
+                                            {
+                                                <option value="@value">@name</option>
+                                            }
+                                        </select>
+                                        <span class="trade">@opt.note</span>
+                                    </label>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <table class="ft">
+                        <thead><tr><th>이름</th><th>포지션</th><th class="num">CA</th><th class="num">적합</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var p in Candidates(slot.position))
+                            {
+                                <tr class="@(p.id == slot.assignedPlayerId ? "me" : "")">
+                                    <td class="nowrap">
+                                        @p.FullName
+                                        @if (p.IsInjured) { <span class="badge bad">부상</span> }
+                                    </td>
+                                    <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                                    <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                                    <td class="num"><span class="badge @FitBadge(p, slot.position)">@FitLabel(p, slot.position)</span></td>
+                                    <td class="right">
+                                        <button class="btn btn-sm" disabled="@p.IsInjured"
+                                                @onclick="() => Assign(p.id)">배치</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <table class="ft">
+                        <thead>
+                            <tr>
+                                <th>자리</th><th>선수</th><th class="num">CA</th>
+                                <th>역할</th><th class="num">적합</th><th>컨디션</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var slot in tac.slots.OrderBy(s => s.slotIndex))
+                            {
+                                var p = w.Player(slot.assignedPlayerId);
+                                <tr class="clickable" @onclick="() => SelectSlot(slot.slotIndex)">
+                                    <td><span class="badge pos @Ui.PosClass(slot.position)">@Ui.PosLabel(slot.position)</span></td>
+                                    <td>@(p?.FullName ?? "공석")</td>
+                                    <td class="num">@(p is null ? "—" : Math.Round(GameWorld.Ca(p)).ToString())</td>
+                                    <td class="nowrap tiny">
+                                        @RoleName(slot)
+                                        <span class="dim">· @DutyName(slot.role?.duty ?? RoleDuty.Support)</span>
+                                    </td>
+                                    <td class="num">
+                                        @if (p is not null && slot.role is not null)
+                                        {
+                                            var fit = RoleFit.Percent(p, RoleDatabase.Get(slot.role.role));
+                                            <span class="badge @FitTone(fit)">@fit</span>
+                                        }
+                                    </td>
+                                    <td style="min-width:70px">
+                                        @if (p is not null)
+                                        {
+                                            <div class="bar @Ui.ConditionClass(p.condition)"><i style="width:@((int)p.condition)%"></i></div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    <div class="btn-row mt1">
+                        <button class="btn btn-sm" @onclick="AutoRoles">선수에 맞춰 역할 고르기</button>
+                        <span class="tiny dim">
+                            만드는 역할과 넣는 역할이 각각 @(RoleFit.HealthyMinimum)명은 있어야 공격이 돕니다 —
+                            지금 @BalanceLabel(tac)
+                        </span>
+                    </div>
+                }
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h3>팀 지시</h3></div>
+
+                <label class="field">
+                    <span>멘탈리티 — @Ui.MentalityLabel(tac.instructions.mentality)</span>
+                    <input type="range" min="0" max="4" step="1"
+                           value="@((int)tac.instructions.mentality)"
+                           @onchange="e => SetMentality(e.Value)" />
+                </label>
+
+                <label class="field">
+                    <span>압박 강도 — @tac.instructions.pressingIntensity 단계</span>
+                    <input type="range" min="1" max="5" step="1"
+                           value="@tac.instructions.pressingIntensity"
+                           @onchange="e => Set(v => tac.instructions.pressingIntensity = v, e.Value)" />
+                    <span class="trade">@PressNote(tac.instructions)</span>
+                </label>
+
+                <label class="field">
+                    <span>템포 — @tac.instructions.tempo 단계</span>
+                    <input type="range" min="1" max="5" step="1"
+                           value="@tac.instructions.tempo"
+                           @onchange="e => Set(v => tac.instructions.tempo = v, e.Value)" />
+                    <span class="trade">@TempoNote(tac.instructions.tempo)</span>
+                </label>
+
+                <label class="field">
+                    <span>폭 — @tac.instructions.width 단계</span>
+                    <input type="range" min="1" max="5" step="1"
+                           value="@tac.instructions.width"
+                           @onchange="e => Set(v => tac.instructions.width = v, e.Value)" />
+                    <span class="trade">@WidthNote(tac.instructions.width)</span>
+                </label>
+
+                <label class="field">
+                    <span>수비 라인 — @Ui.LineLabel(tac.instructions.defensiveLine)</span>
+                    <input type="range" min="0" max="4" step="1"
+                           value="@((int)tac.instructions.defensiveLine)"
+                           @onchange="e => SetLine(e.Value)" />
+                    <span class="trade">@LineNote(tac.instructions.defensiveLine)</span>
+                </label>
+
+                <label class="field">
+                    <span>빌드업</span>
+                    <select value="@((int)tac.instructions.buildUpStyle)" @onchange="e => SetBuildUp(e.Value)">
+                        @foreach (var b in Enum.GetValues<BuildUpStyle>())
+                        {
+                            <option value="@((int)b)">@Ui.BuildUpLabel(b)</option>
+                        }
+                    </select>
+                    <span class="trade">@BuildUpNote(tac.instructions.buildUpStyle)</span>
+                </label>
+
+                <div class="tiny muted" style="display:flex; flex-direction:column; gap:.4rem">
+                    <label><input type="checkbox" checked="@tac.instructions.counterPress"
+                                  @onchange="e => Toggle(v => tac.instructions.counterPress = v, e.Value)" /> 역압박
+                        <span class="trade">공을 더 쥐지만 다리가 더 빨리 지칩니다</span></label>
+                    <label><input type="checkbox" checked="@tac.instructions.offsideTrap"
+                                  @onchange="e => Toggle(v => tac.instructions.offsideTrap = v, e.Value)" /> 오프사이드 트랩
+                        <span class="trade">@TrapNote()</span></label>
+                    <label><input type="checkbox" checked="@tac.instructions.directCounterAttack"
+                                  @onchange="e => Toggle(v => tac.instructions.directCounterAttack = v, e.Value)" /> 역습 집중
+                        <span class="trade">상대가 라인을 올릴 때만 값어치가 있습니다</span></label>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h3>세트피스</h3>
+                    <span class="spacer"></span>
+                    <span class="tiny dim">
+                        제공권 @Session.AerialThreat.ToString("F1") · 움직임 @Session.MovementThreat.ToString("F1")
+                    </span>
+                </div>
+
+                <p class="tiny dim">
+                    코너 배달은 우리 스쿼드와 상대 수비·골키퍼에 따라 최선이 바뀝니다.
+                    아래 수치는 @(Session.NextOpponent?.name ?? "평범한 상대")를 상대할 때의 기대 득점입니다.
+                </p>
+
+                <table class="ft">
+                    <tbody>
+                        @foreach (var d in Enum.GetValues<SetPieceDelivery>())
+                        {
+                            var xg = Session.CornerXgFor(d);
+                            var picked = Session.CornerDelivery == d;
+                            <tr class="@(picked ? "me" : "clickable")"
+                                @onclick="() => SetDelivery(d)">
+                                <td class="nowrap" style="width:8rem">
+                                    @DeliveryName(d)
+                                    @if (picked) { <span class="badge good">선택</span> }
+                                </td>
+                                <td class="tiny dim">@DeliveryNote(d)</td>
+                                <td class="right mono" style="width:4.5rem">@xg.ToString("F3")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                @if (Session.SuggestedDelivery != Session.CornerDelivery)
+                {
+                    <p class="trade">
+                        우리 스쿼드에는 @DeliveryName(Session.SuggestedDelivery)가 어울립니다.
+                    </p>
+                }
+
+                <div class="grid grid-2 mt1">
+                    <label class="field">
+                        <span>코너·프리킥 키커</span>
+                        <select value="@(Session.CornerTaker?.id ?? -1)" @onchange="e => SetCornerTaker(e.Value)">
+                            @foreach (var p in Outfield(tac, w))
+                            {
+                                <option value="@p.id">@p.FullName · 세트피스 @p.technical.setPieces</option>
+                            }
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>페널티 키커</span>
+                        <select value="@(Session.PenaltyTaker?.id ?? -1)" @onchange="e => SetPenaltyTaker(e.Value)">
+                            @foreach (var p in Outfield(tac, w))
+                            {
+                                <option value="@p.id">@p.FullName · 결정력 @p.technical.finishing</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            @if (Session.NextOpponent is { } foe)
+            {
+                var foeIns = Session.OpponentInstructions(foe.id);
+                <div class="card">
+                    <div class="card-head">
+                        <h3>다음 상대</h3>
+                        <span class="spacer"></span>
+                        <span class="tiny dim">@foe.name</span>
+                    </div>
+
+                    @if (Session.ReadsOpponentStyle)
+                    {
+                        <p class="tiny dim">
+                            <strong>@StyleName(AiRecruiting.StyleOf(foeIns))</strong> 색깔의 팀입니다 —
+                            @Ui.MentalityLabel(foeIns.mentality) · 압박 @(foeIns.pressingIntensity)단계 ·
+                            @Ui.LineLabel(foeIns.defensiveLine) 라인 · @Ui.BuildUpLabel(foeIns.buildUpStyle).
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="tiny dim">
+                            상대가 어떤 색깔인지 읽어 낼 사람이 없습니다 —
+                            <a href="staff">분석가</a>를 두면 다음 상대의 전술을 미리 봅니다.
+                        </p>
+                    }
+
+                    <table class="ft">
+                        <tbody>
+                            @foreach (var line in Session.MatchupNotes(tac.instructions, foe.id))
+                            {
+                                <tr>
+                                    <td class="nowrap" style="width:4rem">
+                                        <span class="badge @(line.good ? "good" : "warn")">
+                                            @(line.good ? "유리" : "불리")
+                                        </span>
+                                    </td>
+                                    <td>@line.text</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    int selectedSlot = -1;
+    string formation = "4-2-3-1";
+
+    static string StyleName(AiTactics.Style s) => s switch
+    {
+        AiTactics.Style.Possession => "점유",
+        AiTactics.Style.HighPress => "고압박",
+        AiTactics.Style.LowBlockCounter => "저블록 역습",
+        AiTactics.Style.DirectAttack => "직선적",
+        _ => "무난한",
+    };
+
+    // ── 선수 개인 지시 ────────────────────────────────────────────────
+
+    record PlayerOption(
+        string label,
+        int current,
+        (int value, string name)[] choices,
+        string note,
+        Action<FormationSlot, object?> apply);
+
+    /// <summary>
+    /// 엔진이 실제로 구분하는 항목만 보여 준다.
+    /// 움직여도 아무 일이 없는 항목을 늘어놓으면 화면이 거짓말을 한다.
+    /// </summary>
+    List<PlayerOption> PlayerOptions(PlayerInstructions pi) => new()
+    {
+        new("슈팅 빈도", (int)pi.shootingFrequency,
+            new[] { (0, "자주 때림"), (1, "보통"), (2, "자제") },
+            "자주 때리면 기회는 늘고 하나하나의 질은 떨어집니다",
+            (s, v) => Apply(s, i => i.shootingFrequency = (ShootingFrequency)ToInt(v))),
+
+        new("중거리 슈팅", (int)pi.longShotTendency,
+            new[] { (0, "적극적"), (1, "보통"), (2, "자제") },
+            "멀리서 때리면 슈팅은 늘지만 질이 크게 떨어집니다",
+            (s, v) => Apply(s, i => i.longShotTendency = (LongShotTendency)ToInt(v))),
+
+        new("드리블", (int)pi.dribblingTendency,
+            new[] { (0, "자주 돌파"), (1, "보통"), (2, "자제") },
+            "돌파하면 기회를 만들지만 공을 자주 잃습니다",
+            (s, v) => Apply(s, i => i.dribblingTendency = (DribblingTendency)ToInt(v))),
+
+        new("패스", (int)pi.passingStyle,
+            new[] { (0, "과감하게"), (1, "보통"), (2, "안전하게") },
+            "과감한 패스는 기회의 질을 올리지만 끊깁니다",
+            (s, v) => Apply(s, i => i.passingStyle = (PassingStyle)ToInt(v))),
+
+        new("압박", (int)pi.pressingIntensity,
+            new[] { (0, "강하게"), (1, "보통"), (2, "자제") },
+            "강하게 압박하면 공을 더 쥐지만 체력과 카드를 씁니다",
+            (s, v) => Apply(s, i => i.pressingIntensity = (PressingIntensity)ToInt(v))),
+
+        new("태클", (int)pi.tacklingStyle,
+            new[] { (0, "강하게"), (1, "보통"), (2, "조심스럽게") },
+            "강한 태클은 더 끊지만 카드를 받습니다",
+            (s, v) => Apply(s, i => i.tacklingStyle = (TacklingStyle)ToInt(v))),
+
+        new("침투", (int)pi.offTheBallRuns,
+            new[] { (0, "많이"), (1, "보통"), (2, "적게") },
+            "앞으로 많이 뛰면 골 기회가 늘지만 뒤가 빕니다",
+            (s, v) => Apply(s, i => i.offTheBallRuns = (OffTheBallRuns)ToInt(v))),
+    };
+
+    static int ToInt(object? value) => int.TryParse(value?.ToString(), out int v) ? v : 1;
+
+    void Apply(FormationSlot slot, Action<PlayerInstructions> set)
+    {
+        slot.customInstructions ??= new PlayerInstructions();
+        set(slot.customInstructions);
+        _ = Session.TouchAsync();
+    }
+
+    // ── 세트피스 ──────────────────────────────────────────────────────
+
+    static IEnumerable<PlayerData> Outfield(TacticsData tac, GameWorld w)
+        => tac.slots
+            .OrderBy(s => s.slotIndex)
+            .Select(s => w.Player(s.assignedPlayerId))
+            .Where(p => p is not null && (p.positionFlags & Position.GK) == 0)!;
+
+    static string DeliveryName(SetPieceDelivery d) => d switch
+    {
+        SetPieceDelivery.Inswinger => "인스윙",
+        SetPieceDelivery.Outswinger => "아웃스윙",
+        SetPieceDelivery.ShortPass => "짧게",
+        SetPieceDelivery.DrivenLow => "낮고 빠르게",
+        _ => "높이 띄워",
+    };
+
+    static string DeliveryNote(SetPieceDelivery d) => d switch
+    {
+        SetPieceDelivery.Inswinger => "키커의 배달에 달렸습니다. 골키퍼 앞을 지나갑니다",
+        SetPieceDelivery.Outswinger => "달려드는 움직임이 중요합니다. 골키퍼는 나오지 못합니다",
+        SetPieceDelivery.ShortPass => "기대 득점은 낮지만 공을 잃지 않습니다",
+        SetPieceDelivery.DrivenLow => "제공권 싸움을 건너뜁니다. 키 작은 팀의 선택지",
+        _ => "제공권에 전부 겁니다. 우세하면 크게, 열세면 헛돕니다",
+    };
+
+    async Task SetDelivery(SetPieceDelivery d) => await Session.SetCornerDeliveryAsync(d);
+
+    async Task SetCornerTaker(object? value)
+    {
+        if (int.TryParse(value?.ToString(), out int id)) await Session.SetCornerTakerAsync(id);
+    }
+
+    async Task SetPenaltyTaker(object? value)
+    {
+        if (int.TryParse(value?.ToString(), out int id)) await Session.SetPenaltyTakerAsync(id);
+    }
+
+    // ── 역할 ──────────────────────────────────────────────────────────
+
+    static string RoleName(FormationSlot slot)
+        => slot.role is null ? "—" : RoleDatabase.Get(slot.role.role).displayName;
+
+    static string DutyName(RoleDuty duty) => duty switch
+    {
+        RoleDuty.Defend => "수비",
+        RoleDuty.Attack => "공격",
+        _ => "지원",
+    };
+
+    static string FitTone(int fit) => fit >= 65 ? "good" : fit < 45 ? "warn" : "";
+
+    static string DutyNote(RoleDefinition def, RoleDuty duty)
+    {
+        var (atk, _) = RoleFit.DutyShift(def, duty);
+        int pct = (int)MathF.Round((atk - 1f) * 100f);
+
+        return pct == 0
+            ? "이 역할의 기본 임무입니다"
+            : pct > 0
+                ? $"공격 기여 +{pct}% · 수비 기여 −{pct}%"
+                : $"수비 기여 +{-pct}% · 공격 기여 −{-pct}%";
+    }
+
+    string BalanceLabel(TacticsData tac)
+    {
+        int creators = 0, finishers = 0;
+        foreach (var s in tac.slots)
+        {
+            if (s.role is null) continue;
+            switch (RoleFit.TypeOf(RoleDatabase.Get(s.role.role)))
+            {
+                case RoleFit.Archetype.Creator: creators++; break;
+                case RoleFit.Archetype.Finisher: finishers++; break;
+            }
+        }
+
+        float mul = RoleFit.BalanceMultiplier(tac.slots.Select(s => s.role));
+        string state = mul >= 0.999f
+            ? "괜찮습니다"
+            : $"공격 {(int)MathF.Round((1f - mul) * 100f)}% 손해";
+
+        return $"만드는 역할 {creators}명 · 넣는 역할 {finishers}명 — {state}";
+    }
+
+    async Task SetRole(FormationSlot slot, object? value)
+    {
+        if (!int.TryParse(value?.ToString(), out int v)) return;
+        var role = (PlayerRole)v;
+        var def = RoleDatabase.Get(role);
+
+        slot.role = new RoleAssignment
+        {
+            role = role,
+            // 바꾼 역할이 지금 임무를 허용하지 않으면 그 역할의 기본 임무로 내린다.
+            duty = slot.role is not null && RoleFit.Allows(def, slot.role.duty)
+                ? slot.role.duty
+                : RoleFit.DefaultDuty(def),
+        };
+
+        await Session.TouchAsync();
+    }
+
+    async Task SetDuty(FormationSlot slot, RoleDuty duty)
+    {
+        if (slot.role is null) return;
+        slot.role.duty = duty;
+        await Session.TouchAsync();
+    }
+
+    /// <summary>선수마다 가장 맞는 역할을 고른다. 균형이 나빠지는 변경은 되돌린다.</summary>
+    async Task AutoRoles()
+    {
+        if (Session.World is not { } world || Session.ActiveTactics is not { } tac) return;
+
+        foreach (var slot in tac.slots)
+        {
+            var p = world.Player(slot.assignedPlayerId);
+            if (p is null) continue;
+            if (RoleFit.Best(p, slot.position) is not { } best) continue;
+
+            var before = slot.role;
+            float balanceBefore = RoleFit.BalanceMultiplier(tac.slots.Select(s => s.role));
+
+            slot.role = new RoleAssignment
+            {
+                role = best,
+                duty = RoleFit.DefaultDuty(RoleDatabase.Get(best)),
+            };
+
+            if (RoleFit.BalanceMultiplier(tac.slots.Select(s => s.role)) < balanceBefore)
+                slot.role = before;
+        }
+
+        await Session.TouchAsync();
+    }
+
+    // 지시마다 무엇을 얻고 무엇을 내주는지 적는다. 대가가 안 보이면 전부 최대로 두게 된다.
+    static string PressNote(TeamInstructions i) => i.pressingIntensity switch
+    {
+        >= 5 => "공을 많이 쥐지만 후반에 체력이 크게 떨어집니다",
+        4 => "공을 조금 더 쥐는 대신 체력을 씁니다",
+        <= 2 => "체력을 아끼지만 상대가 편하게 공을 돌립니다",
+        _ => "체력 소모 없이 무난합니다",
+    };
+
+    static string TempoNote(int tempo) => tempo switch
+    {
+        >= 5 => "슈팅이 늘지만 하나하나의 질이 떨어지고 체력을 씁니다",
+        4 => "조금 더 많이, 조금 더 급하게 때립니다",
+        <= 2 => "적게 때리는 대신 좋은 기회를 고릅니다",
+        _ => "균형잡힌 속도입니다",
+    };
+
+    static string WidthNote(int width) => width switch
+    {
+        >= 4 => "내려선 상대를 벌리기 좋지만 올라온 상대에게는 헛돕니다",
+        <= 2 => "올라온 상대의 사이를 찌르기 좋지만 내려선 상대는 못 벌립니다",
+        _ => "상대 블록에 따라 조절하세요",
+    };
+
+    static string LineNote(DefensiveLine line) => line switch
+    {
+        DefensiveLine.VeryHigh => "공을 많이 쥐지만 뒷공간을 크게 내줍니다",
+        DefensiveLine.High => "중원을 압축하는 대신 뒷공간이 조금 열립니다",
+        DefensiveLine.Low => "뒷공간을 지키지만 공을 내주고 상대 슈팅이 줄어듭니다",
+        DefensiveLine.VeryLow => "뒷공간을 거의 안 주지만 공격으로 나가기 어렵습니다",
+        _ => "무난한 높이입니다",
+    };
+
+    static string BuildUpNote(BuildUpStyle style) => style switch
+    {
+        BuildUpStyle.ShortPassing => "공을 쥐고 좋은 기회를 만들지만 압박에 끊깁니다",
+        BuildUpStyle.LongBall => "압박을 넘기지만 공을 내주고 기회의 질이 떨어집니다",
+        BuildUpStyle.Direct => "빅찬스가 늘지만 점유율과 기회의 질을 내줍니다",
+        _ => "치우치지 않습니다",
+    };
+
+    string TrapNote()
+    {
+        var club = Session.World?.MyClub;
+        var tac = Session.ActiveTactics;
+        if (Session.World is null || tac is null) return "수비수가 잘 맞춰야 이득입니다";
+
+        float skill = TacticalProfile.TrapSkill(
+            tac.slots.Select(s => Session.World.Player(s.assignedPlayerId)).ToArray());
+
+        return skill >= BalanceConfig.TrapBreakEven
+            ? $"수비진 숙련 {skill:F0} — 걸 만합니다 (본전 {BalanceConfig.TrapBreakEven:F0})"
+            : $"수비진 숙련 {skill:F0} — 못 맞추면 뒷공간이 되레 열립니다 (본전 {BalanceConfig.TrapBreakEven:F0})";
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        var club = Session.World?.MyClub;
+        var tac = Session.ActiveTactics;
+        if (tac is not null)
+        {
+            // 저장된 전술의 프리셋 id 를 모양으로 역추적한다.
+            var match = FormationDatabase.All.FirstOrDefault(p => p.shape == tac.formationShape);
+            formation = match?.id ?? "4-2-3-1";
+        }
+    }
+
+    static FormationSlot? SlotOf(TacticsData tac, int index)
+        => tac.slots.FirstOrDefault(s => s.slotIndex == index);
+
+    void SelectSlot(int index)
+    {
+        selectedSlot = selectedSlot == index ? -1 : index;
+    }
+
+    async Task ResetLineup()
+    {
+        Session.ResetLineup();
+        selectedSlot = -1;
+        await Session.TouchAsync();
+    }
+
+    async Task ChangeFormation()
+    {
+        Session.SetFormation(formation);
+        selectedSlot = -1;
+        await Session.TouchAsync();
+    }
+
+    async Task Assign(int playerId)
+    {
+        if (selectedSlot < 0) return;
+        Session.AssignToSlot(selectedSlot, playerId);
+        selectedSlot = -1;
+        await Session.TouchAsync();
+    }
+
+    IEnumerable<PlayerData> Candidates(Position slot)
+        => Session.Squad
+            .OrderByDescending(p => LineupBuilder.Fit(p, slot))
+            .ThenByDescending(GameWorld.Ca)
+            .Take(12);
+
+    // 배치 계산과 같은 판정을 쓴다. 따로 구현하면 표시와 실제 적합도가 어긋난다.
+    static string FitLabel(PlayerData p, Position slot) => LineupBuilder.Tier(p, slot) switch
+    {
+        LineupBuilder.FitTier.Natural => "적합",
+        LineupBuilder.FitTier.Related => "소화 가능",
+        LineupBuilder.FitTier.Impossible => "불가",
+        _ => "낯섦",
+    };
+
+    static string FitBadge(PlayerData p, Position slot) => LineupBuilder.Tier(p, slot) switch
+    {
+        LineupBuilder.FitTier.Natural => "good",
+        LineupBuilder.FitTier.Related => "",
+        LineupBuilder.FitTier.Impossible => "bad",
+        _ => "warn",
+    };
+
+    // ── 지시 변경 ─────────────────────────────────────────────────────
+
+    async Task SetMentality(object? value)
+    {
+        if (Session.ActiveTactics is { } t && int.TryParse(value?.ToString(), out int v))
+            t.instructions.mentality = (TeamMentality)Math.Clamp(v, 0, 4);
+        await Session.TouchAsync();
+    }
+
+    async Task SetLine(object? value)
+    {
+        if (Session.ActiveTactics is { } t && int.TryParse(value?.ToString(), out int v))
+            t.instructions.defensiveLine = (DefensiveLine)Math.Clamp(v, 0, 4);
+        await Session.TouchAsync();
+    }
+
+    async Task SetBuildUp(object? value)
+    {
+        if (Session.ActiveTactics is { } t && int.TryParse(value?.ToString(), out int v))
+            t.instructions.buildUpStyle = (BuildUpStyle)Math.Clamp(v, 0, 3);
+        await Session.TouchAsync();
+    }
+
+    async Task Set(Action<int> apply, object? value)
+    {
+        if (int.TryParse(value?.ToString(), out int v)) apply(v);
+        await Session.TouchAsync();
+    }
+
+    async Task Toggle(Action<bool> apply, object? value)
+    {
+        apply(value is bool b ? b : bool.TryParse(value?.ToString(), out var p) && p);
+        await Session.TouchAsync();
+    }
+}

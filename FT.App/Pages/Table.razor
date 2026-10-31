@@ -1,0 +1,109 @@
+@page "/table"
+@inherits SessionPage
+
+<PageTitle>순위표 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w)
+{
+    <Redirect />
+}
+else
+{
+    var league = w.League(viewLeagueId > 0 ? viewLeagueId : w.MyLeague!.id)!;
+    var season = league.currentSeason;
+
+    <h1>순위표</h1>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>@league.name</h3>
+            <span class="spacer"></span>
+            <select @bind="viewLeagueId" @bind:after="StateHasChanged">
+                @foreach (var n in w.Nations)
+                {
+                    @foreach (var lid in n.LeagueIds)
+                    {
+                        var l = w.League(lid)!;
+                        <option value="@lid">@n.Country — @l.name (@((int)l.tier)부)</option>
+                    }
+                }
+            </select>
+        </div>
+
+        <p class="tiny dim">
+            @season.currentMatchday / @season.totalMatchdays 라운드 ·
+            <span style="color:var(--emerald)">■</span> @(league.tier == LeagueTier.First ? "우승권" : "승격권")
+            @if (league.tier == LeagueTier.First)
+            {
+                <span><span style="color:var(--sky)">■</span> 대륙 대회</span>
+                <span><span style="color:var(--coral)">■</span> 강등권</span>
+            }
+        </p>
+
+        <div style="overflow-x:auto">
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th>#</th><th>구단</th>
+                        <th class="num">경기</th><th class="num">승</th><th class="num">무</th><th class="num">패</th>
+                        <th class="num">득</th><th class="num">실</th><th class="num">득실</th><th class="num">승점</th>
+                        <th>최근</th><th class="num">전력</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in season.standings)
+                    {
+                        <tr class="@RowClass(e, league)">
+                            <td class="mono">@e.position</td>
+                            <td class="nowrap">
+                                <span class="kit" style="background:@w.Club(e.clubId)!.colors.primaryHex; width:12px; height:12px; display:inline-block; vertical-align:-1px; margin-right:.4rem; border-radius:3px"></span>
+                                @Session.ClubName(e.clubId)
+                            </td>
+                            <td class="num">@e.played</td>
+                            <td class="num">@e.won</td>
+                            <td class="num">@e.drawn</td>
+                            <td class="num">@e.lost</td>
+                            <td class="num">@e.goalsFor</td>
+                            <td class="num">@e.goalsAgainst</td>
+                            <td class="num">@e.GoalDifference.ToString("+0;-0;0")</td>
+                            <td class="num"><strong>@e.points</strong></td>
+                            <td class="nowrap">
+                                @foreach (var c in Standings.RecentForm(league, e.clubId))
+                                {
+                                    <span class="form-dot form-@c">@c</span>
+                                }
+                            </td>
+                            <td class="num dim">@Math.Round(w.Strength(e.clubId))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    int viewLeagueId;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        viewLeagueId = Session.World?.MyLeague?.id ?? 0;
+    }
+
+    string RowClass(StandingEntry e, LeagueData league)
+    {
+        var cls = e.clubId == Session.World!.ManagedClubId ? "me " : "";
+        int n = league.clubIds.Count;
+
+        // 2부는 승격권이 상위, 강등권이 없다.
+        if (league.tier != LeagueTier.First)
+            return e.position <= league.promotionSpots ? cls + "zone-champ" : cls;
+
+        if (e.position == 1) return cls + "zone-champ";
+        if (e.position <= 4) return cls + "zone-euro";
+        if (league.relegationSpots > 0 && e.position > n - league.relegationSpots)
+            return cls + "zone-releg";
+        return cls;
+    }
+}

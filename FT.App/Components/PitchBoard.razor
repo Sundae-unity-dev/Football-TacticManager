@@ -1,0 +1,54 @@
+@using FootballTactician.Data
+
+@*
+  전술 보드. 슬롯의 공격 시 좌표(attackingX/Y)를 그대로 쓴다.
+  y 는 자기 골문이 0 이므로 화면에서는 위아래를 뒤집는다.
+*@
+
+<div class="pitch">
+    <svg class="lines" viewBox="0 0 68 105" preserveAspectRatio="none">
+        <rect x="1" y="1" width="66" height="103" />
+        <line x1="1" y1="52.5" x2="67" y2="52.5" />
+        <circle cx="34" cy="52.5" r="9.15" />
+        <rect x="20.2" y="1" width="27.6" height="16.5" />
+        <rect x="20.2" y="87.5" width="27.6" height="16.5" />
+        <rect x="28.3" y="1" width="11.4" height="5.5" />
+        <rect x="28.3" y="98.5" width="11.4" height="5.5" />
+    </svg>
+
+    @if (Tactics is not null)
+    {
+        @foreach (var slot in Tactics.slots.OrderBy(s => s.slotIndex))
+        {
+            var player = Lookup(slot.assignedPlayerId);
+            var left = slot.attackingX * 100f;
+            var top = (1f - slot.attackingY) * 100f;
+            var selected = SelectedSlot == slot.slotIndex;
+
+            @* 클릭만 달린 div 는 키보드로 쓸 수 없고 화면 낭독기에도 잡히지 않아 button 으로 둔다. *@
+            <button type="button"
+                    class="pitch-player @(selected ? "selected" : "")"
+                    style="left:@(left.ToString("0.#"))%; top:@(top.ToString("0.#"))%"
+                    aria-pressed="@selected"
+                    aria-label="@Ui.PosLabel(slot.position) 자리 — @(player is null ? "공석" : $"{player.FullName}, 기량 {Math.Round(GameWorld.Ca(player))}")"
+                    @onclick="() => OnSlotClick.InvokeAsync(slot.slotIndex)">
+                <span class="shirt" style="background:@Primary; color:@Ui.TextOn(Primary)">
+                    @Ui.PosLabel(slot.position)
+                </span>
+                <span class="pitch-name">@(player is null ? "공석" : player.lastName)</span>
+                @if (player is not null)
+                {
+                    <span class="pitch-role">@Math.Round(GameWorld.Ca(player))</span>
+                }
+            </button>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TacticsData? Tactics { get; set; }
+    [Parameter, EditorRequired] public Func<int, PlayerData?> Lookup { get; set; } = _ => null;
+    [Parameter] public string Primary { get; set; } = "#3DDCA3";
+    [Parameter] public int SelectedSlot { get; set; } = -1;
+    [Parameter] public EventCallback<int> OnSlotClick { get; set; }
+}

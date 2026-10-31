@@ -1,0 +1,298 @@
+@page "/cup"
+@inherits SessionPage
+
+<PageTitle>컵 · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w || w.MyClub is not { } club)
+{
+    <Redirect />
+}
+else if (Tabs() is { Count: 0 })
+{
+    <div class="empty">참가 중인 컵 대회가 없습니다.</div>
+}
+else
+{
+    var tabs = Tabs();
+    var cup = tabs.FirstOrDefault(c => c.id == viewCupId) ?? tabs[0];
+
+    <h1>@cup.name</h1>
+
+    @if (tabs.Count > 1)
+    {
+        <div class="btn-row">
+            @foreach (var c in tabs)
+            {
+                <button class="btn btn-sm @(c.id == cup.id ? "btn-primary" : "")"
+                        @onclick="() => viewCupId = c.id">
+                    @c.name
+                    @if (!c.entrants.Contains(club.id))
+                    {
+                        <span class="tiny dim">미출전</span>
+                    }
+                </button>
+            }
+        </div>
+    }
+
+    <p class="muted">
+        @cup.year 시즌 · @(cup.entrants.Count)팀 참가 ·
+        @if (cup.Finished)
+        {
+            <span>우승 <strong style="color:var(--emerald)">@Session.ClubName(cup.winnerClubId)</strong></span>
+        }
+        else
+        {
+            <span>@CurrentLabel(cup) 진행 중</span>
+        }
+        @if (cup.continental)
+        {
+            <span class="tiny dim">
+                · 나라마다 1부 상위 @(CupCompetition.ContinentalSpotsPerNation)팀이 지난 시즌 성적으로 나옵니다
+            </span>
+        }
+    </p>
+
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="stat-label">우리 구단</div>
+            <div class="stat-value @(CupCompetition.StillIn(cup, club.id) ? "accent" : "")" style="font-size:1.1rem">
+                @MyStatus(cup, club.id)
+            </div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">현재 라운드</div>
+            <div class="stat-value" style="font-size:1.1rem">@(cup.Current?.name ?? "종료")</div>
+            <div class="stat-sub">@(cup.Current is null ? "" : $"{cup.Current.ties.Count}경기")</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">남은 팀</div>
+            <div class="stat-value" style="font-size:1.1rem">@Remaining(cup)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">다음 컵 라운드</div>
+            <div class="stat-value" style="font-size:1.1rem">
+                @(cup.Current is null ? "—" : $"{cup.Current.matchday} 라운드 주")
+            </div>
+            <div class="stat-sub">@(cup.Current is null ? "" : Ui.DateLabel(cup.Current.date))</div>
+        </div>
+    </div>
+
+    @if (cup.HasGroups)
+    {
+        <div class="grid grid-2">
+            @foreach (var group in cup.groups)
+            {
+                var standing = group.Standing();
+                <div class="card">
+                    <div class="card-head">
+                        <h3>@group.name</h3>
+                        <span class="spacer"></span>
+                        <span class="tiny dim">
+                            @group.fixtures.Count(f => f.played) / @group.fixtures.Count 경기
+                        </span>
+                    </div>
+
+                    <table class="ft">
+                        <thead>
+                            <tr>
+                                <th></th><th>구단</th>
+                                <th class="num">승점</th><th class="num">득실</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < standing.Count; i++)
+                            {
+                                var id = standing[i];
+                                var (points, gf, ga) = group.Record(id);
+                                var through = i < CupCompetition.QualifyPerGroup;
+                                <tr class="@(id == club.id ? "me" : "")">
+                                    <td class="num tiny @(through ? "accent" : "dim")">@(i + 1)</td>
+                                    <td class="nowrap">
+                                        @Session.ClubName(id)
+                                        <span class="tiny dim">@Nation(w, id)</span>
+                                    </td>
+                                    <td class="num mono">@points</td>
+                                    <td class="num mono tiny">@gf:@ga</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    @if (group.fixtures.Any(f => !f.played))
+                    {
+                        <p class="tiny dim">
+                            다음 @group.fixtures.Where(f => !f.played).Min(f => f.matchday) 라운드 주
+                        </p>
+                    }
+                </div>
+            }
+        </div>
+
+        <p class="tiny dim">
+            조마다 상위 @(CupCompetition.QualifyPerGroup)팀이 토너먼트에 오릅니다.
+            같은 나라 팀은 한 조에 들어가지 않습니다.
+        </p>
+    }
+
+    @foreach (var round in cup.rounds.AsEnumerable().Reverse())
+    {
+        <div class="card">
+            <div class="card-head">
+                <h3>@round.name</h3>
+                <span class="spacer"></span>
+                <span class="tiny dim">
+                    @Ui.DateLabel(round.date) · 리그 @round.matchday 라운드 주
+                    @if (!round.Played) { <span class="badge warn">예정</span> }
+                </span>
+            </div>
+
+            <table class="ft">
+                <tbody>
+                    @foreach (var tie in round.ties)
+                    {
+                        var involved = tie.homeClubId == club.id || tie.awayClubId == club.id;
+                        <tr class="@(involved ? "me" : "")">
+                            <td class="right nowrap" style="width:40%">
+                                <span class="@(tie.played && tie.WinnerClubId == tie.homeClubId ? "" : "dim")">
+                                    @Session.ClubName(tie.homeClubId)
+                                </span>
+                                @if (cup.continental)
+                                {
+                                    <span class="tiny dim">@Nation(w, tie.homeClubId)</span>
+                                }
+                            </td>
+                            <td class="center mono" style="width:20%">
+                                @if (tie.played)
+                                {
+                                    <span>@tie.homeGoals : @tie.awayGoals</span>
+                                    @if (tie.decidedOnPenalties)
+                                    {
+                                        <div class="tiny dim">승부차기 @tie.homePens-@tie.awayPens</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="dim">vs</span>
+                                }
+                            </td>
+                            <td class="nowrap" style="width:40%">
+                                <span class="@(tie.played && tie.WinnerClubId == tie.awayClubId ? "" : "dim")">
+                                    @Session.ClubName(tie.awayClubId)
+                                </span>
+                                @if (cup.continental)
+                                {
+                                    <span class="tiny dim">@Nation(w, tie.awayClubId)</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (round.ByeClubId > 0)
+                    {
+                        <tr class="@(round.ByeClubId == club.id ? "me" : "")">
+                            <td class="right nowrap">@Session.ClubName(round.ByeClubId)</td>
+                            <td class="center tiny dim">부전승</td>
+                            <td></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (cup.PendingByes.Count > 0)
+    {
+        <div class="card">
+            <div class="card-head"><h3>본선 직행</h3></div>
+            <p class="tiny dim">예선을 거치지 않고 다음 라운드에서 합류합니다.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:.4rem">
+                @foreach (var id in cup.PendingByes)
+                {
+                    <span class="badge @(id == club.id ? "good" : "")">@Session.ClubShort(id)</span>
+                }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    int viewCupId;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        // 국내 컵을 먼저 보여준다. 없으면 대륙 대회로 넘어간다.
+        viewCupId = Session.MyCup?.id ?? Session.Continental?.id ?? 0;
+    }
+
+    /// <summary>국내 컵과 대륙 대회. 대륙 대회는 출전권이 없어도 대진은 볼 수 있다.</summary>
+    List<CupState> Tabs()
+    {
+        var list = new List<CupState>();
+        if (Session.MyCup is { } domestic) list.Add(domestic);
+        if (Session.Continental is { } continental) list.Add(continental);
+        return list;
+    }
+
+    static string Nation(GameWorld w, int clubId) => w.NationOf(clubId)?.Code ?? "";
+
+    static CupTie? NextGroupFixture(CupState cup)
+        => cup.groups.SelectMany(g => g.fixtures)
+            .Where(f => !f.played)
+            .OrderBy(f => f.matchday)
+            .FirstOrDefault();
+
+    static string NextWeekLabel(CupState cup)
+    {
+        if (cup.HasGroups && !cup.GroupsDone)
+            return NextGroupFixture(cup) is { } f ? $"{f.matchday} 라운드 주" : "—";
+        return cup.Current is null ? "—" : $"{cup.Current.matchday} 라운드 주";
+    }
+
+    static string NextWeekDate(CupState cup)
+    {
+        if (cup.HasGroups && !cup.GroupsDone)
+            return NextGroupFixture(cup) is { } f ? Ui.DateLabel(f.date) : "";
+        return cup.Current is null ? "" : Ui.DateLabel(cup.Current.date);
+    }
+
+    static string RoundSub(CupState cup)
+    {
+        if (cup.HasGroups && !cup.GroupsDone)
+        {
+            int played = cup.groups.Sum(g => g.fixtures.Count(f => f.played));
+            int total = cup.groups.Sum(g => g.fixtures.Count);
+            return $"{played} / {total} 경기";
+        }
+        return cup.Current is null ? "" : $"{cup.Current.ties.Count}경기";
+    }
+
+    static string CurrentLabel(CupState cup)
+    {
+        if (cup.HasGroups && !cup.GroupsDone) return "조별리그";
+        return cup.Current?.name ?? "종료";
+    }
+
+    static string Remaining(CupState cup)
+    {
+        if (cup.Finished) return "—";
+        if (cup.HasGroups && !cup.GroupsDone) return $"{cup.entrants.Count}팀";
+        int inRound = (cup.Current?.ties.Count ?? 0) * 2 + (cup.Current?.ByeClubId > 0 ? 1 : 0);
+        return $"{inRound + cup.PendingByes.Count}팀";
+    }
+
+    static string MyStatus(CupState cup, int clubId)
+    {
+        if (!cup.entrants.Contains(clubId)) return "출전 못 함";
+        if (cup.winnerClubId == clubId) return "우승";
+        if (CupCompetition.StillIn(cup, clubId)) return "생존";
+
+        for (int i = cup.rounds.Count - 1; i >= 0; i--)
+        {
+            var tie = cup.rounds[i].ties.FirstOrDefault(
+                t => t.homeClubId == clubId || t.awayClubId == clubId);
+            if (tie != null) return $"{cup.rounds[i].name} 탈락";
+        }
+        return "탈락";
+    }
+}
