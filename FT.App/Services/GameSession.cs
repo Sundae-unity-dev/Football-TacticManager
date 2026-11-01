@@ -278,6 +278,99 @@ public sealed class GameSession(SaveStore store)
         return outcome;
     }
 
+    // ── 계약 협상 ─────────────────────────────────────────────────────────
+    //
+    // 협상 자체는 **저장하지 않는다**. 오가는 중의 탁자는 화면이 들고 있고,
+    // 세계에 남는 것은 합의한 계약서뿐이다. 저장 중간에 협상이 끼면 세이브 포맷이
+    // 대화 상태까지 떠안게 되고, 불러온 판에서 "하던 말"을 이어 붙일 방법이 없다.
+
+    /// <summary>재계약 탁자를 연다.</summary>
+    public ContractNegotiation.Talks? OpenRenewal(PlayerData p)
+        => World is { } w && w.MyClub is { } club
+            ? ContractNegotiation.Open(w, p, club.id, renewal: true)
+            : null;
+
+    /// <summary>영입 개인 조건 탁자를 연다. 구단 간 합의가 끝난 뒤다.</summary>
+    public ContractNegotiation.Talks? OpenSigning(PlayerData p)
+        => World is { } w && w.MyClub is { } club
+            ? ContractNegotiation.Open(w, p, club.id, renewal: false)
+            : null;
+
+    /// <summary>제안 한 번. 받아들여지거나, 맞받아 오거나, 자리를 뜬다.</summary>
+    public void Propose(ContractNegotiation.Talks t, ContractNegotiation.Terms offer)
+    {
+        if (World is not { } w) return;
+        ContractNegotiation.Propose(w, t, offer);
+        NotifyChanged();
+    }
+
+    /// <summary>합의한 재계약을 계약서로 옮긴다.</summary>
+    public async Task SignRenewalAsync(ContractNegotiation.Talks t, ContractNegotiation.Terms terms)
+    {
+        if (World is not { } w) return;
+        var p = w.Player(t.playerId);
+        if (p == null) return;
+
+        ContractNegotiation.Sign(w, p, terms, t.clubId);
+        w.ContractWarnings.Remove(p.id);
+        w.Post($"{p.FullName} 재계약",
+               $"주 {terms.weeklyWage / 1000d:F0}K€ · {terms.years}년 · "
+               + $"{ContractNegotiation.RoleLabel(terms.role)} 자리로 합의했습니다.",
+               InboxKind.Transfer);
+        NotifyChanged();
+        await SaveAsync();
+    }
+
+    /// <summary>
+    /// 1단계 — 구단 간 이적료 합의. 선수 개인 조건은 아직 건드리지 않는다.
+    /// 막는 이유가 있으면 그 말을 돌려주고, 없으면 null 이다.
+    /// </summary>
+    public string? AgreeFee(PlayerData target, long fee)
+    {
+        if (World is not { } w || w.MyClub is not { } club) return "진행 중인 판이 없습니다.";
+        if (!TransferMarket.IsWindowOpen(w)) return "이적 창구가 닫혀 있습니다.";
+
+        var seller = TransferMarket.SellerVerdict(w, target, fee);
+        if (seller != TransferMarket.Verdict.Accepted)
+            return seller switch
+            {
+                TransferMarket.Verdict.FeeTooLow =>
+                    $"{ClubName(target.clubId)} 이 거절했습니다. 호가는 "
+                    + $"{TransferMarket.AskingPrice(w, target) / 1_000_000d:F1}M€ 입니다.",
+                TransferMarket.Verdict.SquadTooThin =>
+                    $"{ClubName(target.clubId)} 이 대체 자원이 없어 내줄 수 없다고 합니다.",
+                _ => "지금은 매각 대상이 아닙니다.",
+            };
+
+        if (fee > club.finances.transferBudget) return "이적 예산이 부족합니다.";
+        return null;
+    }
+
+    /// <summary>2단계 — 개인 조건까지 합의했으면 이적을 체결한다.</summary>
+    public async Task<string?> CompleteSigningAsync(
+        ContractNegotiation.Talks t, ContractNegotiation.Terms terms, long fee)
+    {
+        if (World is not { } w) return "진행 중인 판이 없습니다.";
+        var p = w.Player(t.playerId);
+        if (p == null) return "대상을 찾을 수 없습니다.";
+
+        // 창구는 협상하는 동안에도 닫힐 수 있다. 체결 직전에 다시 본다.
+        var blocked = AgreeFee(p, fee);
+        if (blocked != null) return blocked;
+
+        var offer = TransferMarket.BuildOffer(w, p, fee, terms.weeklyWage, terms.years);
+        TransferMarket.Execute(w, offer);
+        ContractNegotiation.Sign(w, p, terms, t.clubId);   // 보너스·조항까지 적는다
+
+        w.Post($"{p.FullName} 영입",
+               $"이적료 {fee / 1_000_000d:F1}M€ · 주 {terms.weeklyWage / 1000d:F0}K€ · "
+               + $"{terms.years}년 · {ContractNegotiation.RoleLabel(terms.role)} 자리.",
+               InboxKind.Transfer);
+        NotifyChanged();
+        await SaveAsync();
+        return null;
+    }
+
     // ── 훈련 ──────────────────────────────────────────────────────────────
 
     public TrainingPlan? Training => World?.Training;
@@ -952,6 +1045,7 @@ public sealed class GameSession(SaveStore store)
 
     public string ClubName(int id) => Club(id)?.name ?? "—";
     public string ClubShort(int id) => Club(id)?.shortName ?? "—";
+    public string NameOf(int playerId) => World?.Player(playerId)?.FullName ?? "선수";
 
     public IEnumerable<PlayerData> Squad =>
         World == null ? [] : World.Squad(World.ManagedClubId);

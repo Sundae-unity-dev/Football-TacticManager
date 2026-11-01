@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject GameSession Session
 @inject NavigationManager Nav
+@inject UiPrefs Prefs
 
 @if (resuming)
 {
@@ -79,6 +80,18 @@ else
                     @if (Unread > 0) { <span class="nav-badge">@Unread</span> }
                 </NavLink>
             </nav>
+
+            <div class="side-foot">
+                <div class="side-foot-label">글씨 크기</div>
+                <div class="seg">
+                    @foreach (var (key, label) in Scales)
+                    {
+                        <button class="seg-btn @(Prefs.Scale == key ? "on" : "")"
+                                @onclick="() => Prefs.SetScaleAsync(key)">@label</button>
+                    }
+                </div>
+                <div class="side-foot-ver">@Ui.Version</div>
+            </div>
         </aside>
 
         <div class="main">
@@ -152,14 +165,25 @@ else
 
     bool resuming = true;
 
+    static readonly (string key, string label)[] Scales =
+    {
+        (UiPrefs.Base, "보통"), (UiPrefs.Large, "크게"), (UiPrefs.ExtraLarge, "아주 크게"),
+    };
+
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnChanged;
+        Prefs.Changed += OnChanged;
+        await Prefs.LoadAsync();
         // 새로고침으로 메모리가 비었으면 저장된 판을 되살린다.
         try { await Session.TryResumeAsync(); }
         finally { resuming = false; }
     }
-    public void Dispose() => Session.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Session.Changed -= OnChanged;
+        Prefs.Changed -= OnChanged;
+    }
     void OnChanged() => InvokeAsync(StateHasChanged);
 
     void GoMatch() => Nav.NavigateTo("match");

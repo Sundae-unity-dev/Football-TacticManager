@@ -185,10 +185,23 @@ namespace FootballTactician.World
     /// 여기서 함께 다루고 FormatVersion 을 올려야 한다.
     /// 순서가 곧 포맷이다 — 바꾸면 기존 세이브를 다른 값으로 읽는다.
     /// </summary>
+    /// <summary>
+    /// 계약서. 열한 자리였다가 협상한 조건(보너스·조항)이 붙어 열일곱 자리가 되었다.
+    ///
+    /// <b>뒤에 덧붙였으므로 예전 세이브가 그대로 읽힌다</b> — 없는 자리는 0 이 된다.
+    /// 그리고 협상하지 않은 계약(AI 구단 6,000명 대부분)은 뒤쪽이 전부 0 이라
+    /// WriteArray 가 잘라 내므로 <b>세이브가 한 바이트도 늘지 않는다</b>.
+    ///
+    /// 방출 조항 금액만 천 유로 단위다. 이 게임의 금액은 int 에 들어가지만,
+    /// 조항 금액은 시장가의 몇 배까지 적을 수 있어 자리를 아껴 둔다.
+    /// </summary>
     sealed class ContractConverter : JsonConverter<ContractData>
     {
         public override void Write(Utf8JsonWriter w, ContractData c, JsonSerializerOptions o)
-            => AttrJson.WriteArray(w, new[]
+        {
+            var b = c.bonuses;
+            var cl = c.clauses;
+            AttrJson.WriteArray(w, new[]
             {
                 c.clubId, c.weeklyWage,
                 AttrJson.PackDate(c.startDate), AttrJson.PackDate(c.expiryDate),
@@ -196,12 +209,18 @@ namespace FootballTactician.World
                 c.agentId, c.agentFeePercent, c.signingBonus,
                 c.imageRightsPercent, c.loyaltyBonus,
                 c.hasNoShopClause ? 1 : 0,
+
+                b?.goalBonus ?? 0, b?.appearanceBonus ?? 0, b?.titleBonus ?? 0,
+                (int)((cl?.releaseClauseAmount ?? 0) / 1000),
+                cl?.promoWageIncrease ?? 0,
+                cl?.minimumAppearancesPerSeason ?? 0,
             });
+        }
 
         public override ContractData Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o)
         {
-            var v = AttrJson.ReadArray(ref r, 11);
-            return new ContractData
+            var v = AttrJson.ReadArray(ref r, 17);
+            var c = new ContractData
             {
                 clubId = v[0], weeklyWage = v[1],
                 startDate = AttrJson.UnpackDate(v[2]), expiryDate = AttrJson.UnpackDate(v[3]),
@@ -210,6 +229,26 @@ namespace FootballTactician.World
                 imageRightsPercent = v[8], loyaltyBonus = v[9],
                 hasNoShopClause = v[10] != 0,
             };
+
+            // 협상한 적이 없으면 객체를 만들지 않는다. 6,000명분이면 그것만으로 짐이다.
+            if (v[11] != 0 || v[12] != 0 || v[13] != 0)
+                c.bonuses = new ContractBonus
+                {
+                    goalBonus = v[11], appearanceBonus = v[12], titleBonus = v[13],
+                };
+
+            if (v[14] != 0 || v[15] != 0 || v[16] != 0)
+                c.clauses = new ContractClause
+                {
+                    hasReleaseClause = v[14] != 0,
+                    releaseClauseAmount = v[14] * 1000L,
+                    hasPromoRelegationClause = v[15] != 0,
+                    promoWageIncrease = v[15],
+                    hasAppearanceClause = v[16] != 0,
+                    minimumAppearancesPerSeason = v[16],
+                };
+
+            return c;
         }
     }
 

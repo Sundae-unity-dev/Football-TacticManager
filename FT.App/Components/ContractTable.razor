@@ -1,0 +1,210 @@
+@using FootballTactician.World
+@using N = FootballTactician.World.ContractNegotiation
+@inject GameSession Session
+
+@*
+  계약 테이블. 재계약과 영입이 **같은 표**를 쓴다.
+
+  왼쪽은 상대가 바라는 것, 오른쪽은 내가 내민 것이다. 줄마다 모자란지 넉넉한지가
+  붙어서, 어디를 깎고 어디를 얹을지 보고 고를 수 있다. 조건 하나를 못 맞추면
+  다른 칸으로 메우는 것이 이 화면의 전부다.
+*@
+
+<div class="card negotiate">
+    <div class="card-head">
+        <h3>@Title</h3>
+        <span class="spacer"></span>
+        @if (Talks.Open)
+        {
+            <span class="badge @(Talks.patience <= 1 ? "bad" : Talks.patience <= 2 ? "warn" : "")">
+                남은 기회 @(Talks.patience)번
+            </span>
+        }
+        <button class="btn btn-sm btn-ghost" @onclick="OnClose">닫기</button>
+    </div>
+
+    <p class="say">@Talks.headline</p>
+
+    <div class="grid grid-2">
+        <div>
+            <table class="ft">
+                <thead>
+                    <tr><th>항목</th><th class="num">상대 요구</th><th class="num">내 제안</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in Lines)
+                    {
+                        <tr class="@(line.Matters ? "" : "dim-row")">
+                            <td class="nowrap">@line.Label</td>
+                            <td class="num dim">@line.Wanted</td>
+                            <td class="num"><strong>@line.Offered</strong></td>
+                            <td class="right">
+                                @if (!line.Matters)
+                                {
+                                    <span class="tiny dim">관심 없음</span>
+                                }
+                                else if (line.Mood == N.Mood.Short)
+                                {
+                                    <span class="badge bad">모자람</span>
+                                }
+                                else if (line.Mood == N.Mood.Generous)
+                                {
+                                    <span class="badge good">넉넉함</span>
+                                }
+                                else
+                                {
+                                    <span class="badge">충분</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @if (Talks.log.Count > 1)
+            {
+                <div class="talk-log">
+                    @foreach (var line in Talks.log.AsEnumerable().Reverse().Take(4))
+                    {
+                        <div class="talk-line">@line</div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div>
+            <label class="field">
+                <span>주급 — @Ui.Money(Offer.weeklyWage)</span>
+                <input type="range" min="1000" max="@MaxWage" step="500"
+                       @bind="Offer.weeklyWage" @bind:event="oninput" />
+            </label>
+
+            <div class="grid grid-2">
+                <label class="field">
+                    <span>기간 — @(Offer.years)년</span>
+                    <input type="range" min="1" max="5" step="1"
+                           @bind="Offer.years" @bind:event="oninput" />
+                </label>
+                <label class="field">
+                    <span>자리 약속</span>
+                    <select @bind="Offer.role">
+                        @foreach (var r in Roles)
+                        {
+                            <option value="@r">@N.RoleLabel(r) (@N.PromisedAppearances(r)경기)</option>
+                        }
+                    </select>
+                </label>
+            </div>
+
+            <label class="field">
+                <span>사인 보너스 — @Ui.Money(Offer.signingBonus)</span>
+                <input type="range" min="0" max="@MaxSigning" step="5000"
+                       @bind="Offer.signingBonus" @bind:event="oninput" />
+            </label>
+
+            <div class="grid grid-2">
+                <label class="field">
+                    <span>골당 — @Ui.Money(Offer.goalBonus)</span>
+                    <input type="range" min="0" max="@(MaxWage / 2)" step="500"
+                           @bind="Offer.goalBonus" @bind:event="oninput" />
+                </label>
+                <label class="field">
+                    <span>출전당 — @Ui.Money(Offer.appearanceBonus)</span>
+                    <input type="range" min="0" max="@(MaxWage / 3)" step="500"
+                           @bind="Offer.appearanceBonus" @bind:event="oninput" />
+                </label>
+            </div>
+
+            <label class="field">
+                <span>우승 보너스 — @Ui.Money(Offer.titleBonus)</span>
+                <input type="range" min="0" max="@(MaxWage * 10)" step="5000"
+                       @bind="Offer.titleBonus" @bind:event="oninput" />
+            </label>
+
+            <label class="check">
+                <input type="checkbox" @bind="Offer.releaseClause" />
+                <span>방출 조항 — @(Offer.releaseClause ? Ui.Money(Offer.releaseClauseAmount) : "없음")</span>
+            </label>
+            @if (Offer.releaseClause)
+            {
+                <input type="range" min="1000000" max="@MaxClause" step="500000"
+                       @bind="ClauseAmount" @bind:event="oninput" />
+                <p class="tiny dim mb0">
+                    이 금액을 내는 구단은 내 뜻과 무관하게 데려갈 수 있습니다.
+                </p>
+            }
+
+            <label class="field mt1">
+                <span>승격 시 주급 인상 — @(Offer.promoRaise)%</span>
+                <input type="range" min="0" max="50" step="5"
+                       @bind="Offer.promoRaise" @bind:event="oninput" />
+            </label>
+
+            @if (Blocker is { } blocked)
+            {
+                <p class="tiny mb0" style="color:var(--coral)">@blocked</p>
+            }
+
+            <div class="btn-row mt1">
+                @if (Talks.agreed)
+                {
+                    <button class="btn btn-primary" @onclick="OnSign" disabled="@(Blocker is not null)">
+                        @SignLabel
+                    </button>
+                }
+                else if (Talks.collapsed)
+                {
+                    <button class="btn" @onclick="OnClose">물러나기</button>
+                }
+                else
+                {
+                    <button class="btn btn-primary" @onclick="OnPropose" disabled="@(Blocker is not null)">
+                        제안하기
+                    </button>
+                    <button class="btn btn-sm" @onclick="OnFill">요구대로 맞추기</button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public N.Talks Talks { get; set; } = default!;
+    [Parameter, EditorRequired] public N.Terms Offer { get; set; } = default!;
+
+    /// <summary>구단이 감당 못 하는 제안이면 그 이유. null 이면 보낼 수 있다.</summary>
+    [Parameter] public string? Blocker { get; set; }
+
+    [Parameter] public string Title { get; set; } = "계약 조건";
+    [Parameter] public string SignLabel { get; set; } = "계약 체결";
+
+    [Parameter] public EventCallback OnPropose { get; set; }
+    [Parameter] public EventCallback OnFill { get; set; }
+    [Parameter] public EventCallback OnSign { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    [Parameter] public int MaxWage { get; set; } = 200_000;
+
+    static readonly N.Role[] Roles =
+    {
+        N.Role.Prospect, N.Role.Rotation, N.Role.Starter, N.Role.Star,
+    };
+
+    /// <summary>
+    /// 지금 슬라이더에 올려 둔 조건에 대한 반응. 그릴 때마다 다시 센다 —
+    /// 제안을 보내야 표가 바뀌면 흥정이 아니라 추측이 된다.
+    /// </summary>
+    IReadOnlyList<N.Line> Lines => Session.World is { } w
+        ? N.Preview(w, Talks, Offer)
+        : Talks.lines;
+
+    int MaxSigning => Math.Max(50_000, MaxWage * 20);
+    int MaxClause => Math.Max(5_000_000, (int)Math.Min(int.MaxValue, Talks.demand.releaseClauseAmount * 3));
+
+    // 슬라이더는 int 만 다룬다. 조항 금액은 long 이라 한 겹 둔다.
+    int ClauseAmount
+    {
+        get => (int)Math.Min(int.MaxValue, Offer.releaseClauseAmount);
+        set => Offer.releaseClauseAmount = value;
+    }
+}

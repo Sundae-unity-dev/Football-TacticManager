@@ -14,6 +14,14 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="FT.App.styles.css" rel="stylesheet" />
     <script type="importmap"></script>
+    <script>
+        // 고른 글씨 크기를 Blazor 가 올라오기 전에 걸어 둔다.
+        // 늦게 걸면 작은 글씨가 한 번 보였다가 커진다.
+        try {
+            var s = localStorage.getItem('ft.ui.scale');
+            if (s === 'lg' || s === 'xl') document.documentElement.classList.add('ui-' + s);
+        } catch (e) { }
+    </script>
 </head>
 
 <body>

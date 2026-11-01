@@ -53,6 +53,10 @@ namespace FootballTactician.World
                 ApplyMatchFatigue(w, ctx, result);
                 ApplyMatchMorale(w, f, result);
             }
+
+            // 계약서에 적은 출전·골 보너스가 장부에서 빠진다.
+            // 보너스가 없는 계약(AI 구단 대부분)은 null 검사로 끝난다.
+            ContractBonuses.PayMatch(w, home, away, result);
             return result;
         }
 

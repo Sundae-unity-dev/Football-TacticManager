@@ -91,7 +91,8 @@ else
                         @foreach (var p in results)
                         {
                             var ask = TransferMarket.AskingPrice(w, p);
-                            var wage = TransferMarket.ExpectedWage(w, p, club);
+                            // 협상 탁자가 부르는 값과 같아야 한다 — 작은 구단으로 오는 선수는 더 받는다.
+                            var wage = TransferMarket.RequiredWage(w, p, club);
                             <tr class="@(selected?.id == p.id ? "me" : "")">
                                 <td class="nowrap">
                                     <a href="@($"player/{p.id}")">@p.FullName</a>
@@ -128,9 +129,12 @@ else
     {
         <div class="card" style="border-color:var(--emerald)">
             <div class="card-head">
-                <h3>@target.FullName 영입 제안</h3>
+                <h3>@target.FullName 영입</h3>
                 <span class="spacer"></span>
-                <button class="btn btn-sm btn-ghost" @onclick="() => { selected = null; outcome = null; }">닫기</button>
+                <span class="badge @(talks is null ? "warn" : "good")">
+                    @(talks is null ? "1단계 · 구단과 이적료" : "2단계 · 선수와 개인 조건")
+                </span>
+                <button class="btn btn-sm btn-ghost" @onclick="Close">닫기</button>
             </div>
 
             <div class="grid grid-2">
@@ -141,7 +145,7 @@ else
                             <tr><td>나이 · 포지션</td><td class="right">@(w.Age(target))세 · @Ui.PosLabelOf(target)</td></tr>
                             <tr><td>기량 · 잠재력</td><td class="right">@Math.Round(GameWorld.Ca(target)) · @Math.Round(PlayerDevelopment.Pa(target))</td></tr>
                             <tr><td>호가</td><td class="right"><strong>@Ui.Money(TransferMarket.AskingPrice(w, target))</strong></td></tr>
-                            <tr><td>요구 주급</td><td class="right">@Ui.Money(TransferMarket.ExpectedWage(w, target, club))</td></tr>
+                            <tr><td>요구 주급</td><td class="right">@Ui.Money(TransferMarket.RequiredWage(w, target, club))</td></tr>
                             <tr><td>현재 주급</td><td class="right dim">@Ui.Money(target.contract?.weeklyWage ?? 0)</td></tr>
                             <tr><td>계약 만료</td><td class="right dim">@(target.contract is null ? "—" : Ui.DateLabel(target.contract.expiryDate))</td></tr>
                         </tbody>
@@ -149,61 +153,71 @@ else
                 </div>
 
                 <div>
-                    <label class="field">
-                        <span>이적료 — @Ui.Money(offerFee)</span>
-                        <input type="range" min="0" max="@MaxFee" step="250000" @bind="offerFee" @bind:event="oninput" />
-                    </label>
-                    <label class="field">
-                        <span>주급 — @Ui.Money(offerWage)</span>
-                        <input type="range" min="1000" max="@MaxWage" step="1000" @bind="offerWage" @bind:event="oninput" />
-                    </label>
-                    <label class="field">
-                        <span>계약 기간 — @(offerYears)년</span>
-                        <input type="range" min="1" max="5" step="1" @bind="offerYears" @bind:event="oninput" />
-                    </label>
+                    @if (talks is null)
+                    {
+                        <label class="field">
+                            <span>이적료 — @Ui.Money(offerFee)</span>
+                            <input type="range" min="0" max="@MaxFee" step="250000"
+                                   @bind="offerFee" @bind:event="oninput" />
+                        </label>
 
-                    @{
-                        float afterRatio = (club.finances.currentWageSpend + offerWage) * 52f
-                                         / Math.Max(1, club.finances.annualRevenue);
-                        bool overSanction = afterRatio > BalanceConfig.WageSanctionRatio;
-                        bool overWarn = afterRatio > BalanceConfig.WageWarnRatio;
-                        long afterBudget = club.finances.transferBudget - offerFee;
+                        <div class="stat" style="margin-bottom:.8rem">
+                            <div class="stat-label">영입 후</div>
+                            <div class="tiny">
+                                이적 예산 @Ui.Money(Math.Max(0, club.finances.transferBudget - offerFee))
+                                @if (club.finances.transferBudget < offerFee)
+                                {
+                                    <span class="badge bad">예산 초과</span>
+                                }
+                            </div>
+                            <div class="tiny dim">
+                                주급과 계약 조건은 구단이 합의한 뒤 선수 측과 따로 맞춥니다.
+                            </div>
+                        </div>
+
+                        <div class="btn-row">
+                            <button class="btn btn-primary" @onclick="ProposeFee"
+                                    disabled="@(busy || !Session.WindowOpen)">
+                                @(busy ? "타진 중…" : "구단에 제안")
+                            </button>
+                            <button class="btn btn-sm" @onclick="() => SetAsking(target)">호가대로 채우기</button>
+                        </div>
                     }
-                    <div class="stat mb0" style="margin-bottom:.8rem">
-                        <div class="stat-label">영입 후</div>
-                        <div class="tiny">
-                            이적 예산 @Ui.Money(Math.Max(0, afterBudget))
-                            @if (afterBudget < 0) { <span class="badge bad">예산 초과</span> }
+                    else
+                    {
+                        <div class="stat" style="margin-bottom:.8rem">
+                            <div class="stat-label">구단 합의</div>
+                            <div><strong>@Ui.Money(agreedFee)</strong> 에 내주기로 했습니다.</div>
+                            <div class="tiny dim">
+                                이제 선수 측과 조건을 맞춰야 합니다. 여기서 틀어지면 이적도 없던 일이 됩니다.
+                            </div>
                         </div>
-                        <div class="tiny">
-                            급여 비중 @((afterRatio * 100).ToString("F0"))%
-                            @if (overSanction) { <span class="badge bad">제재선 초과</span> }
-                            else if (overWarn) { <span class="badge warn">경고선 초과</span> }
-                        </div>
-                        <div class="bar @(overSanction ? "bad" : overWarn ? "warn" : "") mt1">
-                            <i style="width:@((int)Math.Clamp(afterRatio * 100, 0, 100))%"></i>
-                        </div>
-                    </div>
-
-                    <div class="btn-row">
-                        <button class="btn btn-primary" @onclick="SendOffer" disabled="@(busy || !Session.WindowOpen)">
-                            @(busy ? "협상 중…" : "제안 보내기")
-                        </button>
-                        <button class="btn btn-sm" @onclick="() => SetAsking(target)">호가대로 채우기</button>
-                    </div>
+                    }
                 </div>
             </div>
 
-            @if (outcome is { } o)
+            @if (feeMessage is { } m)
             {
-                <div class="card mt1" style="margin-bottom:0; border-color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
-                    <strong style="color:@(o.Accepted ? "var(--emerald)" : "var(--coral)")">
-                        @(o.Accepted ? "영입 완료" : "거절")
-                    </strong>
-                    <span class="muted">@o.Message</span>
+                <div class="card mt1" style="margin-bottom:0; border-color:var(--coral)">
+                    <strong style="color:var(--coral)">거절</strong>
+                    <span class="muted">@m</span>
                 </div>
             }
         </div>
+
+        @if (talks is { } t)
+        {
+            <ContractTable Talks="t"
+                           Offer="offer"
+                           Blocker="@Blocker"
+                           Title="@($"{target.FullName} 개인 조건")"
+                           SignLabel="영입 체결"
+                           MaxWage="MaxWage"
+                           OnPropose="Propose"
+                           OnFill="Fill"
+                           OnSign="Sign"
+                           OnClose="Close" />
+        }
     }
 
     <div class="grid grid-2">
@@ -283,11 +297,19 @@ else
     List<PlayerData> results = new();
 
     PlayerData? selected;
-    TransferMarket.OfferOutcome? outcome;
     long offerFee;
-    int offerWage = 10_000;
-    int offerYears = 3;
     bool busy;
+
+    // 영입은 두 단계다 — 구단끼리 이적료를 맞추고, 그 다음 선수와 개인 조건을 맞춘다.
+    // 1단계가 끝나야 탁자가 열린다. 둘 중 하나만 되어도 이적은 없다.
+    string? feeMessage;
+    long agreedFee;
+    ContractNegotiation.Talks? talks;
+    ContractNegotiation.Terms offer = new();
+
+    string? Blocker => talks is null || Session.World is not { } w
+        ? null
+        : ContractNegotiation.ClubBlocker(w, talks, offer);
 
     long MaxFee => Math.Max(1_000_000, (Session.World?.MyClub?.finances.transferBudget ?? 0) * 2L);
     int MaxWage => Math.Max(20_000, (int)((Session.World?.MyClub?.finances.annualRevenue ?? 0) / 52 / 3));
@@ -326,34 +348,67 @@ else
     void Select(PlayerData p)
     {
         selected = p;
-        outcome = null;
+        ResetTalks();
         SetAsking(p);
     }
 
     void SetAsking(PlayerData p)
     {
-        if (Session.World is not { } w || w.MyClub is not { } club) return;
+        if (Session.World is not { } w) return;
         offerFee = TransferMarket.AskingPrice(w, p);
-        offerWage = TransferMarket.ExpectedWage(w, p, club);
-        offerYears = w.Age(p) >= 30 ? 2 : 4;
     }
 
-    async Task SendOffer()
+    void Close()
     {
-        if (selected is null) return;
+        selected = null;
+        ResetTalks();
+    }
+
+    void ResetTalks()
+    {
+        talks = null;
+        feeMessage = null;
+        agreedFee = 0;
+    }
+
+    /// <summary>1단계 — 파는 구단에 이적료를 타진한다.</summary>
+    async Task ProposeFee()
+    {
+        if (selected is not { } p) return;
         busy = true;
         StateHasChanged();
         await Task.Yield();
         try
         {
-            outcome = await Session.MakeOfferAsync(selected, offerFee, offerWage, offerYears);
-            if (outcome.Accepted)
-            {
-                selected = null;
-                Search();
-            }
+            feeMessage = Session.AgreeFee(p, offerFee);
+            if (feeMessage != null) return;
+
+            agreedFee = offerFee;
+            talks = Session.OpenSigning(p);
+            offer = talks is null ? new() : ContractNegotiation.Suggest(talks);
         }
         finally { busy = false; }
+    }
+
+    void Fill()
+    {
+        if (talks is { } t) offer = ContractNegotiation.Suggest(t);
+    }
+
+    void Propose()
+    {
+        if (talks is { } t) Session.Propose(t, offer);
+    }
+
+    /// <summary>2단계 합의까지 끝났다. 이제 실제로 데려온다.</summary>
+    async Task Sign()
+    {
+        if (talks is not { agreed: true } t) return;
+        feeMessage = await Session.CompleteSigningAsync(t, offer, agreedFee);
+        if (feeMessage != null) return;     // 창구가 닫혔거나 사정이 바뀌었다
+
+        Close();
+        Search();
     }
 
     async Task Toggle(PlayerData p)

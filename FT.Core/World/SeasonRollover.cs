@@ -295,6 +295,10 @@ namespace FootballTactician.World
 
                 foreach (var (id, from, to, down) in moves) Move(w, id, from, to, down);
 
+                // "올라가면 올려 준다"고 적은 계약은 여기서 오른다.
+                foreach (var (id, _, _, down) in moves)
+                    if (!down) ContractBonuses.ApplyPromotionRaises(w, id);
+
                 // 내 나라의 승강은 단계를 가리지 않고 알린다 — 3부 승강도 내 다음 상대를 바꾼다.
                 if (w.ManagedClubId > 0 && moves.Count > 0
                     && nation.LeagueIds.Contains(w.LeagueOf(w.ManagedClubId)?.id ?? -1))
@@ -485,6 +489,7 @@ namespace FootballTactician.World
 
                 var champ = table.OrderBy(e => e.position).First();
                 winners.Add((champ.clubId, SeasonAwards.Honour.League));
+                ContractBonuses.PayTitle(w, champ.clubId);   // 계약서에 적은 우승 보너스
 
                 if (champ.clubId == w.ManagedClubId)
                     w.Post($"{league.name} 우승",

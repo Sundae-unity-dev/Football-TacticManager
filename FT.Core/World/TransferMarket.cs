@@ -116,7 +116,11 @@ namespace FootballTactician.World
             if (age <= 21 && pa > ca + 20f) mult += 0.30f;
 
             mult = Math.Clamp(mult, 0.45f, 2.2f);
-            return (long)Math.Max(50_000, p.marketValue * mult);
+            long asking = (long)Math.Max(50_000, p.marketValue * mult);
+
+            // 방출 조항이 걸려 있으면 그 금액이 곧 상한이다. 조항을 넣어 주고
+            // 싼값에 뺏기는 것이 협상의 뒷면이다 — 조항이 없는 계약은 그대로 지나간다.
+            return ContractBonuses.ClauseCap(p, asking);
         }
 
         /// <summary>선수가 기대하는 주급. 지금 받는 것과 시장 가치 기준 중 높은 쪽.</summary>
