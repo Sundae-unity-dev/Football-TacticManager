@@ -188,7 +188,8 @@ base64 를 빼고 IndexedDB 에 바이트로 넣을 생각도 했는데 base64 �
 dotnet run --project FT.App          # http://localhost:5xxx
 dotnet test FT.Core.Tests            # 회귀 테스트
 
-# 배포본. wasm-tools 워크로드가 필요하고 AOT 때문에 20분쯤 걸립니다.
+# 배포본. wasm-tools 워크로드가 필요합니다.
+# 윈도에서는 AOT 때문에 20분쯤 걸립니다 — 리눅스 러너에서는 같은 일이 2분입니다.
 dotnet publish FT.App -c Release -o publish
 ```
 
@@ -628,12 +629,16 @@ done
 
 ## 배포 (GitHub Pages)
 
-```bash
-tools/deploy-pages.sh              # 새로 빌드해서 올린다 (AOT 라 20분쯤)
-tools/deploy-pages.sh --no-build   # publish/ 에 있는 것을 그대로 올린다
-```
+**평소에는 손댈 것이 없습니다.** `main` 에 앱 코드가 들어오면 Actions 가 올립니다
+(`.github/workflows/pages.yml`) — 테스트 417개 → 세계 지문 확인 → AOT 배포본 → Pages.
+한 번에 **5분쯤**입니다(테스트 1분50초 · AOT 2분). 손으로 돌리려면 Actions 탭 → "배포"
+→ Run workflow. README·문서만 고친 푸시로는 돌지 않습니다.
 
-`gh-pages` 브랜치에 올라가고 → **https://sundae-unity-dev.github.io/Football-TacticManager/**
+→ **https://sundae-unity-dev.github.io/Football-TacticManager/**
+
+`tools/deploy-pages.sh` 는 Actions 가 막혔을 때 쓰는 비상구입니다. 쓰려면 Settings → Pages
+에서 소스를 `gh-pages` 브랜치로 되돌려야 하고, 배포본을 브랜치로 나르면 한 번에 24MB 씩
+저장소가 불어납니다(아티팩트 길은 그 짐을 지지 않습니다).
 
 Pages 는 저장소 이름이 붙은 주소로 서비스하므로 스크립트가 세 가지를 손봅니다.
 `<base href>` 를 `/Football-TacticManager/` 로(안 바꾸면 `_framework` 를 도메인 뿌리에서

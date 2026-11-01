@@ -2,8 +2,11 @@ name: 배포
 
 # 앱에 영향을 주는 것이 main 에 들어오면 올린다.
 #
-# AOT 컴파일 때문에 한 번 도는 데 20분쯤 걸린다. 그래서 README·문서·메모만 고친
-# 푸시로는 돌리지 않는다 — 바뀌지 않은 것을 20분 걸려 다시 만들 이유가 없다.
+# 한 번 도는 데 5분쯤이다 (테스트 1분50초 · AOT 2분 · 나머지 1분).
+# 같은 AOT 가 윈도 노트북에서는 20분이 걸리는데 러너에서는 2분이다 — 브라우저 수치와
+# 마찬가지로, 빌드 시간도 재 보기 전에는 모른다.
+#
+# README·문서만 고친 푸시로는 돌리지 않는다. 바뀌지 않은 것을 다시 만들 이유가 없다.
 # 손으로 돌리고 싶으면 Actions 탭에서 "배포"를 골라 Run workflow 를 누른다.
 on:
   push:
@@ -23,7 +26,7 @@ permissions:
   id-token: write
 
 # 배포는 겹치면 안 된다. 다만 **돌고 있는 것을 끊지는 않는다** —
-# 20분짜리를 9분에서 끊으면 그 시간이 통째로 버려진다.
+# 끊으면 이미 쓴 시간이 통째로 버려지고, 반쯤 올라간 상태가 남을 수 있다.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -71,7 +74,7 @@ jobs:
             exit 1
           fi
 
-      - name: 배포본 만들기 (AOT — 오래 걸립니다)
+      - name: 배포본 만들기 (AOT)
         run: dotnet publish FT.App -c Release -o publish
 
       - name: Pages 용으로 손보기
