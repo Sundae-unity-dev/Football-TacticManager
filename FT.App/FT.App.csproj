@@ -5,9 +5,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
-    <!-- 세이브가 System.Text.Json 리플렉션을 쓴다. 트리밍이 모델 타입을 지우면 역직렬화가 깨진다. -->
-    <PublishTrimmed>false</PublishTrimmed>
+    <!--
+      트리밍을 켠다. 끄면 쓰지도 않는 BCL 이 통째로 실려 내려받기가 8.0MB 가 된다
+      (켜면 2.8MB · 파일 204 → 41개).
+
+      세이브는 소스 생성 리졸버(SaveJsonContext)로 읽고 쓰므로 트리머가 지울 것이 없다.
+      다만 다루지 못하는 타입은 리플렉션 리졸버가 받으므로, 안전은 운에 맡기지 않고
+      아래 TrimmerRootAssembly 로 FT.Core 를 통째로 남긴다 — 모델 타입이 전부 여기에 있다.
+      (FT.Core 원본은 890KB 라, 남겨도 줄어드는 양의 대부분은 그대로 얻는다.)
+    -->
+    <PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 세이브가 이름으로 찾는 타입이 있으므로 규칙만으로 지우게 두지 않는다. -->
+    <TrimmerRootAssembly Include="FT.Core" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.6" />

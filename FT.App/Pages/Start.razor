@@ -11,7 +11,7 @@
         <h2>이미 진행 중인 판이 있습니다</h2>
         <div class="btn-row mt1">
             <a class="btn btn-primary" href="dashboard">이어서 하기</a>
-            <button class="btn" @onclick="() => step = Step.Intro">새로 시작</button>
+            <button class="btn" @onclick="StartOver">새로 시작</button>
         </div>
     </div></div>
 }
@@ -166,6 +166,19 @@ else
     }
 
     void RollSeed() => seed = Random.Shared.Next(1, 1_000_000);
+
+    /// <summary>
+    /// 진행 중인 판을 내려놓고 처음 화면으로 돌아간다.
+    ///
+    /// 단계(<see cref="step"/>)만 바꾸면 소용이 없다 — 이 화면은 바깥에서
+    /// <c>Session.HasGame</c> 으로 갈라지므로, 판을 들고 있는 한 같은 카드가 다시 그려진다.
+    /// 세이브는 지우지 않는다. 마음이 바뀌면 "이어하기" 로 돌아올 수 있어야 한다.
+    /// </summary>
+    void StartOver()
+    {
+        Session.Discard();
+        step = Step.Intro;
+    }
 
     async Task CreateWorld()
     {

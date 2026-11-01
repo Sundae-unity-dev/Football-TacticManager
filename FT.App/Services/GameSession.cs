@@ -55,6 +55,25 @@ public sealed class GameSession(SaveStore store)
 
     bool resumeTried;
 
+    /// <summary>
+    /// 들고 있던 판을 내려놓는다. 저장된 세이브는 건드리지 않는다 —
+    /// 새 판을 맡는 순간 덮어쓰이고, 도중에 그만두면 예전 판이 그대로 남는다.
+    ///
+    /// 시작 화면의 "새로 시작" 이 이것을 부른다. 이것 없이 화면 단계만 바꾸면
+    /// <see cref="HasGame"/> 이 그대로라 같은 카드가 다시 그려져서,
+    /// 세이브가 있는 사람은 브라우저 저장소를 지우지 않는 한 새 판을 시작할 수 없다.
+    /// </summary>
+    public void Discard()
+    {
+        World = null;
+        LastResult = null;
+        LastFixture = null;
+        Live = null;
+        LiveFixture = null;
+        resumeTried = true;     // 내려놓자마자 자동 복구가 되살리면 안 된다
+        NotifyChanged();
+    }
+
     public async Task<bool> LoadAsync()
     {
         var w = await store.LoadAsync();

@@ -2010,8 +2010,8 @@ namespace FT.Sim
             SimProfile.Reset();
             SimProfile.Enabled = true;
             sw.Restart();
-            GameWorld w = null;
-            for (int i = 0; i < repeats; i++) w = WorldGenerator.Create(31415);
+            GameWorld w = WorldGenerator.Create(31415);               // 첫 번째도 횟수에 든다
+            for (int i = 1; i < repeats; i++) w = WorldGenerator.Create(31415);
             sw.Stop();
             SimProfile.Enabled = false;
             double marked = sw.Elapsed.TotalMilliseconds / repeats;
