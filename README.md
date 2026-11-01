@@ -8,12 +8,10 @@
 평판을 쌓아 1부 명문으로 옮겨 갑니다. 성적이 나쁘면 경질됩니다.
 
 ```mermaid
-flowchart LR
-  S(["부임"]) --> TR["훈련 · 전술 · 영입"]
-  TR --> M["경기"]
-  M --> R{"결과"}
-  R -->|"좋으면"| P["이사회 신뢰 ↑<br/>평판 ↑"]
-  R -->|"나쁘면"| F["탈의실 불만<br/>기자회견 추궁"]
+flowchart TD
+  S(["부임"]) --> TR["훈련 · 전술 · 영입"] --> M["경기"] --> R{"결과"}
+  R -->|"좋으면"| P["이사회 신뢰 ↑ · 평판 ↑"]
+  R -->|"나쁘면"| F["탈의실 불만 · 기자회견 추궁"]
   P --> TR
   F --> TR
   P --> UP(["승격 · 더 큰 구단의 제안"])
@@ -37,14 +35,14 @@ C# 한 벌로 **데스크톱(측정·밸런싱)과 브라우저(플레이)를 �
 게임 로직은 화면도 플랫폼도 모릅니다.
 
 ```mermaid
-flowchart RL
-  subgraph core["FT.Core — 게임 로직"]
-    direction RL
-    W["World<br/>세계와 시간"] --> S["Simulation<br/>경기 한 판"] --> B["Balance<br/>모든 수치"] --> M["Model<br/>상태 · 저장"]
-  end
+flowchart TB
   App["FT.App<br/>Blazor WebAssembly"] --> core
   Sim["FT.Sim<br/>콘솔 하네스"] --> core
   Test["FT.Core.Tests<br/>테스트 417개"] --> core
+  subgraph core["FT.Core — 게임 로직"]
+    direction LR
+    W["World<br/>세계와 시간"] --> S["Simulation<br/>경기 한 판"] --> B["Balance<br/>모든 수치"] --> M["Model<br/>상태 · 저장"]
+  end
 ```
 
 화살표는 "참조한다" 방향이고 **한 방향으로만** 흐릅니다. 자세한 사정은
