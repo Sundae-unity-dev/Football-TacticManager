@@ -19,7 +19,7 @@ namespace FootballTactician.World
     /// </summary>
     public static class SaveGame
     {
-        public const int FormatVersion = 4;   // 홈그로운을 숫자 배열로 바꿈
+        public const int FormatVersion = 5;   // 선수 한 명을 배열 하나로 접음
 
         static readonly JsonSerializerOptions Options = BuildOptions();
 
@@ -46,6 +46,12 @@ namespace FootballTactician.World
             o.Converters.Add(new PlayerStatsConverter());
             o.Converters.Add(new StaffConverter());
             o.Converters.Add(new HomegrownConverter());
+
+            // 선수 자신도 배열로. 세이브의 81%가 선수였다 — 자세한 이유는 PlayerConverter 에.
+            o.Converters.Add(new PlayerConverter());
+
+            // 구단에서 가장 큰 것은 저장된 전술이고, 그중 대부분이 슬롯 열한 개다.
+            o.Converters.Add(new FormationSlotConverter());
 
             // 소스 생성 리졸버를 먼저 쓴다. 브라우저에서는 리플렉션 직렬화가 느려서,
             // 4,000명 규모의 세이브 한 번에 3.3초가 걸렸다(gzip 은 69ms 였다).
@@ -253,5 +259,45 @@ namespace FootballTactician.World
 
             return (jsonMs, gzipMs, base64Ms, json.Length, packed.Length);
         }
+
+        /// <summary>
+        /// 세이브의 어느 조각이 비싼지 — 조각마다 바이트와 시간을 따로 잰다.
+        ///
+        /// 브라우저에서 저장 한 번의 85%가 JSON 쓰기다(압축은 80ms, base64 는 5ms).
+        /// 그 비용은 바이트가 아니라 <b>쓰는 멤버 수</b>를 따르므로, 줄이려면
+        /// 어느 목록이 몇 개짜리인지부터 봐야 한다. 조각의 합은 전체와 정확히 같지 않다 —
+        /// 봉투와 바깥 필드가 빠지고, 조각마다 여는 괄호가 더 붙는다.
+        /// </summary>
+        public static List<(string part, int count, int bytes, double ms)> Split(GameWorld w)
+        {
+            var rows = new List<(string, int, int, double)>();
+
+            void Take<T>(string name, int count, T value)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                byte[] b = JsonSerializer.SerializeToUtf8Bytes(value, Options);
+                rows.Add((name, count, b.Length, sw.Elapsed.TotalMilliseconds));
+            }
+
+            Take("선수", w.Players.Count, w.Players);
+            Take("구단", w.Clubs.Count, w.Clubs);
+            Take("리그(일정 포함)", w.Leagues.Count, w.Leagues);
+            Take("스태프", w.Staff.Count, w.Staff);
+            Take("컵", w.Cups.Count, w.Cups);
+            Take("이적 기록", w.Transfers.Count, w.Transfers);
+            Take("임대", w.Loans.Count, w.Loans);
+            Take("받은 소식", w.Inbox.Count, w.Inbox);
+            Take("시상", w.Awards.Count, w.Awards);
+            Take("커리어", w.CareerHistory.Count, w.CareerHistory);
+
+            rows.Sort((a, b) => b.Item4.CompareTo(a.Item4));
+            return rows;
+        }
+
+        /// <summary>
+        /// 한 선수가 실제로 어떤 JSON 이 되는지. 선수가 세이브의 80%라
+        /// 무엇이 자리를 차지하는지는 한 명을 눈으로 보는 것이 가장 빠르다.
+        /// </summary>
+        public static string SampleJson(PlayerData p) => JsonSerializer.Serialize(p, Options);
     }
 }

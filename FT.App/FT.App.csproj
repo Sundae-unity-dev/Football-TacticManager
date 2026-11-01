@@ -15,6 +15,18 @@
       (FT.Core 원본은 890KB 라, 남겨도 줄어드는 양의 대부분은 그대로 얻는다.)
     -->
     <PublishTrimmed>true</PublishTrimmed>
+
+    <!--
+      AOT 로 미리 컴파일한다. 브라우저의 기본 런타임은 IL 을 해석해서 도는데,
+      이 게임은 저장 한 번에 멤버를 수십만 번 쓴다 — 해석 비용이 그대로 기다리는 시간이다.
+
+        저장 JSON  350ms → 108ms      라운드 150ms → 73ms      세계 생성 365ms → 275ms
+        내려받기   2.81MB → 5.15MB    (처음 한 번. 그 뒤로는 브라우저가 캐시한다)
+
+      publish 할 때만 돈다. dotnet run 으로 개발할 때는 영향이 없다.
+      대신 배포 빌드가 40초에서 20분쯤으로 길어진다 — CI 를 붙일 때 염두에 둘 것.
+    -->
+    <RunAOTCompilation>true</RunAOTCompilation>
   </PropertyGroup>
 
   <ItemGroup>

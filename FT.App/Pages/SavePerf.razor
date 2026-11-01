@@ -1,0 +1,69 @@
+@page "/perf"
+@inject GameSession Session
+@inject SaveStore Store
+
+@* 측정용 화면. 메뉴에 걸지 않는다 — 주소를 직접 쳐야 들어온다.
+
+   데스크톱(FT.Sim)에서 잰 값은 브라우저를 예측하지 못한다. 저장이 느릴 때
+   JSON·압축·base64 중 어디가 비싼지는 여기서만 갈린다. *@
+
+<PageTitle>측정</PageTitle>
+
+<div class="card">
+    <div class="card-head"><h2>저장 비용</h2></div>
+
+    @if (!Session.HasGame)
+    {
+        <p class="muted">진행 중인 판이 없습니다.</p>
+    }
+    else
+    {
+        <div class="btn-row">
+            <button class="btn btn-primary" @onclick="Run" disabled="@busy">
+                @(busy ? "재는 중…" : "재기")
+            </button>
+        </div>
+
+        @foreach (var line in lines)
+        {
+            <p class="mono tiny mb0">@line</p>
+        }
+    }
+</div>
+
+@code {
+    bool busy;
+    readonly List<string> lines = new();
+
+    async Task Run()
+    {
+        busy = true;
+        lines.Clear();
+        StateHasChanged();
+        await Task.Yield();
+
+        try
+        {
+            // 처음 한 번은 직렬화가 처음 도는 비용이 섞인다. 버리고 세 번을 잰다.
+            Session.ProfileSave();
+            for (int i = 0; i < 3; i++) lines.Add($"{i + 1}회 · {Session.ProfileSave()}");
+
+            lines.Add("");
+            lines.Add("조각별 (JSON 쓰기만)");
+            foreach (var (part, count, bytes, ms) in SaveGame.Split(Session.World!))
+                lines.Add($"  {part,-16} {count,6}개 {bytes / 1024f,8:F0}KB {ms,8:F0}ms");
+
+            lines.Add("");
+            var first = Session.World!.Players.Values.First();
+            var bench = Session.World!.Players.Values.Skip(400).First();
+            lines.Add($"선수 한 명 · {SaveGame.SampleJson(first).Length}B");
+            lines.Add(SaveGame.SampleJson(first));
+            lines.Add($"다른 한 명 · {SaveGame.SampleJson(bench).Length}B");
+            lines.Add(SaveGame.SampleJson(bench));
+
+            lines.Add("");
+            lines.Add($"저장소 · {await Store.BackendAsync()}");
+        }
+        finally { busy = false; }
+    }
+}

@@ -16,10 +16,21 @@ namespace FootballTactician.World
     /// </summary>
     static class AttrJson
     {
+        /// <summary>
+        /// 숫자 배열을 쓴다. <b>뒤쪽 0 은 적지 않는다</b> — 읽는 쪽이 모자란 자리를 0 으로
+        /// 두므로 값은 같다. 한 경기도 뛰지 않은 선수의 시즌·통산 기록(열두 자리 ×2)과
+        /// 아무도 설정하지 않는 계약 뒷부분(여섯 자리)이 6,000명분 쌓여 있었다.
+        ///
+        /// 예전 세이브도 그대로 읽히고, 예전 코드도 이 세이브를 읽는다 —
+        /// 짧은 배열은 양쪽 다 이미 다루고 있었다.
+        /// </summary>
         public static void WriteArray(Utf8JsonWriter w, ReadOnlySpan<int> values)
         {
+            int n = values.Length;
+            while (n > 0 && values[n - 1] == 0) n--;
+
             w.WriteStartArray();
-            foreach (int v in values) w.WriteNumberValue(v);
+            for (int i = 0; i < n; i++) w.WriteNumberValue(values[i]);
             w.WriteEndArray();
         }
 
