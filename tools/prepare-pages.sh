@@ -4,11 +4,13 @@
 #
 #   사용법:  tools/prepare-pages.sh publish/wwwroot
 #
-# Actions 워크플로와 손으로 올리는 스크립트가 **같은 이 파일**을 쓴다.
-# 두 길이 갈라지면, 손으로 올린 것은 되는데 자동 배포만 깨지는 일이 생긴다.
+# 배포는 Actions(.github/workflows/pages.yml)가 이 파일을 불러서 한다.
+# 손으로 올리던 길(gh-pages 브랜치)은 없앴다 — 배포마다 저장소가 24MB 씩 불었다.
+# 그 스크립트가 필요해지면 히스토리에 있다:
+#   git log --diff-filter=D -p -- tools/deploy-pages.sh
 #
 # Pages 는 저장소 이름이 붙은 주소로 서비스한다
-# (https://<계정>.github.io/Football-TacticManager/). 그래서 네 가지가 필요하다.
+# (https://<계정>.github.io/Football-TacticManager/). 그래서 다섯 가지가 필요하다.
 set -euo pipefail
 
 REPO_NAME=Football-TacticManager
