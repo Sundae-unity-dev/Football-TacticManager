@@ -626,6 +626,33 @@ done
 손으로 세지 않고 **반사로 전수** 셉니다(`PlayerSaveFormatTests`). 자리를 바꾸려면
 `SaveGame.FormatVersion` 을 올리세요. 뒤에 덧붙이는 것은 괜찮습니다.
 
+## 배포 (GitHub Pages)
+
+```bash
+tools/deploy-pages.sh              # 새로 빌드해서 올린다 (AOT 라 20분쯤)
+tools/deploy-pages.sh --no-build   # publish/ 에 있는 것을 그대로 올린다
+```
+
+`gh-pages` 브랜치에 올라가고 → **https://sundae-unity-dev.github.io/Football-TacticManager/**
+
+Pages 는 저장소 이름이 붙은 주소로 서비스하므로 스크립트가 세 가지를 손봅니다.
+`<base href>` 를 `/Football-TacticManager/` 로(안 바꾸면 `_framework` 를 도메인 뿌리에서
+찾아 전부 404), `.nojekyll`(Jekyll 이 밑줄로 시작하는 폴더를 숨깁니다), 그리고
+`404.html` = `index.html`(Pages 는 클라이언트 라우팅을 몰라서, `/squad` 를 새로고침하면
+404 를 돌려주는데 그 내용이 앱이면 Blazor 가 주소를 보고 그 화면을 그립니다).
+
+**빌드 산출물을 git 으로 나르면 줄바꿈을 조심하세요.** 한 번 데였습니다. 뿌리의
+`.gitattributes` 가 소스를 LF 로 맞추는데 그 규칙이 배포본에도 걸려서, `dotnet.js` 가
+CRLF → LF 로 **310바이트 줄었습니다**. `index.html` 에 박힌 integrity 해시는 줄기 전
+바이트로 계산된 값이라, 브라우저가 파일을 다 받아 놓고 해시가 다르다며 버렸습니다.
+화면은 "불러오는 중"에서 멈추고 콘솔에만 `Failed to fetch dynamically imported module` 이
+찍혔습니다 — 네트워크 탭에는 200 으로 보여서 서버를 의심하기 쉽습니다.
+지금은 배포 브랜치에 `* -text` 를 심고 `core.autocrlf=false` 로 커밋합니다.
+
+`.br`/`.gz` 는 올리지 않습니다. Pages 는 내용 협상을 하지 않아 그 파일을 알아보지 못하고,
+대신 자기가 gzip 으로 압축해서 보냅니다. 실제로 받는 양은 **7.25MB** 입니다
+(brotli 로 줄 수 있었다면 5.15MB 였을 것입니다 — Pages 가 gzip 만 합니다).
+
 ## 아직 없는 것
 
 모델만 있고 쓰이지 않는 타입은 하나도 없습니다 — 2026-10-29 에 마지막(홈그로운)까지 연결했습니다.
