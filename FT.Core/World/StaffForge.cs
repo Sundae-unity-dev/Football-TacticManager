@@ -39,8 +39,10 @@ namespace FootballTactician.World
 
                     w.Staff[s.id] = s;
                     club.staffIds.Add(s.id);
-                    club.finances.currentWageSpend += s.contract.weeklyWage;
                 }
+
+                // 더하지 않고 다시 센다 — 급여 합계의 정의는 한 곳(ClubWages)뿐이다.
+                ClubWages.Recalc(w, club);
             }
 
             // 시장에 나와 있는 사람들. 역할마다 고르게 — 한 역할만 비면 그 자리를 못 채운다.

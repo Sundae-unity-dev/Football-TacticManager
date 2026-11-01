@@ -1577,6 +1577,81 @@ namespace FT.Sim
         /// 스태프 — 네 갈래가 저마다 다른 것을 바꾸는지, 그리고 대가가 있는지.
         /// 하나가 다 하면 "좋은 스태프"를 모으는 것 말고 할 일이 없다.
         /// </summary>
+        /// <summary>
+        /// 급여 장부를 쪼개 본다. 선수 주급과 스태프 주급이 수입의 몇 %씩을 먹는지,
+        /// 그리고 운영비(OverheadRatio)가 그 위에 얼마를 더 얹는지.
+        ///
+        /// 스태프 주급은 지금 **장부에서 실제로 나가지 않는다** — 운영비에 뭉뚱그려
+        /// 들어 있다고 보고 있다. 떼어내려면 먼저 그 크기를 알아야 한다.
+        /// </summary>
+        public static void Wages(int seasons)
+        {
+            var w = WorldGenerator.Create(31415);
+
+            Console.WriteLine("\n== 급여 장부 쪼개 보기 ==\n");
+            Console.WriteLine("  등급   구단   선수주급/주   스태프/주   스태프비율   연수입      선수비중  스태프비중  운영비  합계");
+
+            foreach (int stars in new[] { 5, 4, 3, 2, 1 })
+            {
+                var cs = w.Clubs.Values.Where(c => c.reputation == stars).ToList();
+                if (cs.Count == 0) continue;
+                Row($"  {stars}성", cs, w);
+            }
+            Console.WriteLine();
+            foreach (var tier in new[] { LeagueTier.First, LeagueTier.Second, LeagueTier.Third })
+            {
+                var cs = w.Clubs.Values.Where(c => w.TierOf(c.id) == tier).ToList();
+                if (cs.Count == 0) continue;
+                Row($"  {(int)tier}부", cs, w);
+            }
+            Console.WriteLine();
+            Row("  전체", w.Clubs.Values.ToList(), w);
+
+            // 장부에 적힌 값과 실제로 세어 본 값이 같은가.
+            int mismatch = 0;
+            foreach (var c in w.Clubs.Values)
+            {
+                long players = c.playerIds.Sum(id => (long)(w.Player(id)?.contract?.weeklyWage ?? 0));
+                if (c.finances.currentWageSpend != players) mismatch++;
+            }
+            Console.WriteLine($"\n  currentWageSpend 가 '선수 합계'와 다른 구단: {mismatch} / {w.Clubs.Count}");
+            Console.WriteLine("    (생성 직후에는 스태프가 더해져 있어 다르고, 거래나 주간 진행이 한 번 돌면 선수만 남는다)");
+
+            if (seasons <= 0) return;
+
+            // 시즌을 돌리고 장부가 어디로 가는지 본다.
+            ManagerCareer.TakeCharge(w, w.Clubs.Values.First(c => c.reputation == 3).id, "하네스");
+            Console.WriteLine($"\n  {seasons}시즌 진행 후 재정");
+            for (int i = 0; i < seasons; i++)
+            {
+                int guard = 0;
+                while (!w.SeasonFinished && guard++ < 60)
+                    if (GameEngine.PlayNextRound(w) == null) break;
+                SeasonRollover.StartNextSeason(w);
+            }
+
+            var all = w.Clubs.Values.ToList();
+            Console.WriteLine($"    잔고 평균 {all.Average(c => c.finances.balance) / 1_000_000.0,8:F2}M€"
+                + $" · 적자 구단 {all.Count(c => c.finances.balance < 0),3}개"
+                + $" · 최저 {all.Min(c => c.finances.balance) / 1_000_000.0,8:F2}M€");
+            Console.WriteLine($"    급여 비중 평균 {all.Average(c => c.finances.currentWageSpend * 52f / Math.Max(1, c.finances.annualRevenue)),6:P1}"
+                + $" · 제재선(70%) 초과 {all.Count(c => c.finances.currentWageSpend * 52f > c.finances.annualRevenue * BalanceConfig.WageSanctionRatio),3}개");
+        }
+
+        static void Row(string label, List<ClubData> cs, GameWorld w)
+        {
+            double players = cs.Average(c => (double)c.playerIds.Sum(id => (long)(w.Player(id)?.contract?.weeklyWage ?? 0)));
+            double staff = cs.Average(c => (double)(c.staffIds?.Sum(id =>
+                (long)(w.Staff.TryGetValue(id, out var s) ? s.contract?.weeklyWage ?? 0 : 0)) ?? 0));
+            double rev = cs.Average(c => (double)c.finances.annualRevenue);
+
+            double pShare = players * 52 / Math.Max(1, rev);
+            double sShare = staff * 52 / Math.Max(1, rev);
+            Console.WriteLine($"{label,-6} {cs.Count,5}   {players,10:N0}   {staff,9:N0}   {staff / Math.Max(1, players),9:P1}   "
+                + $"{rev / 1_000_000.0,7:F1}M€   {pShare,8:P1}  {sShare,9:P1}  {BalanceConfig.OverheadRatio,6:P1}  "
+                + $"{pShare + sShare + BalanceConfig.OverheadRatio,5:P1}");
+        }
+
         public static void Staff(int seasons)
         {
             var w = WorldGenerator.Create(31415);

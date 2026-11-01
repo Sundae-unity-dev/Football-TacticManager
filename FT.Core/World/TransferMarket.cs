@@ -342,9 +342,12 @@ namespace FootballTactician.World
             if (w.Transfers.Count > 200) w.Transfers.RemoveRange(200, w.Transfers.Count - 200);
         }
 
+        /// <summary>
+        /// 급여 합계를 다시 적는다. 셈은 <see cref="ClubWages"/> 한 곳에 있다 —
+        /// 예전에는 여기서 선수만 세어 스태프 몫을 지우고 있었다.
+        /// </summary>
         public static void RecalcWages(GameWorld w, ClubData club)
-            => club.finances.currentWageSpend = club.playerIds
-                .Sum(id => w.Player(id)?.contract?.weeklyWage ?? 0);
+            => ClubWages.Recalc(w, club);
 
         /// <summary>플레이어가 보내는 제안을 만든다.</summary>
         public static TransferOffer BuildOffer(

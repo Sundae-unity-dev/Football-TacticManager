@@ -210,7 +210,7 @@ namespace FootballTactician.World
 
             club.staffIds ??= new List<int>();
             club.staffIds.Add(s.id);
-            club.finances.currentWageSpend += s.contract.weeklyWage;
+            ClubWages.Recalc(w, club);
 
             if (club.id == w.ManagedClubId)
                 w.Post($"{s.FullName} 합류",
@@ -223,9 +223,9 @@ namespace FootballTactician.World
         {
             if (club.staffIds == null || !club.staffIds.Remove(s.id)) return false;
 
-            club.finances.currentWageSpend -= WeeklyWage(s);
             s.clubId = 0;
             s.contract = null;
+            ClubWages.Recalc(w, club);
 
             if (club.id == w.ManagedClubId)
                 w.Post($"{s.FullName} 계약 해지", $"{RoleLabel(s.role)} 자리가 비었습니다.", InboxKind.Staff);

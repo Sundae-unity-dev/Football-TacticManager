@@ -114,6 +114,10 @@ namespace FootballTactician.World
             using (SimProfile.Measure("스태프"))
                 StaffForge.Populate(w, new Random(seed ^ 0x57AFF));
 
+            // 급여가 수입을 넘지 않게 한 번 맞춘다. 스태프까지 더한 뒤라야 뜻이 있다.
+            using (SimProfile.Measure("급여 맞추기"))
+                ClubWages.FitToIncome(w, BalanceConfig.WageWarnRatio);
+
             // 스폰서도 처음부터 있어야 한다. 첫 시즌이 끝나야 생기면
             // 새 게임의 재정 화면에 "스폰서 없음" 이 떠 있다.
             using (SimProfile.Measure("스폰서"))

@@ -206,7 +206,9 @@ namespace FootballTactician.World
 
         static void PayWages(GameWorld w, ClubData club)
         {
-            long wages = club.playerIds.Sum(id => (long)(w.Player(id)?.contract?.weeklyWage ?? 0));
+            // 선수와 스태프 둘 다 나간다. 예전에는 선수만 나가서, 좋은 스태프를
+            // 아무리 모아도 장부가 꿈쩍하지 않았다.
+            long wages = ClubWages.Of(w, club);
             long income = club.finances.annualRevenue / 52;
 
             // 팬이 등을 돌리면 입장 수입이 줄고, 돌아서면 는다. 내 구단만 해당한다 —

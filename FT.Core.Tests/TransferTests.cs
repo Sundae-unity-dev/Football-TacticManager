@@ -203,9 +203,9 @@ namespace FT.Core.Tests
             Assert.Equal(wage, target.contract.weeklyWage);
             Assert.Equal(buyer.id, target.contract.clubId);
 
-            // 급여 합계가 다시 계산되어야 한다
-            Assert.Equal(buyer.playerIds.Sum(id => w.Player(id)!.contract?.weeklyWage ?? 0),
-                         buyer.finances.currentWageSpend);
+            // 급여 합계가 다시 계산되어야 한다 — 선수 + 스태프다.
+            // 예전에는 여기서 선수만 세었고, 그래서 이적 한 번에 스태프 몫이 사라졌다.
+            Assert.Equal(ClubWages.Of(w, buyer), buyer.finances.currentWageSpend);
 
             Assert.Single(w.Transfers, t => t.playerId == target.id);
         }
