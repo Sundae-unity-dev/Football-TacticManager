@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Reflection;
 using FootballTactician.Data;
 using FootballTactician.World;
 
@@ -7,6 +8,30 @@ namespace FT.App.Components;
 /// <summary>화면 공통 표기 규칙. 포지션 색, 금액 단위, 평점 색을 한 곳에 둔다.</summary>
 public static class Ui
 {
+    /// <summary>
+    /// 지금 돌고 있는 버전("v0.1.0"). 시작 화면 구석에 찍어 둔다 —
+    /// Pages 가 파일을 캐시하므로, 고친 것이 올라갔는지 눈으로 보는 것이 가장 빠르다.
+    /// 값은 FT.App.csproj 의 &lt;Version&gt; 하나다.
+    /// </summary>
+    public static string Version { get; } = ReadVersion();
+
+    static string ReadVersion()
+    {
+        // InformationalVersion 쪽이 "0.1.0+커밋해시" 까지 들고 있어 먼저 본다.
+        // 트리머가 어셈블리 속성을 지우는 일은 없지만, 없어도 화면이 비지 않게
+        // 어셈블리 이름의 버전(0.1.0.0)으로 떨어뜨린다.
+        var attr = typeof(Ui).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrEmpty(attr))
+        {
+            int plus = attr.IndexOf('+');
+            return "v" + (plus < 0 ? attr : attr[..plus]);
+        }
+
+        var v = typeof(Ui).Assembly.GetName().Version;
+        return v is null ? "" : $"v{v.Major}.{v.Minor}.{v.Build}";
+    }
+
     public static string PosLabel(Position p) => p switch
     {
         Position.GK => "GK",
