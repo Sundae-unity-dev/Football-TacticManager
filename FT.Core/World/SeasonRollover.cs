@@ -198,11 +198,34 @@ namespace FootballTactician.World
                         rng, w.NextPlayerId++, club, nation, rep, need, w.Date, fillerAge);
                     w.Players[youth.id] = youth;
                     club.playerIds.Add(youth.id);
+                    CapToWageRoom(w, club, youth);
                 }
 
                 TransferMarket.RecalcWages(w, club);
                 WorldGenerator.ApplyBestEleven(club, w);
             }
+        }
+
+        /// <summary>
+        /// 급히 구한 사람은 구단이 낼 수 있는 돈만 받는다.
+        ///
+        /// 자유계약으로 데려오는 길은 급여 여력을 보지만(BuyerVerdict), 아무도 못 구해
+        /// <b>사람을 만들어 채우는 길은 한 푼도 보지 않았다</b>. 한도에 걸린 구단일수록
+        /// 자유계약을 사지 못해 이 길로만 명단을 채우게 되고, 그래서 급여 비중이
+        /// 제한 없이 올라갔다 — 10시즌 뒤 3부 평균 75.6%, 최고 114.9% 였다.
+        ///
+        /// 명단은 반드시 채워야 하므로 거절할 수는 없다. 대신 <b>받는 돈을 여력에
+        /// 맞춘다</b> — 돈이 없는 구단은 최저 주급짜리 저니맨을 쓴다. 현실에서도 그렇다.
+        /// </summary>
+        static void CapToWageRoom(GameWorld w, ClubData club, PlayerData p)
+        {
+            if (p.contract == null || club.finances.annualRevenue <= 0) return;
+
+            long limit = (long)(club.finances.annualRevenue * BalanceConfig.WageWarnRatio / 52);
+            long others = ClubWages.Of(w, club) - p.contract.weeklyWage;
+            long room = limit - others;
+
+            p.contract.weeklyWage = (int)Math.Clamp(room, 500, p.contract.weeklyWage);
         }
 
         static NationNames NationNamesFor(GameWorld w, int clubId)

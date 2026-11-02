@@ -1631,6 +1631,21 @@ namespace FT.Sim
             }
 
             var all = w.Clubs.Values.ToList();
+
+            // 넘은 구단이 어디에 몰려 있는지 — 등급별로 갈라 본다.
+            Console.WriteLine("    부   구단   급여비중평균   제재선초과   최고비중   최근강등");
+            foreach (var tier in new[] { LeagueTier.First, LeagueTier.Second, LeagueTier.Third })
+            {
+                var cs = all.Where(c => w.TierOf(c.id) == tier).ToList();
+                if (cs.Count == 0) continue;
+                var ratios = cs.Select(c => ClubWages.Of(w, c) * 52f / Math.Max(1, c.finances.annualRevenue)).ToList();
+                int over = ratios.Count(r => r > BalanceConfig.WageSanctionRatio);
+                int dropped = cs.Count(c => c.history?.recentSeasons != null
+                    && c.history.recentSeasons.Count > 0
+                    && c.history.recentSeasons[^1].finalPosition >= 18);
+                Console.WriteLine($"    {(int)tier}부  {cs.Count,5}   {ratios.Average(),11:P1}   {over,10}   {ratios.Max(),8:P1}   {dropped,8}");
+            }
+            Console.WriteLine();
             Console.WriteLine($"    잔고 평균 {all.Average(c => c.finances.balance) / 1_000_000.0,8:F2}M€"
                 + $" · 적자 구단 {all.Count(c => c.finances.balance < 0),3}개"
                 + $" · 최저 {all.Min(c => c.finances.balance) / 1_000_000.0,8:F2}M€");

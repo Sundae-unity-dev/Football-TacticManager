@@ -121,6 +121,33 @@ namespace FT.Core.Tests
         }
 
         [Fact]
+        public void 명단을_급히_채워도_급여_비중이_치솟지_않는다()
+        {
+            // 자유계약으로 데려오는 길은 급여 여력을 보는데, 아무도 못 구해 사람을
+            // 만들어 채우는 길은 한 푼도 보지 않았다. 한도에 걸린 구단일수록 그 길로만
+            // 채우게 되어 비중이 제한 없이 올라갔다 — 10시즌 뒤 3부 최고 114.9%.
+            var w = WorldGenerator.Create(31415);
+            var club = w.Clubs.Values.First(c => w.TierOf(c.id) == LeagueTier.Third);
+
+            // 수입을 반으로 줄여 한도에 걸린 구단을 만든다.
+            club.finances.annualRevenue /= 2;
+
+            // 명단을 비우고 다시 채우게 한다.
+            foreach (int id in club.playerIds.ToList().Take(club.playerIds.Count - 5))
+                club.playerIds.Remove(id);
+            ClubWages.Recalc(w, club);
+
+            SeasonRollover.TopUpSquads(w, new System.Random(7));
+
+            Assert.True(club.playerIds.Count >= BalanceConfig.SquadTarget,
+                "명단은 반드시 채워져야 한다 — 돈이 없다고 선수 없이 둘 수는 없다");
+
+            float ratio = ClubWages.Of(w, club) * 52f / club.finances.annualRevenue;
+            Assert.True(ratio <= BalanceConfig.WageSanctionRatio,
+                $"급히 채운 뒤 급여 비중이 {ratio:P1} — 여력을 보지 않고 채우고 있다");
+        }
+
+        [Fact]
         public void 아래_등급도_선수를_더_쓸_여지가_있다()
         {
             // 생성 직후 모든 구단이 경고선(60%) 아래에 있어야 한다.
