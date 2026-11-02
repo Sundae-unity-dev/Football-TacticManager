@@ -457,6 +457,28 @@ label.field > span {
 .mb0 { margin-bottom: 0; }
 .mt1 { margin-top: .8rem; }
 
+/* ── 나라 고르기 ───────────────────────────────────────────────── */
+
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: .4rem;
+  margin-bottom: .4rem;
+}
+.pick {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .1rem;
+  padding: .45rem .6rem; cursor: pointer; text-align: left;
+  background: var(--navy-700); color: var(--text-dim);
+  border: 1px solid var(--line); border-radius: 8px;
+  font-family: var(--font-body); font-size: .9rem;
+}
+.pick:hover { border-color: var(--emerald); color: var(--text); }
+.pick.on {
+  background: rgba(61,220,163,.14); border-color: var(--emerald); color: var(--text);
+  font-weight: 600;
+}
+.pick.on .dim { color: var(--emerald); }
+
 /* ── 계약 협상 탁자 ─────────────────────────────────────────────── */
 
 .negotiate { border-color: var(--emerald); }
@@ -504,6 +526,9 @@ table.ft tr.dim-row td { opacity: .45; }
     var(--navy-900);
 }
 .splash-card { width: 100%; max-width: 560px; }
+
+/* 나라 고르기와 구단 고르기는 표가 넓다. 560px 에 밀어 넣으면 머리글이 세로로 꺾인다. */
+.splash-card.wide { max-width: 1000px; }
 .splash h1 {
   font-size: 2.3rem; letter-spacing: .04em; text-transform: uppercase; margin-bottom: .2rem;
 }

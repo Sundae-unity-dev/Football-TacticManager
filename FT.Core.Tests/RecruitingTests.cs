@@ -219,7 +219,7 @@ namespace FT.Core.Tests
             float sumSkilled = 0f, sumBlind = 0f;
             int cases = 0;
 
-            foreach (var club in w.Clubs.Values.Where(c => c.reputation >= 3).Take(60))
+            foreach (var club in w.Clubs.Values.Where(c => c.reputation >= 2).Take(120))
             {
                 var tac = club.savedTactics!.First(t => t.id == club.activeTacticsId);
                 var style = AiRecruiting.StyleOf(tac.instructions);

@@ -47,6 +47,7 @@ namespace FT.Sim
             if (mode is "scout") WorldHarness.Scout(args.Length > 1 ? int.Parse(args[1]) : 4);
             if (mode is "staff") WorldHarness.Staff(args.Length > 1 ? int.Parse(args[1]) : 4);
             if (mode is "wages") WorldHarness.Wages(args.Length > 1 ? int.Parse(args[1]) : 0);
+            if (mode is "scale") WorldHarness.Scale(args.Length > 1 ? int.Parse(args[1]) : 32);
             if (mode is "ages") WorldHarness.Ages(args.Length > 1 ? int.Parse(args[1]) : 12);
             if (mode is "honours") WorldHarness.Honours(args.Length > 1 ? int.Parse(args[1]) : 8);
             if (mode is "biz") WorldHarness.Business(args.Length > 1 ? int.Parse(args[1]) : 8);

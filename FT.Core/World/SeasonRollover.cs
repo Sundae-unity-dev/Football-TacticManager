@@ -162,12 +162,24 @@ namespace FootballTactician.World
         {
             foreach (var club in w.Clubs.Values)
             {
-                if (club.playerIds.Count >= BalanceConfig.SquadTarget) continue;
+                // 내 구단은 **경기를 치를 수 있는 최소 인원까지만** 채운다.
+                //
+                // 가득 채워 주면 AI 가 내 스쿼드를 대신 짜 준다 — 내가 재계약하지 않기로
+                // 한 선수를 자유계약으로 도로 주워 오는 일까지 벌어졌다. 그러면 재계약을
+                // 하지 않겠다는 결정 자체가 뜻을 잃는다(ResolveExpiringContracts 가 플레이어
+                // 구단을 자동 재계약하지 않는 것과 같은 이유다).
+                //
+                // 그렇다고 비워 둘 수도 없다. 열한 명을 못 세우면 경기가 서지 않는다.
+                int target = club.id == w.ManagedClubId
+                    ? BalanceConfig.MinPlayableSquad
+                    : BalanceConfig.SquadTarget;
+
+                if (club.playerIds.Count >= target) continue;
 
                 var nation = NationNamesFor(w, club.id);
                 float rep = w.RepCoefOf(club.id);
 
-                while (club.playerIds.Count < BalanceConfig.SquadTarget)
+                while (club.playerIds.Count < target)
                 {
                     var need = MissingPosition(w, club);
 

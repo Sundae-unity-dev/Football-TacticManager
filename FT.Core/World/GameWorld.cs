@@ -244,7 +244,19 @@ namespace FootballTactician.World
         {
             var c = Club(clubId);
             if (c == null) return 1.0f;
-            return RepCoef(c.reputation) * TierFactor(LeagueOf(clubId)?.tier ?? LeagueTier.First);
+            return RepCoef(c.reputation)
+                 * TierFactor(LeagueOf(clubId)?.tier ?? LeagueTier.First)
+                 * NationStrength(clubId);
+        }
+
+        /// <summary>
+        /// 구단이 속한 나라의 수준. 세이브에는 나라 코드만 있고 수치는 목록에 있으므로
+        /// 여기서 찾아 쓴다 — 구단마다 숫자를 저장하면 세이브만 늘고 값은 같다.
+        /// </summary>
+        public float NationStrength(int clubId)
+        {
+            var nation = NationOf(clubId);
+            return nation == null ? 1.0f : NameForge.ByCode(nation.Code).Strength;
         }
 
         public LeagueTier TierOf(int clubId) => LeagueOf(clubId)?.tier ?? LeagueTier.First;

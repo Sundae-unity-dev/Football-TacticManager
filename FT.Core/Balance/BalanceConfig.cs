@@ -137,6 +137,16 @@ namespace FootballTactician.Balance
 
         /// <summary>구단이 유지하려는 스쿼드 인원.</summary>
         public const int SquadTarget = 25;
+
+        /// <summary>
+        /// 경기를 치를 수 있는 최소 인원. <b>내 구단은 여기까지만</b> 자동으로 채운다.
+        ///
+        /// 가득 채워 주면 AI 가 내 스쿼드를 대신 짜 준다 — 재계약하지 않기로 한 선수를
+        /// 자유계약으로 도로 데려오는 일까지 생긴다. 그렇다고 비워 두면 열한 명을 못 세운다.
+        /// 비워 두면 열한 명을 못 세운다. 명단 하한(<see cref="SquadMin"/>)과 같은 값을 쓴다 —
+        /// "구단 명단은 이 아래로 내려가지 않는다"는 규칙이 둘일 이유가 없다.
+        /// </summary>
+        public const int MinPlayableSquad = SquadMin;
         public const int SquadMin = 20;
         public const int SquadMax = 28;
 

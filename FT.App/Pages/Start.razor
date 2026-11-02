@@ -18,7 +18,7 @@
 else
 {
 <div class="splash">
-    <div class="splash-card">
+    <div class="splash-card @(step == Step.Intro ? "" : "wide")">
 
         @if (step == Step.Intro)
         {
@@ -43,8 +43,8 @@ else
                 </label>
 
                 <div class="btn-row mt1">
-                    <button class="btn btn-primary btn-lg" @onclick="CreateWorld" disabled="@busy">
-                        @(busy ? "세계를 만드는 중…" : "새 게임 시작")
+                    <button class="btn btn-primary btn-lg" @onclick="() => step = Step.PickCountries">
+                        새 게임 시작
                     </button>
                     @if (hasSave)
                     {
@@ -63,8 +63,72 @@ else
             </div>
 
             <p class="tiny dim center">
-                등장하는 국가·리그·구단·선수는 모두 가상입니다.
+                나라와 도시 이름만 실제이고, 리그·구단·선수는 모두 가상입니다.
             </p>
+        }
+        else if (step == Step.PickCountries)
+        {
+            <div class="card">
+                <div class="card-head">
+                    <h2>어떤 나라를 넣을까요</h2>
+                    <span class="spacer"></span>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => step = Step.Intro">뒤로</button>
+                </div>
+
+                <p class="tiny dim">
+                    고른 나라만 세계에 들어갑니다. <b>많이 넣을수록 무거워집니다</b> —
+                    리그가 늘면 한 라운드에 치르는 경기가 늘고 세이브도 커집니다.
+                </p>
+
+                <div class="btn-row">
+                    <button class="btn btn-sm" @onclick='() => Preset("기본")'>기본 4개국</button>
+                    <button class="btn btn-sm" @onclick='() => Preset("유럽")'>유럽 전부</button>
+                    <button class="btn btn-sm" @onclick='() => Preset("전부")'>49개국 전부</button>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => chosen.Clear()">모두 지우기</button>
+                </div>
+
+                @foreach (var region in Nations.All.Select(n => n.Region).Distinct())
+                {
+                    <div class="nav-group-title mt1">@region</div>
+                    <div class="pick-grid">
+                        @foreach (var n in Nations.All.Where(x => x.Region == region))
+                        {
+                            <button class="pick @(chosen.Contains(n.Code) ? "on" : "")"
+                                    @onclick="() => Toggle(n.Code)">
+                                <span>@n.Country</span>
+                                <span class="tiny dim">@(n.Tiers)부 · 구단 @(n.Tiers * 20)</span>
+                            </button>
+                        }
+                    </div>
+                }
+
+                <div class="stat mt1">
+                    <div class="stat-label">고른 세계</div>
+                    <div class="tiny">
+                        나라 @chosen.Count · 리그 @PickedTiers · 구단 @(PickedTiers * 20) ·
+                        선수 @((PickedTiers * 20 * 25).ToString("N0")) ·
+                        세이브 약 @((PickedTiers * 20 / 240.0 * 0.6).ToString("F1"))MB
+                    </div>
+                    @if (PickedTiers > 36)
+                    {
+                        <div class="tiny" style="color:var(--amber)">
+                            리그가 많습니다. 저장과 라운드 진행이 눈에 띄게 느려집니다.
+                        </div>
+                    }
+                </div>
+
+                @if (error is not null)
+                {
+                    <p class="tiny mb0" style="color:var(--coral)">@error</p>
+                }
+
+                <div class="btn-row mt1">
+                    <button class="btn btn-primary btn-lg" @onclick="CreateWorld"
+                            disabled="@(busy || chosen.Count == 0)">
+                        @(busy ? "세계를 만드는 중…" : "세계 만들기")
+                    </button>
+                </div>
+            </div>
         }
         else if (step == Step.PickNation)
         {
@@ -140,7 +204,7 @@ else
 }
 
 @code {
-    enum Step { Intro, PickNation, PickClub }
+    enum Step { Intro, PickCountries, PickNation, PickClub }
 
     Step step = Step.Intro;
     string managerName = "";
@@ -183,6 +247,29 @@ else
         step = Step.Intro;
     }
 
+    // 고른 나라 코드. 기본은 3부까지 갖춘 네 나라다.
+    readonly HashSet<string> chosen =
+        new(Nations.Default.Select(n => n.Code));
+
+    int PickedTiers => Nations.All.Where(n => chosen.Contains(n.Code)).Sum(n => n.Tiers);
+
+    void Toggle(string code)
+    {
+        if (!chosen.Remove(code)) chosen.Add(code);
+    }
+
+    void Preset(string which)
+    {
+        chosen.Clear();
+        var set = which switch
+        {
+            "유럽" => Nations.All.Where(n => n.Region == "유럽"),
+            "전부" => Nations.All,
+            _ => Nations.Default,
+        };
+        foreach (var n in set) chosen.Add(n.Code);
+    }
+
     async Task CreateWorld()
     {
         busy = true;
@@ -191,7 +278,7 @@ else
         await Task.Yield();          // 생성 전에 "만드는 중" 표시를 그린다
         try
         {
-            Session.NewWorld(seed);
+            Session.NewWorld(seed, Nations.All.Where(n => chosen.Contains(n.Code)).ToList());
             step = Step.PickNation;
         }
         catch (Exception ex) { error = $"세계를 만들지 못했습니다: {ex.Message}"; }

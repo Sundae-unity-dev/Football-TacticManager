@@ -101,10 +101,29 @@ namespace FootballTactician.Data
         Veteran
     }
 
+    /// <summary>
+    /// 선수의 국적. 값(순서)이 세이브에 들어가므로 <b>중간에 끼워 넣지 않는다</b> —
+    /// 새 나라는 반드시 끝에 붙인다. 이름만 바꾸는 것은 안전하다.
+    ///
+    /// 2026-11-02 에 가상 국적 열여섯 개를 실제 나라 코드로 바꿨다. 값은 그대로이므로
+    /// 예전 세이브도 열리지만, 그 안의 선수 국적 표기는 새 이름으로 보인다.
+    /// </summary>
     public enum Nationality
     {
-        NOR, EST, VEL, KAR, SOL, DRA, MER, CAL,
-        PAX, RYN, ALT, BOR, FEN, GAL, HYR, IRL
+        // 유럽
+        ENG, ESP, ITA, GER, FRA, NED, POR, BEL,
+        TUR, SCO, RUS, UKR, AUT, SUI, DEN, SWE,
+        NOR, POL, GRE, CZE, SRB, CRO,
+        // 남아메리카
+        BRA, ARG, URU, COL, CHI, PER,
+        // 북중미
+        MEX, USA, CAN, CRC,
+        // 아시아
+        JPN, KOR, CHN, KSA, IRN, AUS, QAT, UAE,
+        // 아프리카
+        EGY, MAR, TUN, ALG, NGA, GHA, SEN, RSA,
+        // 오세아니아
+        NZL
     }
 
     public enum PlayerStatus  { Active, Injured, Suspended, OnLoan, Retired }

@@ -118,21 +118,41 @@ namespace FT.Core.Tests
         public void 방치한_선수가_이적을_요청한다()
         {
             // 불만이 행동이 되지 않으면 탈의실 화면은 읽을거리일 뿐이다.
-            var w = Make(606);
-            PlaySeason(w);
+            //
+            // 시드 하나로 보면 흔들린다 — 한 구단의 요청자가 두세 명뿐이라 그중 하나가
+            // 주전이면 평균이 뒤집힌다. 성질은 여러 시드를 모아서 본다.
+            double squadTotal = 0, requesterTotal = 0;
+            int squadCount = 0, requesterCount = 0, worldsWithRequests = 0;
 
-            Assert.NotEmpty(w.TransferRequests);
+            foreach (int seed in new[] { 606, 31415, 90210, 24680, 1337 })
+            {
+                var w = Make(seed);
+                PlaySeason(w);
+                if (w.TransferRequests.Count > 0) worldsWithRequests++;
 
-            // 요청한 선수는 대체로 못 뛴 선수여야 한다.
-            var club = w.MyClub!;
-            double squadAvg = w.Squad(club.id).Average(p => p.seasonStats?.appearances ?? 0);
-            double requesterAvg = w.TransferRequests.Keys
-                .Select(id => w.Player(id)?.seasonStats?.appearances ?? 0)
-                .DefaultIfEmpty(0)
-                .Average();
+                var club = w.MyClub!;
+                foreach (var p in w.Squad(club.id))
+                {
+                    squadTotal += p.seasonStats?.appearances ?? 0;
+                    squadCount++;
+                }
+                foreach (int id in w.TransferRequests.Keys)
+                {
+                    requesterTotal += w.Player(id)?.seasonStats?.appearances ?? 0;
+                    requesterCount++;
+                }
+            }
+
+            Assert.True(worldsWithRequests >= 3,
+                $"다섯 세계 중 {worldsWithRequests}곳에서만 이적 요청이 나왔다");
+            Assert.True(requesterCount > 0, "이적 요청이 한 건도 없다");
+
+            double squadAvg = squadTotal / squadCount;
+            double requesterAvg = requesterTotal / requesterCount;
 
             Assert.True(requesterAvg < squadAvg,
-                $"요청자 평균 출전 {requesterAvg:F1} ≥ 스쿼드 평균 {squadAvg:F1}");
+                $"요청자 평균 출전 {requesterAvg:F1} ≥ 스쿼드 평균 {squadAvg:F1} "
+                + $"(요청 {requesterCount}건)");
         }
 
         [Fact]

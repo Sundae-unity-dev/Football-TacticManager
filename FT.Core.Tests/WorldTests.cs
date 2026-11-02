@@ -20,14 +20,20 @@ namespace FT.Core.Tests
         public void 세계는_국가마다_리그_피라미드를_갖춘다()
         {
             var w = Make();
-            int tiers = WorldGenerator.Tiers;
 
-            Assert.Equal(NameForge.All.Count * tiers, w.Leagues.Count);
-            Assert.Equal(NameForge.All.Count * tiers * WorldGenerator.ClubsPerLeague, w.Clubs.Count);
+            // 넣은 나라만 들어가고, 나라마다 자기 부 수만큼 리그를 갖는다.
+            // (목록 전체가 아니라 기본 묶음이 들어간다 — 49개국을 다 넣으면 세계가 6배가 된다.)
+            var put = Nations.Default;
+            int expectedLeagues = put.Sum(n => n.Tiers);
+
+            Assert.Equal(put.Count, w.Nations.Count);
+            Assert.Equal(expectedLeagues, w.Leagues.Count);
+            Assert.Equal(expectedLeagues * WorldGenerator.ClubsPerLeague, w.Clubs.Count);
             Assert.Equal(w.Clubs.Count * WorldGenerator.SquadSize, w.Players.Count);
 
             foreach (var nation in w.Nations)
             {
+                int tiers = NameForge.ByCode(nation.Code).Tiers;
                 Assert.Equal(tiers, nation.LeagueIds.Count);
 
                 for (int t = 0; t < tiers; t++)

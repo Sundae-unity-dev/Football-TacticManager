@@ -22,7 +22,13 @@ namespace FootballTactician.World
         /// <summary>승강 인원. 1부 하위 N 팀과 2부 상위 N 팀이 자리를 바꾼다.</summary>
         public const int PromotionSpots = 3;
 
-        /// <summary>나라마다의 리그 단계 수.</summary>
+        /// <summary>
+        /// 기본 리그 단계 수. 나라마다 다르다 — 축구가 깊은 나라는 3부까지,
+        /// 리그 하나만 있는 나라는 1부까지다(<see cref="NationNames.Tiers"/>).
+        ///
+        /// 나라 하나가 세계를 얼마나 무겁게 하는지는 이 값이 정한다 —
+        /// 3부 나라는 구단 60개·선수 1,500명, 1부 나라는 20개·500명이다.
+        /// </summary>
         public const int Tiers = 3;
 
         /// <summary>1부 리그 안의 평판 분포. 길이가 ClubsPerLeague 와 같아야 한다.</summary>
@@ -61,7 +67,14 @@ namespace FootballTactician.World
             Position.LW, Position.RW, Position.ST, Position.ST
         };
 
-        public static GameWorld Create(int seed, int startYear = 2026)
+        /// <summary>
+        /// 세계를 만든다. <paramref name="nations"/> 를 주면 그 나라들만 만든다 —
+        /// 나라 수가 곧 세계의 크기다(나라 하나 = 리그 3개 · 구단 60개 · 선수 1,500명).
+        /// 주지 않으면 <see cref="Nations.Default"/>(3부까지 갖춘 네 나라)다.
+        /// 전부 넣고 싶으면 <see cref="NameForge.All"/> 를 건네면 된다.
+        /// </summary>
+        public static GameWorld Create(int seed, int startYear = 2026,
+                                       IReadOnlyList<NationNames> nations = null)
         {
             var rng = new Random(seed);
             var w = new GameWorld
@@ -76,14 +89,21 @@ namespace FootballTactician.World
             int nextLeagueId = 1;
             int nextFixtureId = 1;
 
-            foreach (var nation in NameForge.All)
+            foreach (var nation in nations ?? Nations.Default)
             {
+                int tiers = Math.Clamp(nation.Tiers, 1, 3);
+
                 // 도시를 섞어 시드마다 평판 서열이 달라지게 한다. 각 부가 도시를 나눠 쓴다.
-                var cities = nation.Cities.OrderBy(_ => rng.Next())
-                    .Take(ClubsPerLeague * Tiers).ToList();
+                // 도시가 모자라면 돌려 쓴다 — 한 도시에 구단이 둘인 것은 축구에서 흔하다
+                // (접두사가 달라 이름은 겹치지 않는다).
+                int needed = ClubsPerLeague * tiers;
+                var pool = nation.Cities.OrderBy(_ => rng.Next()).ToList();
+                var cities = new List<string>(needed);
+                while (cities.Count < needed)
+                    cities.AddRange(pool.Take(Math.Min(pool.Count, needed - cities.Count)));
 
                 var leagues = new List<LeagueData>();
-                for (int t = 0; t < Tiers; t++)
+                for (int t = 0; t < tiers; t++)
                 {
                     using (SimProfile.Measure("리그 12개"))
                     leagues.Add(MakeLeague(w, rng, nation, (LeagueTier)(t + 1), nextLeagueId++,
@@ -155,7 +175,7 @@ namespace FootballTactician.World
             ref int nextClubId, ref int nextPlayerId, ref int nextFixtureId)
         {
             bool top = tier == LeagueTier.First;
-            bool bottom = (int)tier >= Tiers;
+            bool bottom = (int)tier >= Math.Clamp(nation.Tiers, 1, 3);
 
             var (name, shortName) = tier switch
             {
@@ -235,7 +255,7 @@ namespace FootballTactician.World
             string city, int index, int stars, LeagueTier tier)
         {
             var (name, shortName) = NameForge.ClubName(nation, city, index);
-            float rep = GameWorld.RepCoef(stars) * GameWorld.TierFactor(tier);
+            float rep = GameWorld.RepCoef(stars) * GameWorld.TierFactor(tier) * nation.Strength;
             long revenue = (long)(BalanceConfig.AnnualRevenue(rep) * 10000f);   // 만 유로 → 유로
 
             var club = new ClubData
@@ -325,7 +345,7 @@ namespace FootballTactician.World
             Random rng, ClubData club, NationNames nation, int stars,
             GameDate today, ref int nextPlayerId, GameWorld w, LeagueTier tier)
         {
-            float rep = GameWorld.RepCoef(stars) * GameWorld.TierFactor(tier);
+            float rep = GameWorld.RepCoef(stars) * GameWorld.TierFactor(tier) * nation.Strength;
             var naming = new PlayerFactory.Naming
             {
                 First = nation.FirstNames,

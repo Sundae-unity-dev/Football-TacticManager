@@ -24,9 +24,13 @@ public sealed class GameSession(SaveStore store)
 
     // ── 시작과 저장 ───────────────────────────────────────────────────────
 
-    public GameWorld NewWorld(int seed)
+    /// <summary>
+    /// 새 세계를 만든다. <paramref name="nations"/> 를 주면 그 나라들만 들어간다 —
+    /// 나라 수가 곧 세계의 크기이고, 세이브 크기와 저장 시간이 거기에 비례한다.
+    /// </summary>
+    public GameWorld NewWorld(int seed, IReadOnlyList<NationNames>? nations = null)
     {
-        World = WorldGenerator.Create(seed);
+        World = WorldGenerator.Create(seed, 2026, nations);
         LastResult = null;
         LastFixture = null;
         NotifyChanged();

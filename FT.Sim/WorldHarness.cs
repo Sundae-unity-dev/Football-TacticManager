@@ -1578,6 +1578,64 @@ namespace FT.Sim
         /// 하나가 다 하면 "좋은 스태프"를 모으는 것 말고 할 일이 없다.
         /// </summary>
         /// <summary>
+        /// 나라를 늘리면 세계가 얼마나 비싸지는지 잰다.
+        ///
+        /// "축구 리그가 있는 모든 나라" 는 200개가 넘는다. 넣을 수 있는지는 취향이 아니라
+        /// **브라우저가 감당하는가**로 정해진다 — 생성 시간, 세이브 크기, 라운드 비용.
+        /// 그래서 내용을 쓰기 전에 값부터 잰다.
+        /// </summary>
+        public static void Scale(int maxNations)
+        {
+            Console.WriteLine("\n== 나라를 늘리면 ==\n");
+            Console.WriteLine("  나라   리그   구단    선수      생성      한시즌경기   라운드1회    세이브");
+
+            foreach (int n in new[] { 4, 8, 16, 32, 64, 128, 211 })
+            {
+                if (n > maxNations) break;
+
+                var nations = Clone(n);
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var w = WorldGenerator.Create(31415, 2026, nations);
+                double genMs = sw.Elapsed.TotalMilliseconds;
+
+                int matches = w.Leagues.Values.Sum(l => l.currentSeason?.fixtures.Count ?? 0);
+
+                sw.Restart();
+                GameEngine.PlayNextRound(w);
+                double roundMs = sw.Elapsed.TotalMilliseconds;
+
+                var save = SaveGame.Serialize(w, "크기 재기");
+                double saveMb = save.Length / 1024.0 / 1024.0;
+
+                Console.WriteLine($"  {n,4}   {w.Leagues.Count,4}   {w.Clubs.Count,5}   {w.Players.Count,7:N0}   "
+                    + $"{genMs,7:F0}ms   {matches,10:N0}   {roundMs,8:F0}ms   {saveMb,6:F2}MB");
+            }
+
+            Console.WriteLine("\n  브라우저는 데스크톱보다 라운드 10배 · 저장 2배쯤 느리다(docs/성능.md).");
+        }
+
+        /// <summary>같은 나라를 코드만 바꿔 복제한다. 값을 재는 데는 내용이 필요 없다.</summary>
+        static List<NationNames> Clone(int count)
+        {
+            var src = NameForge.All;
+            var list = new List<NationNames>();
+            for (int i = 0; i < count; i++)
+            {
+                var b = src[i % src.Count];
+                list.Add(new NationNames
+                {
+                    Code = $"C{i:D3}", Nationality = b.Nationality,
+                    Country = $"나라{i}", LeagueName = $"나라{i} 1부", LeagueShort = $"L{i}A",
+                    SecondLeagueName = $"나라{i} 2부", SecondLeagueShort = $"L{i}B",
+                    ThirdLeagueName = $"나라{i} 3부", ThirdLeagueShort = $"L{i}C",
+                    Cities = b.Cities, ClubPrefixes = b.ClubPrefixes, ClubSuffixes = b.ClubSuffixes,
+                    StadiumWords = b.StadiumWords, FirstNames = b.FirstNames, LastNames = b.LastNames,
+                });
+            }
+            return list;
+        }
+
+        /// <summary>
         /// 급여 장부를 쪼개 본다. 선수 주급과 스태프 주급이 수입의 몇 %씩을 먹는지,
         /// 그리고 운영비(OverheadRatio)가 그 위에 얼마를 더 얹는지.
         ///
