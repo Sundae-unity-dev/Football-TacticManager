@@ -1578,6 +1578,71 @@ namespace FT.Sim
         /// 하나가 다 하면 "좋은 스태프"를 모으는 것 말고 할 일이 없다.
         /// </summary>
         /// <summary>
+        /// 이름이 겹치는지 전수로 센다. 49개국을 전부 넣은 세계에서 본다.
+        ///
+        /// 구단 이름이 겹치면 순위표에서 어느 쪽인지 알 수 없고, 약칭이 겹치면
+        /// 경기 일정이 뒤섞여 보인다. 선수 이름은 좀 겹쳐도 되지만(현실도 그렇다)
+        /// 한 구단 안에서 겹치면 라인업을 읽을 수 없다.
+        /// </summary>
+        public static void NameCheck()
+        {
+            var w = WorldGenerator.Create(31415, 2026, NameForge.All);
+            Console.WriteLine("\n== 이름 겹침 검사 ==\n");
+            Console.WriteLine($"  나라 {w.Nations.Count} · 리그 {w.Leagues.Count} · 구단 {w.Clubs.Count} · 선수 {w.Players.Count:N0}\n");
+
+            // 1) 구단 이름 — 세계 전체에서 하나뿐이어야 한다.
+            var clubDup = w.Clubs.Values.GroupBy(c => c.name)
+                .Where(g => g.Count() > 1).OrderByDescending(g => g.Count()).ToList();
+            Console.WriteLine($"  구단 이름 겹침  {clubDup.Count}건");
+            foreach (var g in clubDup.Take(8))
+                Console.WriteLine($"    {g.Key} ×{g.Count()}  ({string.Join(", ", g.Select(c => w.LeagueOf(c.id)?.shortName))})");
+
+            // 2) 구단 약칭 — 같은 리그 안에서만 겹치지 않으면 된다.
+            int shortDup = 0;
+            foreach (var league in w.Leagues.Values)
+            {
+                var dup = league.clubIds.Select(id => w.Club(id)!.shortName)
+                    .GroupBy(x => x).Where(g => g.Count() > 1).ToList();
+                foreach (var g in dup)
+                {
+                    if (shortDup < 8)
+                        Console.WriteLine($"    [{league.shortName}] 약칭 {g.Key} ×{g.Count()}");
+                    shortDup++;
+                }
+            }
+            Console.WriteLine($"  같은 리그 안 약칭 겹침  {shortDup}건");
+
+            // 3) 선수 이름 — 한 구단 안에서 겹치면 읽을 수 없다.
+            int squadDup = 0;
+            foreach (var club in w.Clubs.Values)
+            {
+                var dup = w.Squad(club.id).GroupBy(p => p.FullName)
+                    .Where(g => g.Count() > 1).ToList();
+                foreach (var g in dup)
+                {
+                    if (squadDup < 8) Console.WriteLine($"    [{club.name}] {g.Key} ×{g.Count()}");
+                    squadDup++;
+                }
+            }
+            Console.WriteLine($"  같은 구단 안 선수 이름 겹침  {squadDup}건");
+
+            // 4) 세계 전체 — 흔한 이름이 몇 명까지 나오는지(참고)
+            var worst = w.Players.Values.GroupBy(p => p.FullName)
+                .OrderByDescending(g => g.Count()).First();
+            double unique = w.Players.Values.Select(p => p.FullName).Distinct().Count()
+                          / (double)w.Players.Count;
+            Console.WriteLine($"  세계 전체 — 서로 다른 이름 {unique:P1} · 가장 흔한 이름 {worst.Key} ×{worst.Count()}");
+
+            // 5) 도시가 같은 나라 안에서 몇 번 돌려 쓰였는지
+            foreach (var nation in w.Nations.Take(3))
+            {
+                var clubs = w.Clubs.Values.Where(c => w.NationOf(c.id)?.Code == nation.Code).ToList();
+                int cities = NameForge.ByCode(nation.Code).Cities.Length;
+                Console.WriteLine($"  {nation.Country}: 구단 {clubs.Count}개 · 도시 {cities}개 보유");
+            }
+        }
+
+        /// <summary>
         /// 나라를 늘리면 세계가 얼마나 비싸지는지 잰다.
         ///
         /// "축구 리그가 있는 모든 나라" 는 200개가 넘는다. 넣을 수 있는지는 취향이 아니라

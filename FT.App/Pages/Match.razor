@@ -185,7 +185,7 @@ else if (Session.Live is { } live && Session.LiveFixture is { } lf)
                                     @if (e.assistPlayerId is int aid && w.Player(aid) is { } other)
                                     {
                                         <span class="tiny dim">
-                                            @(e.eventType == MatchEventType.Substitution ? " ← " : " (도움 ")@other.lastName@(e.eventType == MatchEventType.Substitution ? "" : ")")
+                                            @(e.eventType == MatchEventType.Substitution ? " ← " : " (도움 ")@other.ShortName@(e.eventType == MatchEventType.Substitution ? "" : ")")
                                         </span>
                                     }
                                     <span class="tiny dim"> — @w.Club(e.clubId)?.shortName</span>
@@ -308,7 +308,7 @@ else
                                     }
                                     @if (e.assistPlayerId is int aid2 && w.Player(aid2) is { } other2)
                                     {
-                                        <span class="tiny dim"> (@(e.eventType == MatchEventType.Substitution ? "투입 " : "도움 ")@other2.lastName)</span>
+                                        <span class="tiny dim"> (@(e.eventType == MatchEventType.Substitution ? "투입 " : "도움 ")@other2.ShortName)</span>
                                     }
                                     <span class="tiny dim"> — @w.Club(e.clubId)?.shortName</span>
                                 </span>

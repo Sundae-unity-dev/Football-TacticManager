@@ -1,13 +1,21 @@
 namespace FootballTactician.World
 {
     /// <summary>
-    /// 지역별 사람 이름 풀.
+    /// 지역별 사람 이름 풀. <b>한글 표기</b>다.
     ///
-    /// 나라마다 이름을 따로 쓰면 마흔 나라에 이름 이천 개가 필요하다. 이름은 나라가
+    /// 나라마다 이름을 따로 쓰면 마흔아홉 나라에 이름 이천 개가 필요하다. 이름은 나라가
     /// 아니라 <b>언어권</b>을 따르므로 — 아르헨티나 선수와 멕시코 선수는 같은 결의
     /// 이름을 쓴다 — 언어권으로 묶어 돌려 쓴다. 도시만 나라마다 다르면 충분하다.
     ///
+    /// <b>읽는 법은 언어마다 다르다.</b> 같은 철자라도 스페인어 Javier 는 "하비에르",
+    /// 프랑스어 Jules 는 "쥘", 포르투갈어 Rui 는 "후이"다. 영어식으로 한 번에 옮기면
+    /// 나라를 실제로 만든 뜻이 없어지므로 언어권마다 따로 적었다.
+    ///
+    /// 이름의 순서도 언어를 따른다 — 서양은 "이름 성", 한국·중국은 성에 이름을 붙여 쓰고,
+    /// 일본은 성과 이름을 띄운다(<see cref="FootballTactician.Data.NameStyle"/>).
+    ///
     /// 실존 선수의 이름을 그대로 쓰지 않는다. 흔한 이름과 흔한 성을 섞어 만들 뿐이다.
+    /// 원래의 로마자 표기는 git 기록에 남아 있다.
     /// </summary>
     static class NamePools
     {
@@ -15,240 +23,240 @@ namespace FootballTactician.World
 
         public static readonly string[] AngloFirst =
         {
-            "Harry","Jack","Oliver","Charlie","Thomas","George","James","Will","Alfie","Daniel",
-            "Lewis","Callum","Owen","Reece","Dean","Marcus","Kyle","Liam","Connor","Ryan",
-            "Nathan","Joel","Toby","Elliot",
+            "해리","잭","올리버","찰리","토머스","조지","제임스","윌","알피","대니얼",
+            "루이스","캘럼","오언","리스","딘","마커스","카일","리암","코너","라이언",
+            "네이선","조엘","토비","엘리엇",
         };
         public static readonly string[] AngloLast =
         {
-            "Walker","Hughes","Bennett","Carter","Shaw","Reid","Holt","Grant","Pearce","Lowe",
-            "Mason","Doyle","Burke","Fletcher","Sutton","Barnes","Nash","Rowe","Dalton","Keane",
-            "Wilkins","Harper","Boyd","Finch",
+            "워커","휴스","베넷","카터","쇼","리드","홀트","그랜트","피어스","로",
+            "메이슨","도일","버크","플레처","서턴","반스","내시","로우","돌턴","킨",
+            "윌킨스","하퍼","보이드","핀치",
         };
 
         public static readonly string[] SpanishFirst =
         {
-            "Alvaro","Javier","Sergio","Pablo","Iker","Raul","Diego","Marcos","Adrian","Hugo",
-            "Nicolas","Mateo","Tomas","Bruno","Ivan","Lucas","Emilio","Andres","Gonzalo","Rodrigo",
-            "Facundo","Ezequiel","Santiago","Joaquin",
+            "알바로","하비에르","세르히오","파블로","이케르","라울","디에고","마르코스","아드리안","우고",
+            "니콜라스","마테오","토마스","브루노","이반","루카스","에밀리오","안드레스","곤살로","로드리고",
+            "파쿤도","에세키엘","산티아고","호아킨",
         };
         public static readonly string[] SpanishLast =
         {
-            "Navas","Quesada","Sabino","Carvajal","Juarez","Maldonado","Salgado","Urbina","Zarella","Pinto",
-            "Arrieta","Bermudez","Cortes","Delgado","Esparza","Figueroa","Galvan","Herrera","Ibarra","Jimenez",
-            "Lozano","Medina","Ocampo","Peralta",
+            "나바스","케사다","사비노","카르바할","후아레스","말도나도","살가도","우르비나","사렐라","핀토",
+            "아리에타","베르무데스","코르테스","델가도","에스파르사","피게로아","갈반","에레라","이바라","히메네스",
+            "로사노","메디나","오캄포","페랄타",
         };
 
         public static readonly string[] PortugueseFirst =
         {
-            "Joao","Rui","Tiago","Bruno","Diogo","Nuno","Ricardo","Andre","Miguel","Pedro",
-            "Rafael","Vitor","Fabio","Gonzalo","Hugo","Leonardo","Matheus","Caio","Thiago","Vinicius",
-            "Everton","Gustavo","Murilo","Anderson",
+            "주앙","후이","티아구","브루누","디오구","누누","히카르두","안드레","미겔","페드루",
+            "하파엘","비토르","파비우","곤살루","우구","레오나르두","마테우스","카이우","치아구","비니시우스",
+            "에베르톤","구스타부","무릴루","안데르손",
         };
         public static readonly string[] PortugueseLast =
         {
-            "Almeida","Barbosa","Carvalho","Dias","Esteves","Ferreira","Gomes","Henriques","Inacio","Jardim",
-            "Lima","Macedo","Neves","Oliveira","Pacheco","Queiroz","Ramos","Soares","Teixeira","Vieira",
-            "Azevedo","Bastos","Cardoso","Moreira",
+            "알메이다","바르보사","카르발류","지아스","이스테베스","페레이라","고메스","엔히케스","이나시우","자르딤",
+            "리마","마세두","네베스","올리베이라","파셰쿠","케이로스","하무스","소아레스","테이셰이라","비에이라",
+            "아제베두","바스토스","카르도주","모레이라",
         };
 
         public static readonly string[] ItalianFirst =
         {
-            "Marco","Luca","Andrea","Matteo","Davide","Simone","Alessio","Federico","Lorenzo","Giulio",
-            "Riccardo","Stefano","Nicolo","Emanuele","Fabio","Gianluca","Pietro","Tommaso","Vito","Enrico",
-            "Dario","Cristian","Samuele","Mirko",
+            "마르코","루카","안드레아","마테오","다비데","시모네","알레시오","페데리코","로렌초","줄리오",
+            "리카르도","스테파노","니콜로","에마누엘레","파비오","잔루카","피에트로","톰마소","비토","엔리코",
+            "다리오","크리스티안","사무엘레","미르코",
         };
         public static readonly string[] ItalianLast =
         {
-            "Bellandi","Cestari","Donatelli","Fioravanti","Iannone","Novelli","Oriani","Scalise","Tagliabue","Zambrano",
-            "Albertini","Bonetti","Calvani","Durante","Ferraro","Gallo","Lombardi","Marchetti","Nicolosi","Perazzi",
-            "Rinaldi","Sartori","Trevisan","Vergani",
+            "벨란디","체스타리","도나텔리","피오라반티","이안노네","노벨리","오리아니","스칼리세","탈리아부에","참브라노",
+            "알베르티니","보네티","칼바니","두란테","페라로","갈로","롬바르디","마르케티","니콜로시","페라치",
+            "리날디","사르토리","트레비산","베르가니",
         };
 
         public static readonly string[] GermanFirst =
         {
-            "Lukas","Jonas","Finn","Niklas","Tobias","Maximilian","Felix","Moritz","Jannik","Leon",
-            "Benedikt","Quirin","Kilian","Markus","Sebastian","Florian","Dominik","Matthias","Philipp","Simon",
-            "Erik","Hendrik","Till","Lennart",
+            "루카스","요나스","핀","니클라스","토비아스","막시밀리안","펠릭스","모리츠","야니크","레온",
+            "베네딕트","크비린","킬리안","마르쿠스","제바스티안","플로리안","도미니크","마티아스","필리프","지몬",
+            "에리크","헨드리크","틸","레나르트",
         };
         public static readonly string[] GermanLast =
         {
-            "Achterberg","Brennecke","Eberhart","Gerstner","Haberland","Illertal","Reinhardt","Schattner","Treuberg","Uhlmann",
-            "Vogler","Wendler","Ziegenhain","Brandt","Dreyer","Engel","Fichtner","Grabner","Hartmann","Kessler",
-            "Lindner","Mertens","Ostermann","Pretzel",
+            "아흐터베르크","브레네케","에버하르트","게르스트너","하버란트","일러탈","라인하르트","샤트너","트로이베르크","울만",
+            "포글러","벤들러","치겐하인","브란트","드라이어","엥겔","피히트너","그라브너","하르트만","케슬러",
+            "린트너","메르텐스","오스터만","프레첼",
         };
 
         public static readonly string[] FrenchFirst =
         {
-            "Hugo","Theo","Enzo","Nathan","Maxime","Lucas","Antoine","Clement","Baptiste","Quentin",
-            "Romain","Valentin","Alexis","Mathis","Yanis","Corentin","Gaetan","Loic","Noe","Timothe",
-            "Adrien","Florent","Jules","Remi",
+            "위고","테오","엔조","나탕","막심","뤼카","앙투안","클레망","바티스트","캉탱",
+            "로맹","발랑탱","알렉시","마티스","야니스","코랑탱","가에탕","로이크","노에","티모테",
+            "아드리앵","플로랑","쥘","레미",
         };
         public static readonly string[] FrenchLast =
         {
-            "Beaufort","Chastain","Delacroix","Escande","Fauvel","Gautier","Hamelin","Jourdain","Lavigne","Marchand",
-            "Noailles","Ollivier","Perrin","Quilliot","Rossignol","Sauvage","Thibault","Vacher","Arnaud","Boucher",
-            "Chevalier","Dumas","Fournier","Granger",
+            "보포르","샤스탱","들라크루아","에스캉드","포벨","고티에","아믈랭","주르댕","라비뉴","마르샹",
+            "노아유","올리비에","페랭","키요","로시뇰","소바주","티보","바셰","아르노","부셰",
+            "슈발리에","뒤마","푸르니에","그랑제",
         };
 
         public static readonly string[] DutchFirst =
         {
-            "Sven","Bram","Daan","Jesse","Thijs","Ruben","Mats","Stijn","Jurgen","Koen",
-            "Lars","Niels","Pim","Roel","Teun","Wouter","Joost","Marnix","Sander","Dirk",
-            "Gijs","Hidde","Kars","Olivier",
+            "스벤","브람","단","예세","테이스","뤼번","마츠","스테인","유르헌","쿤",
+            "라르스","닐스","핌","룰","퇸","바우터르","요스트","마르닉스","산더르","디르크",
+            "헤이스","히더","카르스","올리비르",
         };
         public static readonly string[] DutchLast =
         {
-            "Van Dijk","Bakker","De Vries","Jansen","Visser","Smit","Meijer","Bos","Vos","Peters",
-            "Hendriks","Dekker","Willems","Van Leeuwen","Scholten","Kuipers","Brouwer","Timmermans","Bosman","Vermeer",
-            "Huisman","Kramer","Nagel","Prins",
+            "판데이크","바커르","더프리스","얀선","비서르","스밋","메이어르","보스","포스","페터르스",
+            "헨드릭스","데커르","빌렘스","판레이우언","스홀턴","카위퍼르스","브라우어르","티머르만스","보스만","페르메이르",
+            "하위스만","크라머르","나헐","프린스",
         };
 
         public static readonly string[] NordicFirst =
         {
-            "Jonas","Mikal","Aren","Sven","Erik","Rune","Olav","Nils","Kasper","Teodor",
-            "Halvard","Birger","Steinar","Vetle","Arne","Torvald","Leif","Gunnar","Eivind","Sigurd",
-            "Trygve","Audun","Vidar","Harald",
+            "요나스","미칼","아렌","스벤","에리크","루네","올라브","닐스","카스페르","테오도르",
+            "할바르","비르게르","스테이나르","베틀레","아르네","토르발","레이프","군나르","에이빈","시구르",
+            "트뤼그베","아우둔","비다르","하랄",
         };
         public static readonly string[] NordicLast =
         {
-            "Aalberg","Bjornstad","Dahlstrom","Falk","Gulbrandsen","Halden","Jostad","Kvist","Markusson","Norrby",
-            "Osk","Rodland","Sundby","Tangen","Vangen","Wold","Berg","Lind","Haugen","Melby",
-            "Fjelstad","Rognstad","Viken","Eide",
+            "올베르그","비에른스타","달스트룀","팔크","굴브란센","할덴","요스타","크비스트","마르쿠손","노르뷔",
+            "오스크","로들란","순뷔","탕엔","방엔","볼","베르그","린드","하우겐","멜뷔",
+            "피엘스타","로근스타","비켄","에이데",
         };
 
         public static readonly string[] SlavicFirst =
         {
-            "Pavel","Marek","Tomas","Jakub","Ondrej","Lukasz","Mateusz","Bartosz","Kamil","Dawid",
-            "Andrei","Dmitri","Sergei","Vadim","Oleg","Yuri","Ivan","Roman","Viktor","Stanislav",
-            "Milan","Radek","Zdenek","Igor",
+            "파벨","마레크","토마시","야쿠프","온드레이","우카시","마테우시","바르토시","카밀","다비트",
+            "안드레이","드미트리","세르게이","바딤","올레크","유리","이반","로만","빅토르","스타니슬라프",
+            "밀란","라데크","즈데네크","이고리",
         };
         public static readonly string[] SlavicLast =
         {
-            "Novak","Kovacs","Zielinski","Wojcik","Kaminski","Lewandowicz","Mazur","Sokolov","Volkov","Antonov",
-            "Bondar","Chernov","Danylo","Fedorov","Hrytsenko","Kozlov","Marchuk","Nazarenko","Petrov","Romanenko",
-            "Shevchuk","Tkachenko","Vasilenko","Yurchenko",
+            "노바크","코바치","지엘린스키","보이치크","카민스키","레반도비치","마주르","소콜로프","볼코프","안토노프",
+            "본다르","체르노프","다닐로","표도로프","흐리첸코","코즐로프","마르추크","나자렌코","페트로프","로마넨코",
+            "셰브추크","트카첸코","바실렌코","유르첸코",
         };
 
         public static readonly string[] BalkanFirst =
         {
-            "Nikola","Stefan","Marko","Luka","Dusan","Filip","Vladan","Aleksa","Bojan","Dejan",
-            "Giorgos","Dimitris","Kostas","Nikos","Panos","Stelios","Vasilis","Yiannis","Thanos","Petros",
-            "Andrej","Igor","Mladen","Zoran",
+            "니콜라","스테판","마르코","루카","두샨","필리프","블라단","알렉사","보얀","데얀",
+            "요르고스","디미트리스","코스타스","니코스","파노스","스텔리오스","바실리스","야니스","타노스","페트로스",
+            "안드레이","이고르","믈라덴","조란",
         };
         public static readonly string[] BalkanLast =
         {
-            "Jovanovic","Petrovic","Nikolic","Stankovic","Milosevic","Vukovic","Radic","Babic","Markovic","Ilic",
-            "Papadakis","Georgiou","Nikolaou","Vasiliou","Christou","Antoniou","Dimitriou","Stavrou","Pappas","Rizos",
-            "Horvat","Kovacic","Tomic","Vidic",
+            "요바노비치","페트로비치","니콜리치","스탄코비치","밀로셰비치","부코비치","라디치","바비치","마르코비치","일리치",
+            "파파다키스","요르기우","니콜라우","바실리우","흐리스투","안토니우","디미트리우","스타브루","파파스","리조스",
+            "호르바트","코바치치","토미치","비디치",
         };
 
         public static readonly string[] TurkishFirst =
         {
-            "Emre","Burak","Cenk","Hakan","Kerem","Mert","Ozan","Serdar","Tolga","Umut",
-            "Yusuf","Baris","Deniz","Furkan","Gokhan","Ilhan","Kaan","Levent","Murat","Onur",
-            "Rifat","Selim","Taner","Volkan",
+            "엠레","부라크","젠크","하칸","케렘","메르트","오잔","세르다르","톨가","우무트",
+            "유수프","바르시","데니즈","푸르칸","괴칸","일한","카안","레벤트","무라트","오누르",
+            "리파트","셀림","타네르","볼칸",
         };
         public static readonly string[] TurkishLast =
         {
-            "Aydin","Yilmaz","Demir","Kaya","Sahin","Celik","Arslan","Dogan","Kilic","Aslan",
-            "Ozturk","Koc","Tekin","Erdem","Polat","Sari","Gunes","Bulut","Korkmaz","Turan",
-            "Akgun","Balci","Cetin","Duran",
+            "아이든","이을마즈","데미르","카야","샤힌","첼릭","아르슬란","도안","클르치","아슬란",
+            "외즈튀르크","코치","테킨","에르뎀","폴라트","사르","귀네슈","불루트","코르크마즈","투란",
+            "아크귄","발즈","체틴","두란",
         };
 
         // ── 아시아 ────────────────────────────────────────────────────
 
         public static readonly string[] KoreanFirst =
         {
-            "Min-jun","Seo-jun","Do-yun","Ji-hun","Hyun-woo","Jun-seo","Yu-jin","Tae-yang","Si-woo","Ha-jun",
-            "Eun-woo","Geon-woo","Jae-min","Dong-hyun","Sang-woo","Jin-sung","Hyo-jun","Kyung-min","Woo-jin","Sung-hoon",
-            "Chan-young","Nam-gil","Yeon-jae","Bo-ram",
+            "민준","서준","도윤","지훈","현우","준서","유진","태양","시우","하준",
+            "은우","건우","재민","동현","상우","진성","효준","경민","우진","성훈",
+            "찬영","남길","연재","보람",
         };
         public static readonly string[] KoreanLast =
         {
-            "Kim","Lee","Park","Choi","Jung","Kang","Cho","Yoon","Jang","Lim",
-            "Han","Oh","Seo","Shin","Kwon","Hwang","Ahn","Song","Hong","Ryu",
-            "Jeon","Moon","Nam","Bae",
+            "김","이","박","최","정","강","조","윤","장","임",
+            "한","오","서","신","권","황","안","송","홍","류",
+            "전","문","남","배",
         };
 
         public static readonly string[] JapaneseFirst =
         {
-            "Haruto","Sota","Yuto","Ren","Riku","Kaito","Hinata","Yuma","Sora","Takumi",
-            "Daiki","Kenta","Shota","Naoki","Yusuke","Hiroto","Kazuki","Ryota","Tatsuya","Masaki",
-            "Keisuke","Shinji","Takeshi","Yoshito",
+            "하루토","소타","유토","렌","리쿠","가이토","히나타","유마","소라","다쿠미",
+            "다이키","겐타","쇼타","나오키","유스케","히로토","가즈키","료타","다쓰야","마사키",
+            "게이스케","신지","다케시","요시토",
         };
         public static readonly string[] JapaneseLast =
         {
-            "Tanaka","Suzuki","Sato","Watanabe","Ito","Yamamoto","Nakamura","Kobayashi","Kato","Yoshida",
-            "Yamada","Sasaki","Matsumoto","Inoue","Kimura","Hayashi","Shimizu","Saito","Mori","Ikeda",
-            "Hashimoto","Ogawa","Ishii","Maeda",
+            "다나카","스즈키","사토","와타나베","이토","야마모토","나카무라","고바야시","가토","요시다",
+            "야마다","사사키","마쓰모토","이노우에","기무라","하야시","시미즈","사이토","모리","이케다",
+            "하시모토","오가와","이시이","마에다",
         };
 
         public static readonly string[] ChineseFirst =
         {
-            "Wei","Hao","Jun","Lei","Ming","Peng","Qiang","Tao","Xin","Yang",
-            "Zhen","Bo","Chen","Dong","Feng","Gang","Hui","Jian","Kun","Long",
-            "Nan","Qi","Sheng","Yu",
+            "웨이","하오","쥔","레이","밍","펑","창","타오","신","양",
+            "전","보","천","둥","펑","강","후이","젠","쿤","룽",
+            "난","치","성","위",
         };
         public static readonly string[] ChineseLast =
         {
-            "Wang","Li","Zhang","Liu","Chen","Yang","Huang","Zhao","Wu","Zhou",
-            "Xu","Sun","Ma","Zhu","Hu","Guo","He","Lin","Gao","Luo",
-            "Zheng","Liang","Xie","Song",
+            "왕","리","장","류","천","양","황","자오","우","저우",
+            "쉬","쑨","마","주","후","궈","허","린","가오","뤄",
+            "정","량","셰","쑹",
         };
 
         public static readonly string[] ArabicFirst =
         {
-            "Omar","Youssef","Karim","Tarek","Hassan","Ali","Mahmoud","Ahmed","Bilal","Khaled",
-            "Nasser","Rami","Sami","Walid","Ziad","Faisal","Hamza","Ibrahim","Jamal","Mohsen",
-            "Nabil","Rashid","Saleh","Yahya",
+            "오마르","유세프","카림","타레크","하산","알리","마흐무드","아흐메드","빌랄","칼리드",
+            "나세르","라미","사미","왈리드","지아드","파이살","함자","이브라힘","자말","모센",
+            "나빌","라시드","살레","야흐야",
         };
         public static readonly string[] ArabicLast =
         {
-            "Al-Amri","Al-Dosari","Al-Harbi","Al-Qahtani","Al-Shehri","Ben Ali","Benzarti","Cherif","Dahmani","El-Masry",
-            "Fahmy","Ghanem","Haddad","Idrissi","Jaber","Kassem","Lahlou","Mansour","Najjar","Othman",
-            "Qadir","Rahmani","Saleh","Zouari",
+            "알암리","알도사리","알하르비","알카타니","알셰흐리","벤알리","벤자르티","셰리프","다흐마니","엘마스리",
+            "파흐미","가넴","하다드","이드리시","자베르","카셈","라흘루","만수르","나자르","오스만",
+            "카디르","라흐마니","살레흐","주아리",
         };
 
         public static readonly string[] PersianFirst =
         {
-            "Ali","Reza","Mehdi","Hossein","Saeed","Vahid","Milad","Omid","Farhad","Kaveh",
-            "Payam","Ramin","Shahin","Arash","Behnam","Danial","Ehsan","Farzad","Hamed","Iman",
-            "Kian","Nima","Pouya","Sina",
+            "알리","레자","메흐디","호세인","사이드","바히드","밀라드","오미드","파르하드","카베",
+            "파얌","라민","샤힌","아라시","베흐남","다니알","에흐산","파르자드","하메드","이만",
+            "키안","니마","푸야","시나",
         };
         public static readonly string[] PersianLast =
         {
-            "Ahmadi","Bagheri","Dehghan","Ebrahimi","Fallah","Ghorbani","Hashemi","Jafari","Karimi","Lotfi",
-            "Mousavi","Nouri","Parsa","Rahimi","Sadeghi","Tehrani","Vafaei","Yazdani","Zarei","Amiri",
-            "Beheshti","Delavar","Farahani","Khosravi",
+            "아흐마디","바게리","데흐간","에브라히미","팔라","고르바니","하셰미","자파리","카리미","로트피",
+            "무사비","누리","파르사","라히미","사데기","테흐라니","바파에이","야즈다니","자레이","아미리",
+            "베헤슈티","델라바르","파라하니","호스라비",
         };
 
         // ── 아프리카 ──────────────────────────────────────────────────
 
         public static readonly string[] WestAfricanFirst =
         {
-            "Kwame","Kofi","Yaw","Emeka","Chidi","Obi","Musa","Ibrahim","Sadio","Mamadou",
-            "Ousmane","Abdoulaye","Cheikh","Lamine","Moussa","Seydou","Bakary","Daouda","Fode","Ismaila",
-            "Kalidou","Oumar","Souleymane","Yacouba",
+            "콰메","코피","야우","에메카","치디","오비","무사","이브라힘","사디오","마마두",
+            "우스만","압둘라예","셰이크","라민","무사","세이두","바카리","다우다","포데","이스마일라",
+            "칼리두","우마르","술레이만","야쿠바",
         };
         public static readonly string[] WestAfricanLast =
         {
-            "Mensah","Owusu","Asante","Boateng","Okafor","Eze","Nwosu","Adeyemi","Diallo","Traore",
-            "Keita","Cisse","Camara","Sow","Toure","Bamba","Konate","Sylla","Doumbia","Fofana",
-            "Gueye","Ndiaye","Sarr","Thiam",
+            "멘사","오우수","아산테","보아텡","오카포르","에제","느워수","아데예미","디알로","트라오레",
+            "케이타","시세","카마라","소우","투레","밤바","코나테","실라","둠비아","포파나",
+            "게예","은디아예","사르","티암",
         };
 
         public static readonly string[] SouthAfricanFirst =
         {
-            "Thabo","Sipho","Lerato","Mandla","Bongani","Katlego","Themba","Tshepo","Kagiso","Lungile",
-            "Sibusiso","Zwelithini","Andile","Dumisani","Hlompho","Jabulani","Mfundo","Nkosi","Phumlani","Sandile",
-            "Vusi","Xolani","Zakhele","Mpho",
+            "타보","시포","레라토","만들라","봉가니","카틀레고","템바","체포","카기소","룽길레",
+            "시부시소","즈웰리티니","안딜레","두미사니","흘롬포","자불라니","음푼도","은코시","품라니","산딜레",
+            "부시","숄라니","자켈레","음포",
         };
         public static readonly string[] SouthAfricanLast =
         {
-            "Dlamini","Khumalo","Mokoena","Ndlovu","Nkosi","Zulu","Mabaso","Sithole","Mthembu","Radebe",
-            "Mahlangu","Maluleka","Molefe","Ngcobo","Shabalala","Tshabalala","Van Wyk","Botha","Pretorius","Du Toit",
-            "Jacobs","Daniels","Arendse","Williams",
+            "들라미니","쿠말로","모코에나","은들로부","은코시","줄루","마바소","시톨레","음템부","라데베",
+            "마흘랑구","말룰레카","몰레페","응코보","샤발랄라","차발랄라","판베이크","보타","프레토리우스","뒤투아",
+            "제이컵스","대니얼스","아렌세","윌리엄스",
         };
     }
 }

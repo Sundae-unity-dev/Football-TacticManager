@@ -69,7 +69,11 @@ namespace FootballTactician.Data
         [NonSerialized] private bool  _abilityCacheValid;
         [NonSerialized] private float _cachedAbility;
 
-        [JsonIgnore] public string FullName => $"{firstName} {lastName}";
+        /// <summary>화면에 쓰는 이름. 붙이는 방식은 나라를 따른다(NameStyle).</summary>
+        [JsonIgnore] public string FullName => NameStyle.Full(nationality, firstName, lastName);
+
+        /// <summary>좁은 칸용 짧은 이름.</summary>
+        [JsonIgnore] public string ShortName => NameStyle.Short(nationality, firstName, lastName);
         [JsonIgnore] public bool   IsInjured => injury != null && injury.isActive;
 
         // Position [Flags] 비트 연산으로 O(1) 포지션 확인

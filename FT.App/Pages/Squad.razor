@@ -64,7 +64,7 @@ else
                                 @if (starters.Contains(p.id)) { <span class="badge good" title="선발">XI</span> }
                                 else if (p.IsInjured) { <span class="badge bad" title="@p.injury!.injuryType">부상</span> }
                             </td>
-                            <td class="nowrap">@p.FullName <span class="tiny dim">@Ui.NationCode(p.nationality)</span></td>
+                            <td class="nowrap"><Flag Of="p.nationality" /> @p.FullName <span class="tiny dim">@Ui.NationCode(p.nationality)</span></td>
                             <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
                             <td class="num">@w.Age(p)</td>
                             <td class="num">@Math.Round(ca)</td>

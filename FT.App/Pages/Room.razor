@@ -102,7 +102,7 @@ else
                             <td class="nowrap" style="width:11rem">
                                 <a href="@($"player/{p.id}")">@p.FullName</a>
                             </td>
-                            <td class="tiny dim">@p.nationality · @(p.caps)경기 @(p.internationalGoals)골</td>
+                            <td class="tiny dim"><Flag Of="p.nationality" /> @p.nationality · @(p.caps)경기 @(p.internationalGoals)골</td>
                             <td class="right mono tiny" style="width:5rem">
                                 컨디션 @p.condition.ToString("F0")
                             </td>

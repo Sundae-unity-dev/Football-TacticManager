@@ -95,7 +95,7 @@ else
                         {
                             <button class="pick @(chosen.Contains(n.Code) ? "on" : "")"
                                     @onclick="() => Toggle(n.Code)">
-                                <span>@n.Country</span>
+                                <span><Flag Code="@n.Code" Extra="big" /> @n.Country</span>
                                 <span class="tiny dim">@(n.Tiers)부 · 구단 @(n.Tiers * 20)</span>
                             </button>
                         }
@@ -147,7 +147,9 @@ else
                             var league = Session.World.League(lid)!;
                             <button class="stat" style="text-align:left; cursor:pointer; border-color:var(--line)"
                                     @onclick="() => PickNation(lid)">
-                                <div class="stat-label">@n.Country · @((int)league.tier)부</div>
+                                <div class="stat-label">
+                                    <Flag Code="@n.Code" /> @n.Country · @((int)league.tier)부
+                                </div>
                                 <div class="stat-value" style="font-size:1.05rem">@league.name</div>
                                 <div class="stat-sub">
                                     @(league.clubIds.Count)개 구단 ·

@@ -20,7 +20,7 @@ else
     <h1>@p.FullName</h1>
     <p class="muted">
         <span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span>
-        @club?.name · @(w.Age(p))세 · @Ui.NationCode(p.nationality) · @p.height cm / @p.weight kg ·
+        @club?.name · @(w.Age(p))세 · <Flag Of="p.nationality" /> @Ui.NationCode(p.nationality) · @p.height cm / @p.weight kg ·
         @(p.preferredFoot == PreferredFoot.Left ? "왼발" : p.preferredFoot == PreferredFoot.Right ? "오른발" : "양발")
     </p>
 
@@ -198,7 +198,7 @@ else
             <div class="card-head"><h3>국가대표</h3></div>
             <table class="ft">
                 <tbody>
-                    <tr><td>국적</td><td class="num">@p.nationality</td></tr>
+                    <tr><td>국적</td><td class="num"><Flag Of="p.nationality" /> @p.nationality</td></tr>
                     <tr><td>A매치 출전</td><td class="num">@p.caps</td></tr>
                     <tr><td>대표팀 득점</td><td class="num">@p.internationalGoals</td></tr>
                     <tr>

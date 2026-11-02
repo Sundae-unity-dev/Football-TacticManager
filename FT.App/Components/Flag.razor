@@ -1,0 +1,27 @@
+@using FootballTactician.Data
+
+@*
+  국기. 파일은 wwwroot/flags/<나라코드>.png 이고 코드는 Nationality enum 이름과 같다
+  (KOR · ENG · BRA …). 49개를 다 합쳐 57KB 라 내려받기에 얹는 짐이 거의 없다.
+
+  폭을 em 으로 둔다 — 설정에서 글씨를 키우면 국기도 같이 커진다.
+*@
+
+@if (Which is { Length: > 0 } iso)
+{
+    <img class="flag @Extra" src="@($"flags/{iso}.png")" alt="@iso" title="@(Title ?? iso)"
+         loading="lazy" />
+}
+
+@code {
+    /// <summary>나라 코드를 그대로 줄 때.</summary>
+    [Parameter] public string? Code { get; set; }
+
+    /// <summary>선수의 국적으로 줄 때.</summary>
+    [Parameter] public Nationality? Of { get; set; }
+
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Extra { get; set; }
+
+    string? Which => string.IsNullOrEmpty(Code) ? Of?.ToString() : Code;
+}

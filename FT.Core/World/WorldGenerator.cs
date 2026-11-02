@@ -89,6 +89,10 @@ namespace FootballTactician.World
             int nextLeagueId = 1;
             int nextFixtureId = 1;
 
+            // 구단 이름은 **세계 전체에서** 하나뿐이어야 한다. 순위표와 이적 기록이
+            // 같은 이름을 둘 보여 주면 어느 쪽인지 알 길이 없다.
+            var usedClubNames = new HashSet<string>();
+
             foreach (var nation in nations ?? Nations.Default)
             {
                 int tiers = Math.Clamp(nation.Tiers, 1, 3);
@@ -108,6 +112,7 @@ namespace FootballTactician.World
                     using (SimProfile.Measure("리그 12개"))
                     leagues.Add(MakeLeague(w, rng, nation, (LeagueTier)(t + 1), nextLeagueId++,
                         cities.Skip(ClubsPerLeague * t).Take(ClubsPerLeague).ToList(), startYear,
+                        usedClubNames,
                         ref nextClubId, ref nextPlayerId, ref nextFixtureId));
                 }
 
@@ -171,7 +176,7 @@ namespace FootballTactician.World
         /// <summary>리그 하나와 그 구단·스쿼드·일정을 만든다.</summary>
         static LeagueData MakeLeague(
             GameWorld w, Random rng, NationNames nation, LeagueTier tier, int leagueId,
-            List<string> cities, int startYear,
+            List<string> cities, int startYear, HashSet<string> usedClubNames,
             ref int nextClubId, ref int nextPlayerId, ref int nextFixtureId)
         {
             bool top = tier == LeagueTier.First;
@@ -210,10 +215,14 @@ namespace FootballTactician.World
                 _ => ThirdTierRepLadder,
             };
 
+            // 약칭은 **같은 리그 안에서만** 겹치지 않으면 된다 — 리그마다 새로 센다.
+            var usedShorts = new HashSet<string>();
+
             for (int i = 0; i < ClubsPerLeague; i++)
             {
                 int stars = ladder[i];
-                var club = MakeClub(rng, nextClubId++, league.id, nation, cities[i], i, stars, tier);
+                var club = MakeClub(rng, nextClubId++, league.id, nation, cities[i], i, stars, tier,
+                                    usedClubNames, usedShorts);
                 using (SimProfile.Measure("  ├ 스쿼드 25인"))
                     FillSquad(rng, club, nation, stars, w.Date, ref nextPlayerId, w, tier);
                 w.Clubs[club.id] = club;
@@ -252,9 +261,15 @@ namespace FootballTactician.World
 
         static ClubData MakeClub(
             Random rng, int id, int leagueId, NationNames nation,
-            string city, int index, int stars, LeagueTier tier)
+            string city, int index, int stars, LeagueTier tier,
+            HashSet<string> usedNames, HashSet<string> usedShorts)
         {
-            var (name, shortName) = NameForge.ClubName(nation, city, index);
+            // 이미 쓴 이름이면 다른 조합을 고른다 — 도시를 돌려 쓰면 이름이 통째로 겹친다.
+            var (name, shortName) = NameForge.ClubName(
+                nation, city, index,
+                n => usedNames.Contains(n), sn => usedShorts.Contains(sn));
+            usedNames.Add(name);
+            usedShorts.Add(shortName);
             float rep = GameWorld.RepCoef(stars) * GameWorld.TierFactor(tier) * nation.Strength;
             long revenue = (long)(BalanceConfig.AnnualRevenue(rep) * 10000f);   // 만 유로 → 유로
 

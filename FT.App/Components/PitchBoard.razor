@@ -35,7 +35,7 @@
                 <span class="shirt" style="background:@Primary; color:@Ui.TextOn(Primary)">
                     @Ui.PosLabel(slot.position)
                 </span>
-                <span class="pitch-name">@(player is null ? "공석" : player.lastName)</span>
+                <span class="pitch-name">@(player is null ? "공석" : player.ShortName)</span>
                 @if (player is not null)
                 {
                     <span class="pitch-role">@Math.Round(GameWorld.Ca(player))</span>

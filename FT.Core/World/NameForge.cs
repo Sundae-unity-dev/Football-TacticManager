@@ -64,8 +64,38 @@ namespace FootballTactician.World
             return All[0];
         }
 
-        /// <summary>도시 이름으로 구단 이름을 만든다. index 로 접사를 돌려 같은 리그 안에서 겹치지 않게 한다.</summary>
-        public static (string name, string shortName) ClubName(NationNames n, string city, int index)
+        /// <summary>
+        /// 도시 이름으로 구단 이름을 만든다.
+        ///
+        /// 도시는 모자라면 돌려 쓴다(한 도시에 구단 둘은 축구에서 흔하다). 그러면
+        /// <b>이름이 통째로 겹칠 수 있다</b> — 네덜란드는 도시 24개로 구단 60개를 만들어야
+        /// 해서 "FC Eindhoven" 이 1·2·3부에 하나씩 생겼다. 그래서 이미 쓴 이름인지 묻는
+        /// <paramref name="nameTaken"/> 을 받아, 빌 때까지 접사 조합을 돌린다.
+        ///
+        /// 약칭도 같다. 도시 앞 세 글자만 쓰면 같은 리그에 Valencia 와 Valladolid 가
+        /// 함께 있을 때 둘 다 VAL 이 된다 — 순위표에서 어느 쪽인지 알 수 없다.
+        /// </summary>
+        public static (string name, string shortName) ClubName(
+            NationNames n, string city, int index,
+            Func<string, bool> nameTaken = null, Func<string, bool> shortTaken = null)
+        {
+            string full = null;
+            int combos = Math.Max(1, n.ClubPrefixes.Length * n.ClubSuffixes.Length);
+            for (int step = 0; step < combos; step++)
+            {
+                full = Compose(n, city, index + step);
+                if (nameTaken == null || !nameTaken(full)) break;
+            }
+
+            // 접사를 다 돌려도 겹치면(도시를 세 번 넘게 돌려 쓴 경우) 번호를 붙인다.
+            if (nameTaken != null && nameTaken(full))
+                for (int k = 2; k <= 9 && nameTaken(full); k++)
+                    full = Compose(n, city, index) + " " + k.ToString();
+
+            return (full, ShortName(city, shortTaken));
+        }
+
+        static string Compose(NationNames n, string city, int index)
         {
             string prefix = n.ClubPrefixes[index % n.ClubPrefixes.Length];
             string suffix = n.ClubSuffixes[(index / n.ClubPrefixes.Length) % n.ClubSuffixes.Length];
@@ -73,14 +103,48 @@ namespace FootballTactician.World
             // 접두와 접미가 겹치면("CF Treviso Mar CF") 접미를 버린다.
             if (suffix == prefix) suffix = "";
 
-            string full = string.IsNullOrEmpty(suffix)
-                ? $"{prefix} {city}"
-                : $"{prefix} {city} {suffix}";
+            string head = string.IsNullOrEmpty(prefix) ? city : $"{prefix} {city}";
+            return string.IsNullOrEmpty(suffix) ? head : $"{head} {suffix}";
+        }
 
-            // 약칭은 도시명 앞 3글자 — 순위표 폭을 일정하게 유지한다.
-            string core = city.Replace(" ", "");
-            string sn = core.Length >= 3 ? core.Substring(0, 3).ToUpperInvariant() : core.ToUpperInvariant();
-            return (full, sn);
+        /// <summary>
+        /// 약칭 세 글자. 앞 세 글자가 이미 쓰였으면 자음 뼈대, 그다음은 글자를 건너뛰며
+        /// 비는 것을 찾는다. 폭이 일정해야 순위표가 흔들리지 않으므로 길이는 셋으로 둔다.
+        /// </summary>
+        static string ShortName(string city, Func<string, bool> taken)
+        {
+            string core = city.Replace(" ", "").Replace("-", "").ToUpperInvariant();
+            if (core.Length < 3) core = (core + "XXX").Substring(0, 3);
+
+            foreach (string candidate in ShortCandidates(core))
+                if (taken == null || !taken(candidate)) return candidate;
+
+            return core.Substring(0, 3);
+        }
+
+        static IEnumerable<string> ShortCandidates(string core)
+        {
+            yield return core.Substring(0, 3);
+
+            // 자음 뼈대 — Valencia 는 VLN, Valladolid 는 VLL 이 된다.
+            var skeleton = new System.Text.StringBuilder();
+            skeleton.Append(core[0]);
+            foreach (char c in core.Substring(1))
+            {
+                if ("AEIOU".IndexOf(c) >= 0) continue;
+                skeleton.Append(c);
+                if (skeleton.Length == 3) break;
+            }
+            if (skeleton.Length == 3) yield return skeleton.ToString();
+
+            // 글자를 하나씩 건너뛰며 본다.
+            for (int skip = 2; skip < core.Length && skip < 7; skip++)
+                if (core.Length > skip)
+                    yield return $"{core[0]}{core[1]}{core[skip]}";
+
+            // 그래도 비는 것이 없으면 끝 글자를 돌린다.
+            for (char c = 'A'; c <= 'Z'; c++)
+                yield return $"{core[0]}{core[1]}{c}";
         }
 
         public static string StadiumName(NationNames n, Random rng, string city)

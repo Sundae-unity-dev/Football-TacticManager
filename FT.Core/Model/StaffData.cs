@@ -24,7 +24,7 @@ namespace FootballTactician.Data
         // HeadCoach 스탭에만 사용. 다른 역할은 null.
         public ManagerProfile managerProfile;
 
-        public string FullName => $"{firstName} {lastName}";
+        public string FullName => NameStyle.Full(nationality, firstName, lastName);
     }
 
 }

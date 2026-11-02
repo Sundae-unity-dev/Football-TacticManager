@@ -457,6 +457,15 @@ label.field > span {
 .mb0 { margin-bottom: 0; }
 .mt1 { margin-top: .8rem; }
 
+/* ── 국기 ─────────────────────────────────────────────────────── */
+
+/* 폭을 em 으로 둔다 — 글씨 크기 설정을 따라 같이 커진다. */
+.flag {
+  width: 1.3em; height: auto; vertical-align: -0.18em;
+  border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,.12);
+}
+.flag.big { width: 1.8em; vertical-align: -0.3em; }
+
 /* ── 나라 고르기 ───────────────────────────────────────────────── */
 
 .pick-grid {
