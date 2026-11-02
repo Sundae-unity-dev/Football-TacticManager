@@ -123,7 +123,17 @@ namespace FootballTactician.Data
         // 아프리카
         EGY, MAR, TUN, ALG, NGA, GHA, SEN, RSA,
         // 오세아니아
-        NZL
+        NZL,
+
+        // ── 2026-11-03 에 더한 나라들 ──────────────────────────────
+        // 값(순서)이 세이브에 들어가므로 반드시 **끝에만** 붙인다.
+        ROU, HUN, BUL, SVK, SVN, BIH, ALB, FIN, ISL, IRL,
+        WAL, CYP, ISR, KAZ,
+        ECU, PAR, BOL, VEN,
+        HON, GUA, PAN, JAM,
+        IND, THA, VIE, IDN, MAS, SIN, UZB, IRQ, JOR,
+        CIV, CMR, COD, MLI, ZAM, ANG, KEN,
+        FIJ, PNG
     }
 
     public enum PlayerStatus  { Active, Injured, Suspended, OnLoan, Retired }
