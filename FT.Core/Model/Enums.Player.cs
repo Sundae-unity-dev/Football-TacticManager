@@ -133,7 +133,15 @@ namespace FootballTactician.Data
         HON, GUA, PAN, JAM,
         IND, THA, VIE, IDN, MAS, SIN, UZB, IRQ, JOR,
         CIV, CMR, COD, MLI, ZAM, ANG, KEN,
-        FIJ, PNG
+        FIJ, PNG,
+
+        // ── 2026-11-03 (3차) ──────────────────────────────────────
+        GEO, ARM, AZE, BLR, MDA, LVA, LTU, EST, LUX, MLT,
+        MNE, MKD, NIR, FRO, KOS,
+        BFA, GUI, SDN, LBY, TAN, UGA, ETH, ZIM, MOZ, GAB,
+        BEN, TOG, MAD, RWA, CPV,
+        PHI, SYR, LIB, KUW, BHR, OMA, HKG, TPE, MYA, CAM,
+        TJK, KGZ
     }
 
     public enum PlayerStatus  { Active, Injured, Suspended, OnLoan, Retired }
