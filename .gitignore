@@ -13,3 +13,6 @@ publish/
 .idea/
 *.swp
 .DS_Store
+
+# 기획서 한 장 (tools/make-plan.py 가 만드는 생성물)
+docs/plan.html
