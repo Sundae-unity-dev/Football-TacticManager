@@ -49,8 +49,15 @@ namespace FT.Core.Tests
                     Assert.Equal((LeagueTier)(t + 1), league.tier);
 
                     // 맨 위는 올라갈 곳이, 맨 아래는 내려갈 곳이 없다.
-                    Assert.Equal(t == 0 ? 0 : WorldGenerator.PromotionSpots, league.promotionSpots);
-                    Assert.Equal(t == tiers - 1 ? 0 : WorldGenerator.PromotionSpots, league.relegationSpots);
+                    // 그 사이의 자리는 나라가 정한다 — 어디나 세 팀이 아니다.
+                    var spec = NameForge.ByCode(nation.Code);
+                    Assert.Equal(t == 0 ? 0 : spec.SwapBelow(t), league.promotionSpots);
+                    Assert.Equal(t == tiers - 1 ? 0 : spec.SwapBelow(t + 1), league.relegationSpots);
+
+                    // 올라가는 수와 내려가는 수가 같아야 리그 크기가 유지된다.
+                    if (t + 1 < tiers)
+                        Assert.Equal(league.relegationSpots,
+                                     w.League(nation.LeagueIds[t + 1])!.promotionSpots);
 
                     if (t + 1 >= tiers) continue;
 

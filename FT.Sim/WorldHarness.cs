@@ -465,7 +465,8 @@ namespace FT.Sim
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
                 {
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
 
                     // 요청이 오면 절반은 거절한다 — 양쪽 결과를 다 본다.
                     foreach (var id in w.TransferRequests.Keys.ToList())
@@ -599,7 +600,8 @@ namespace FT.Sim
 
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                 SeasonRollover.StartNextSeason(w);
             }
 
@@ -858,7 +860,7 @@ namespace FT.Sim
 
             int guard = 0;
             while (!w.SeasonFinished && guard++ < 60)
-                if (GameEngine.PlayNextRound(w) == null) break;
+                { if (!GameEngine.RoundPending(w)) break; GameEngine.PlayNextRound(w); }
 
             Report("한 시즌 뒤");
 
@@ -949,7 +951,8 @@ namespace FT.Sim
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
                 {
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                     if (TransferMarket.IsWindowOpen(w)) openWeeks++;
                 }
 
@@ -1036,7 +1039,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
 
                 foreach (var cup in w.Cups.Values)
                 {
@@ -1104,7 +1108,8 @@ namespace FT.Sim
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
                 {
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                     injuries += w.Squad(club.id).Count(p => p.IsInjured);
                 }
 
@@ -1131,7 +1136,8 @@ namespace FT.Sim
 
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
 
                 float gain = young.Count == 0 ? 0
                     : young.Average(id => GameWorld.Ca(w.Player(id)!) - before[id]);
@@ -1157,7 +1163,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
 
                 int before = w.Players.Count;
                 SeasonRollover.StartNextSeason(w);
@@ -1206,7 +1213,8 @@ namespace FT.Sim
 
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
 
                 return (GameWorld.Ca(target) - before, target.seasonStats.appearances, where);
             }
@@ -1259,7 +1267,7 @@ namespace FT.Sim
             var startStrength = league.clubIds.ToDictionary(id => id, id => w.Strength(id));
 
             while (!w.SeasonFinished)
-                if (GameEngine.PlayNextRound(w) == null) break;
+                { if (!GameEngine.RoundPending(w)) break; GameEngine.PlayNextRound(w); }
 
             var st = league.currentSeason.standings;
             int played = league.currentSeason.fixtures.Count(f => f.isPlayed);
@@ -1369,7 +1377,7 @@ namespace FT.Sim
             int rounds = 0;
             while (!w.SeasonFinished && rounds < league.currentSeason.totalMatchdays + 2)
             {
-                if (GameEngine.PlayNextRound(w) == null) break;
+                { if (!GameEngine.RoundPending(w)) break; GameEngine.PlayNextRound(w); }
                 rounds++;
             }
             sw.Stop();
@@ -1448,7 +1456,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
 
                 room = club.dressingRoom;
                 float morale = w.Squad(club.id).Average(p => p.morale);
@@ -1560,7 +1569,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
 
                 var squad = w.Squad(w.ManagedClubId).ToList();
                 var played = squad.Where(p => p.reserveAppearances > 0).ToList();
@@ -1794,7 +1804,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                 SeasonRollover.StartNextSeason(w);
             }
 
@@ -1909,7 +1920,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                 SeasonRollover.StartNextSeason(w);
                 if (s % 2 == 1 || s == seasons - 1) Row();
             }
@@ -1930,7 +1942,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                 SeasonRollover.StartNextSeason(w);
             }
 
@@ -2028,7 +2041,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                 SeasonRollover.StartNextSeason(w);
 
                 if (s % 2 == 1 || s == seasons - 1)
@@ -2094,7 +2108,8 @@ namespace FT.Sim
             {
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                 SeasonRollover.StartNextSeason(w);
                 Row();
             }
@@ -2140,7 +2155,8 @@ namespace FT.Sim
                 int guard = 0;
                 while (!w.SeasonFinished && guard++ < 60)
                 {
-                    if (GameEngine.PlayNextRound(w) == null) break;
+                    if (!GameEngine.RoundPending(w)) break;
+                    GameEngine.PlayNextRound(w);
                     roundCount++;
                 }
                 rounds += sw.ElapsedMilliseconds;
@@ -2330,7 +2346,7 @@ namespace FT.Sim
             while (played < rounds)
             {
                 if (w.SeasonFinished) SeasonRollover.StartNextSeason(w);
-                if (GameEngine.PlayNextRound(w) == null) break;
+                { if (!GameEngine.RoundPending(w)) break; GameEngine.PlayNextRound(w); }
                 played++;
             }
 

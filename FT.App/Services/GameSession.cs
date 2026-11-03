@@ -116,11 +116,22 @@ public sealed class GameSession(SaveStore store)
     {
         if (World == null || World.Sacked) return;
 
-        var fixture = GameEngine.NextUserFixture(World);
-        if (fixture == null) return;
+        // 홀수 팀 리그에서는 내가 쉬는 주가 있다(미국 29팀 · 튀르키예 19팀).
+        // 그 주에도 세계는 돌아야 하므로, 내 경기가 나올 때까지 라운드를 넘긴다.
+        for (int guard = 0; guard < 8; guard++)
+        {
+            var fixture = GameEngine.NextUserFixture(World);
+            if (!GameEngine.RoundPending(World)) break;
 
-        LastFixture = fixture;
-        LastResult = GameEngine.PlayNextRound(World);
+            var result = GameEngine.PlayNextRound(World);
+            if (result != null)
+            {
+                LastFixture = fixture;
+                LastResult = result;
+                break;
+            }
+        }
+
         NotifyChanged();
     }
 

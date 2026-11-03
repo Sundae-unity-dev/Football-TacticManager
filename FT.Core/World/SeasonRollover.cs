@@ -388,10 +388,46 @@ namespace FootballTactician.World
         /// 다음 시즌을 연다. 성적을 기록하고 일정을 새로 짜며 시즌 통계를 비운다.
         /// 승강은 아직 없다 — 하부 리그가 생기면 여기에 붙인다.
         /// </summary>
+        /// <summary>
+        /// 아직 치르지 않은 경기를 모두 치른다.
+        ///
+        /// 리그마다 라운드 수가 다르다 — 내 리그가 38라운드면 46라운드짜리 2부는
+        /// 여덟 라운드가 남은 채로 내 시즌이 끝난다. 그 상태로 승강을 처리하면
+        /// <b>덜 치른 순위표</b>로 올리고 내리게 된다.
+        /// </summary>
+        public static void FinishRemainingFixtures(GameWorld w)
+        {
+            // 가장 긴 리그가 58라운드(29팀)이므로 넉넉히 잡는다.
+            for (int guard = 0; guard < 80; guard++)
+            {
+                var next = GameEngine.NextWorldFixture(w);
+                if (next == null) return;
+
+                int matchday = next.matchday;
+
+                foreach (var league in w.Leagues.Values)
+                {
+                    var season = league.currentSeason;
+                    if (season == null) continue;
+
+                    foreach (var f in season.fixtures
+                                            .Where(f => f.matchday == matchday && !f.isPlayed)
+                                            .ToList())
+                        MatchDay.SimulateFixture(w, f);
+
+                    season.currentMatchday = Math.Max(season.currentMatchday, matchday);
+                    Standings.Recalculate(league);
+                }
+            }
+        }
+
         public static void StartNextSeason(GameWorld w)
         {
             int nextYear = w.SeasonYear + 1;
             var rng = new Random(SeedMix.Of(w.Seed, nextYear, 20259));
+
+            // 남은 경기를 먼저 치른다. 미완성 순위표로 올리고 내리면 안 된다.
+            FinishRemainingFixtures(w);
 
             // 시상과 명예는 순위표·기록을 비우기 전에, 그리고 승강으로 리그가 바뀌기 전에 끝낸다.
             // 뒤로 밀면 우승팀이 다른 리그 소속으로 기록된다.

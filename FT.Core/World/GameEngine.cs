@@ -37,6 +37,34 @@ namespace FootballTactician.World
                 .FirstOrDefault();
         }
 
+        /// <summary>
+        /// 세계가 아직 치르지 않은 가장 이른 경기. 없으면 null.
+        ///
+        /// <b>내 경기가 아니라 세계를 기준으로 삼는 이유</b> — 리그마다 라운드 수가
+        /// 다르고(잉글랜드 1부 38 · 2부 46), 홀수 팀 리그에서는 내가 쉬는 주가 있다.
+        /// 내 경기만 보고 돌리면 내가 쉬는 라운드와 내 시즌이 끝난 뒤의 라운드를
+        /// <b>어느 리그도 치르지 않는다</b> — 그 리그의 시즌은 영원히 끝나지 않는다.
+        /// </summary>
+        public static FixtureData NextWorldFixture(GameWorld w)
+        {
+            FixtureData earliest = null;
+
+            foreach (var league in w.Leagues.Values)
+            {
+                var season = league.currentSeason;
+                if (season == null) continue;
+
+                foreach (var f in season.fixtures)
+                    if (!f.isPlayed && (earliest == null || f.matchday < earliest.matchday))
+                        earliest = f;
+            }
+
+            return earliest;
+        }
+
+        /// <summary>아직 치를 라운드가 남았는지.</summary>
+        public static bool RoundPending(GameWorld w) => NextWorldFixture(w) != null;
+
         // ── 한 라운드 진행 ────────────────────────────────────────────────
 
         /// <summary>
@@ -45,11 +73,15 @@ namespace FootballTactician.World
         /// </summary>
         public static MatchResultData PlayNextRound(GameWorld w, int seedSalt = 0)
         {
-            var fixture = NextUserFixture(w);
-            if (fixture == null) return null;
+            var round = NextWorldFixture(w);
+            if (round == null) return null;
 
-            int matchday = fixture.matchday;
-            w.Date = fixture.date;
+            int matchday = round.matchday;
+            w.Date = round.date;
+
+            // 이번 라운드에 내 경기가 있는지. 부전승으로 쉬는 주면 없다.
+            var fixture = NextUserFixture(w);
+            if (fixture != null && fixture.matchday != matchday) fixture = null;
 
             var myLeague = w.MyLeague;
             MatchResultData mine = null;
@@ -64,7 +96,7 @@ namespace FootballTactician.World
                     foreach (var f in season.fixtures.Where(f => f.matchday == matchday && !f.isPlayed))
                     {
                         var result = MatchDay.SimulateFixture(w, f, seedSalt);
-                        if (league == myLeague && f.id == fixture.id) mine = result;
+                        if (fixture != null && league == myLeague && f.id == fixture.id) mine = result;
                     }
                     season.currentMatchday = Math.Max(season.currentMatchday, matchday);
                     using (SimProfile.Measure("  ├ 순위 재계산"))
@@ -84,9 +116,12 @@ namespace FootballTactician.World
                 using (SimProfile.Measure("2군"))
                     ReserveLeague.RunMatchday(w, new Random(SeedMix.Of(w.Seed, matchday * 307, 1511)));
 
-            using (SimProfile.Measure("경기 뒷처리"))
-                AfterUserMatch(w, fixture, mine);
-            WeekCycle.Advance(w, fixture.date.AddDays(7));
+            // 내가 쉬는 주에는 경기 뒷처리가 없다. 그래도 한 주는 지나간다.
+            if (fixture != null)
+                using (SimProfile.Measure("경기 뒷처리"))
+                    AfterUserMatch(w, fixture, mine);
+
+            WeekCycle.Advance(w, round.date.AddDays(7));
             return mine;
         }
 

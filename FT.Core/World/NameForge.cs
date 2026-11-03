@@ -50,6 +50,26 @@ namespace FootballTactician.World
         /// </summary>
         public int[] TeamsPerTier;
 
+        /// <summary>
+        /// 부 사이를 오가는 팀 수. 0번이 1부↔2부, 1번이 2부↔3부다.
+        ///
+        /// <b>내려가는 수와 올라가는 수는 같다</b> — 그래야 리그 크기가 유지된다.
+        /// 실제로는 "2팀 자동 강등 + 1팀 플레이오프"처럼 갈라지는 나라가 많지만,
+        /// 승격 플레이오프는 아직 없으므로(docs/리그-제도.md ④) 자동 강등 수로 적는다.
+        ///
+        /// <b>0 이면 승강이 없다</b> — 미국·호주·인도·멕시코처럼 닫힌 리그다.
+        /// 비워 두면 세 팀씩 오간다.
+        /// </summary>
+        public int[] SwapPerTier;
+
+        /// <summary>그 부와 한 칸 아래 사이를 오가는 팀 수. 적어 두지 않았으면 세 팀.</summary>
+        public int SwapBelow(int tier)
+        {
+            if (SwapPerTier == null || SwapPerTier.Length == 0) return 3;
+            int i = System.Math.Clamp(tier - 1, 0, SwapPerTier.Length - 1);
+            return System.Math.Clamp(SwapPerTier[i], 0, 6);
+        }
+
         /// <summary>그 부의 팀 수. 적어 두지 않았으면 스무 팀.</summary>
         public int TeamsIn(int tier)
         {

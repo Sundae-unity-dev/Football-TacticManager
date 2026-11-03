@@ -199,11 +199,97 @@ namespace FootballTactician.World
             ["TGA"] = new[] { 8 },
         };
 
+
+        /// <summary>
+        /// 나라마다의 승강 자리. 0번이 1부↔2부, 1번이 2부↔3부다.
+        /// 1부뿐인 나라는 적을 필요가 없다 — 위도 아래도 없다.
+        ///
+        /// 0 은 <b>닫힌 리그</b>다. 미국·호주·인도·멕시코는 프랜차이즈 구조라
+        /// 승강이 아예 없다(docs/리그-제도.md ③).
+        /// </summary>
+        static readonly Dictionary<string, int[]> SwapCounts = new()
+        {
+            ["ENG"] = new[] { 3, 3 },
+            ["ESP"] = new[] { 3, 4 },
+            ["ITA"] = new[] { 3, 4 },
+            ["GER"] = new[] { 2, 3 },
+            ["FRA"] = new[] { 2, 2 },
+            ["NED"] = new[] { 2, 2 },
+            ["POR"] = new[] { 2, 2 },
+            ["BEL"] = new[] { 1, 2 },
+            ["TUR"] = new[] { 3, 4 },
+            ["SCO"] = new[] { 1, 1 },
+            ["RUS"] = new[] { 2, 2 },
+            ["UKR"] = new[] { 2, 2 },
+            ["BRA"] = new[] { 4, 4 },
+            ["ARG"] = new[] { 2, 2 },
+            ["USA"] = new[] { 0, 0 },
+            ["JPN"] = new[] { 3, 2 },
+            ["DEN"] = new[] { 2, 2 },
+            ["SWE"] = new[] { 2, 2 },
+            ["NOR"] = new[] { 2, 2 },
+            ["POL"] = new[] { 2, 2 },
+            ["ROU"] = new[] { 2, 3 },
+            ["HUN"] = new[] { 2, 2 },
+            ["FIN"] = new[] { 2, 2 },
+            ["ISL"] = new[] { 2, 2 },
+            ["CYP"] = new[] { 2, 2 },
+            ["ISR"] = new[] { 2, 2 },
+            ["CHN"] = new[] { 2, 2 },
+            ["KSA"] = new[] { 3, 3 },
+            ["IRN"] = new[] { 2, 2 },
+            ["THA"] = new[] { 3, 3 },
+            ["COL"] = new[] { 2 },
+            ["KOR"] = new[] { 1 },
+            ["AUT"] = new[] { 1 },
+            ["SUI"] = new[] { 1 },
+            ["GRE"] = new[] { 2 },
+            ["CZE"] = new[] { 2 },
+            ["SRB"] = new[] { 2 },
+            ["CRO"] = new[] { 1 },
+            ["BUL"] = new[] { 2 },
+            ["SVK"] = new[] { 1 },
+            ["SVN"] = new[] { 1 },
+            ["BIH"] = new[] { 2 },
+            ["ALB"] = new[] { 1 },
+            ["IRL"] = new[] { 1 },
+            ["WAL"] = new[] { 1 },
+            ["KAZ"] = new[] { 2 },
+            ["URU"] = new[] { 2 },
+            ["CHI"] = new[] { 2 },
+            ["PER"] = new[] { 2 },
+            ["ECU"] = new[] { 2 },
+            ["PAR"] = new[] { 1 },
+            ["VEN"] = new[] { 2 },
+            ["CRC"] = new[] { 1 },
+            ["HON"] = new[] { 1 },
+            ["GUA"] = new[] { 1 },
+            ["VIE"] = new[] { 1 },
+            ["IDN"] = new[] { 2 },
+            ["MAS"] = new[] { 1 },
+            ["IRQ"] = new[] { 2 },
+            ["JOR"] = new[] { 2 },
+            ["QAT"] = new[] { 1 },
+            ["UAE"] = new[] { 2 },
+            ["EGY"] = new[] { 2 },
+            ["MAR"] = new[] { 2 },
+            ["TUN"] = new[] { 2 },
+            ["ALG"] = new[] { 2 },
+            ["NGA"] = new[] { 3 },
+            ["GHA"] = new[] { 3 },
+            ["RSA"] = new[] { 2 },
+            ["MEX"] = new[] { 0 },
+            ["IND"] = new[] { 0 },
+            ["AUS"] = new[] { 0 },
+        };
+
         static Nations()
         {
             foreach (var n in All)
-                if (TeamCounts.TryGetValue(n.Code, out var sizes))
-                    n.TeamsPerTier = sizes;
+            {
+                if (TeamCounts.TryGetValue(n.Code, out var sizes)) n.TeamsPerTier = sizes;
+                if (SwapCounts.TryGetValue(n.Code, out var swaps)) n.SwapPerTier = swaps;
+            }
         }
 
         static NationNames N(string code, Nationality nat, string country, int tiers, float strength,

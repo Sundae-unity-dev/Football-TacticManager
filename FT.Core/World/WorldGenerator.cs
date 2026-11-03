@@ -33,6 +33,10 @@ namespace FootballTactician.World
         static readonly int PersonalityCount = Enum.GetValues(typeof(Personality)).Length;
 
         /// <summary>승강 인원. 1부 하위 N 팀과 2부 상위 N 팀이 자리를 바꾼다.</summary>
+        /// <summary>
+        /// 적어 두지 않은 나라의 승강 자리. 실제 수는 나라마다 다르고,
+        /// 0 이면 승강이 없다(<see cref="NationNames.SwapPerTier"/> · docs/리그-제도.md).
+        /// </summary>
         public const int PromotionSpots = 3;
 
         /// <summary>
@@ -239,8 +243,10 @@ namespace FootballTactician.World
                 numberOfTeams = teams,
 
                 // 맨 위는 올라갈 곳이, 맨 아래는 내려갈 곳이 없다.
-                promotionSpots = top ? 0 : PromotionSpots,
-                relegationSpots = bottom ? 0 : PromotionSpots,
+                // 그 사이의 자리는 나라가 정한다 — 브라질은 네 팀이 내려가고,
+                // 벨기에는 한 팀이 내려가고, 미국은 아무도 내려가지 않는다.
+                promotionSpots = top ? 0 : nation.SwapBelow((int)tier - 1),
+                relegationSpots = bottom ? 0 : nation.SwapBelow((int)tier),
                 playoffSpots = 0,
                 clubIds = new List<int>(),
                 rules = new LeagueRules(),

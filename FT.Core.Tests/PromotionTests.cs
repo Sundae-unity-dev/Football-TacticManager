@@ -81,6 +81,11 @@ namespace FT.Core.Tests
             // 1부만 돌려도 2부 순위가 필요하므로 전체를 진행한다.
             PlaySeason(w);
 
+            // 2부는 1부보다 라운드가 많다(24팀 46라운드). 내 시즌이 끝난 시점의
+            // 순위표는 아직 덜 치른 표이므로, 남은 경기를 마친 뒤에 봐야
+            // "누가 올라가는가"를 맞게 집을 수 있다.
+            SeasonRollover.FinishRemainingFixtures(w);
+
             int spots = top.relegationSpots;
             var doomed = top.currentSeason.standings
                 .OrderByDescending(e => e.position).Take(spots).Select(e => e.clubId).ToList();
@@ -242,6 +247,65 @@ namespace FT.Core.Tests
             foreach (var club in w.Clubs.Values)
                 foreach (int id in club.playerIds)
                     Assert.Equal(club.id, w.Player(id)?.clubId);
+        }
+
+        [Fact]
+        public void 승강_자리는_나라마다_다르다()
+        {
+            // 리그의 모양은 그 나라의 성격이다 — 브라질은 네 팀이 내려가고,
+            // 벨기에는 한 팀이 내려간다(docs/리그-제도.md).
+            var w = WorldGenerator.Create(4242, nations: new[]
+            {
+                NameForge.ByCode("BRA"), NameForge.ByCode("BEL"), NameForge.ByCode("USA"),
+            });
+
+            Assert.Equal(4, TopLeague(w, "BRA").relegationSpots);
+            Assert.Equal(1, TopLeague(w, "BEL").relegationSpots);
+            Assert.Equal(0, TopLeague(w, "USA").relegationSpots);
+        }
+
+        [Fact]
+        public void 닫힌_리그에서는_아무도_오가지_않는다()
+        {
+            // 미국·호주·인도·멕시코는 프랜차이즈 구조라 승강이 없다.
+            // 시즌을 넘겨도 구단의 소속이 그대로여야 한다.
+            var w = WorldGenerator.Create(515, nations: new[] { NameForge.ByCode("USA") });
+            var club = w.Clubs.Values.First(c => c.reputation >= 3);
+            ManagerCareer.TakeCharge(w, club.id, "테스트");
+
+            var before = w.Clubs.Values.ToDictionary(c => c.id, c => c.leagueId);
+
+            // 가드 없이 돌리면 시즌이 안 끝나는 순간 테스트가 멈춘다.
+            // 미국 1부는 29팀(홀수)이라 58라운드까지 간다 — 넉넉히 잡는다.
+            int guard = 0;
+            while (!w.SeasonFinished && guard++ < 80) GameEngine.PlayNextRound(w);
+            Assert.True(w.SeasonFinished, $"{guard}라운드를 돌려도 시즌이 끝나지 않았다");
+
+            SeasonRollover.StartNextSeason(w);
+
+            foreach (var c in w.Clubs.Values)
+                Assert.Equal(before[c.id], c.leagueId);
+        }
+
+        [Fact]
+        public void 닫힌_리그에서는_잔류가_목표로_나오지_않는다()
+        {
+            // 내려갈 곳이 없는데 잔류를 목표로 받으면 뜻이 없다.
+            // 그렇다고 목표를 아예 안 주면 이사회가 리그에 무관심해진다 —
+            // 느슨한 순위 목표로 바뀌어야 한다.
+            var w = WorldGenerator.Create(909, nations: new[] { NameForge.ByCode("USA") });
+            var club = w.Clubs.Values.First(c => c.reputation == 1);
+
+            var goals = BoardObjectives.GenerateFor(w, club.id);
+            Assert.DoesNotContain(goals, o => o.type == BoardObjectiveType.AvoidRelegation);
+            Assert.Contains(goals, o => o.type == BoardObjectiveType.LeagueFinish);
+        }
+
+        /// <summary>그 나라의 1부.</summary>
+        static LeagueData TopLeague(GameWorld w, string code)
+        {
+            var nation = w.Nations.First(n => n.Code == code);
+            return w.League(nation.LeagueIds[0])!;
         }
     }
 }

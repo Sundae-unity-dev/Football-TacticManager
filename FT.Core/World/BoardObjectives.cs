@@ -22,12 +22,34 @@ namespace FootballTactician.World
             var club = w.Club(clubId);
             var league = w.LeagueOf(clubId);
 
+            int size = league?.numberOfTeams ?? WorldGenerator.ClubsPerLeague;
+
             return BoardSystem.GenerateSeasonObjectives(
-                    club, (int)(league?.tier ?? LeagueTier.First),
-                    league?.numberOfTeams ?? WorldGenerator.ClubsPerLeague,
+                    club, (int)(league?.tier ?? LeagueTier.First), size,
                     league?.currentSeason?.endDate ?? w.Date)
+                .Select(o => Reword(o, league, size))
                 .Where(o => IsAchievable(w, clubId, o.type))
                 .ToList();
+        }
+
+        /// <summary>
+        /// 내려갈 곳이 없는 리그의 "잔류" 목표를 순위 목표로 바꾼다.
+        ///
+        /// 미국·호주·인도처럼 승강이 없는 나라, 그리고 피라미드 맨 아래가 그렇다.
+        /// 그냥 빼 버리면 평판 1성 구단은 <b>리그 목표를 하나도 받지 않는다</b> —
+        /// 이사회가 리그에 아무 기대도 하지 않는 셈이 되므로, 느슨한 순위로 바꿔 준다.
+        /// </summary>
+        static BoardObjective Reword(BoardObjective o, LeagueData league, int size)
+        {
+            if (o.type != BoardObjectiveType.AvoidRelegation) return o;
+            if ((league?.relegationSpots ?? 0) > 0) return o;
+
+            int target = System.Math.Max(2, size - 3);
+            o.type = BoardObjectiveType.LeagueFinish;
+            o.targetValue = target;
+            o.description = $"리그 {target}위 이내 마무리";
+            o.weight = 4;
+            return o;
         }
 
         /// <summary>
@@ -48,6 +70,11 @@ namespace FootballTactician.World
 
             BoardObjectiveType.WinContinentalCup or BoardObjectiveType.ReachContinentalKnockout
                 => CupCompetition.ContinentalCup(w)?.entrants.Contains(clubId) == true,
+
+            // 잔류는 내려갈 곳이 있을 때만 뜻이 있다. 없으면 Reword 가 순위 목표로
+            // 바꿔 주므로 여기까지 오지 않지만, 혹시 남으면 주지 않는다.
+            BoardObjectiveType.AvoidRelegation
+                => (w.LeagueOf(clubId)?.relegationSpots ?? 0) > 0,
 
             _ => true,
         };
