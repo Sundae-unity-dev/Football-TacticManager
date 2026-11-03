@@ -91,53 +91,145 @@ namespace FootballTactician.World
         /// 모두 0승이라 전력 순으로 떨어지고, 지난 시즌 성적이 출전권과 무관해진다.
         /// </summary>
         public static List<int> Qualifiers(GameWorld w)
+            => QualifiersByRegion(w).Values.SelectMany(x => x).ToList();
+
+        /// <summary>
+        /// 대륙마다의 출전 구단. <b>대회는 대륙마다 하나씩</b> 열린다.
+        ///
+        /// 예전에는 대회가 하나였고 모든 나라가 네 팀씩 보냈다. 네 나라짜리 세계에서는
+        /// 16팀이 되어 맞아떨어졌지만, 131개국을 넣으면 한 대회에 524팀이 들어간다 —
+        /// 대륙을 넘나드는 대회가 아니라 그냥 세계 대회가 되고, 대진은 읽을 수 없게 된다.
+        ///
+        /// 뽑는 순서는 <b>우승팀 먼저, 그다음 준우승팀</b>이다. 나라는 수준 순으로 돌린다 —
+        /// 유럽에 스무 나라가 있으면 강한 나라의 우승팀부터 열여섯 자리를 채운다.
+        /// 나라가 넷 이하인 대륙은 예전처럼 나라당 네 팀을 보낸다(기본 세계가 그대로 돈다).
+        /// </summary>
+        public static Dictionary<string, List<int>> QualifiersByRegion(GameWorld w)
         {
-            var qualified = new List<int>();
+            var byRegion = new Dictionary<string, List<int>>();
 
-            foreach (var nation in w.Nations)
+            foreach (string region in Regions)
             {
-                var top = w.League(nation.LeagueIds.FirstOrDefault());
-                if (top?.currentSeason == null) continue;
+                // 그 대륙의 나라를 수준 순으로. 같은 수준이면 코드 순 — 시드가 같으면
+                // 같은 세계가 나와야 하므로 사전순으로 못 박는다.
+                var nations = w.Nations
+                    .Where(n => RegionOf(n.Code) == region)
+                    .OrderByDescending(n => NameForge.ByCode(n.Code).Strength)
+                    .ThenBy(n => n.Code)
+                    .ToList();
+                if (nations.Count == 0) continue;
 
-                // 치른 경기가 있으면 순위를, 없으면(첫 시즌) 전력을 쓴다.
-                bool played = top.currentSeason.standings.Any(s => s.played > 0);
-                var order = played
-                    ? top.currentSeason.standings.OrderBy(s => s.position).Select(s => s.clubId)
-                    : top.clubIds.OrderByDescending(id => w.Strength(id));
+                // 나라마다 1위부터 차례로 뽑아 둔다.
+                var ladders = new List<List<int>>();
+                foreach (var nation in nations)
+                {
+                    var top = w.League(nation.LeagueIds.FirstOrDefault());
+                    if (top?.currentSeason == null) { ladders.Add(new List<int>()); continue; }
 
-                qualified.AddRange(order.Take(ContinentalSpotsPerNation));
+                    // 치른 경기가 있으면 순위를, 없으면(첫 시즌) 전력을 쓴다.
+                    bool played = top.currentSeason.standings.Any(s => s.played > 0);
+                    ladders.Add((played
+                        ? top.currentSeason.standings.OrderBy(s => s.position).Select(s => s.clubId)
+                        : top.clubIds.OrderByDescending(id => w.Strength(id)))
+                        .Take(ContinentalSpotsPerNation).ToList());
+                }
+
+                // 나라가 적으면 예전처럼 나라당 네 팀, 많아지면 조를 늘려 자리를 연다.
+                int capacity =
+                    nations.Count <= GroupCount ? nations.Count * ContinentalSpotsPerNation
+                  : nations.Count <= GroupCount * GroupSize ? GroupCount * GroupSize
+                  : BigGroupCount * GroupSize;
+
+                var picked = new List<int>();
+                for (int pos = 0; pos < ContinentalSpotsPerNation && picked.Count < capacity; pos++)
+                    foreach (var ladder in ladders)
+                    {
+                        if (picked.Count >= capacity) break;
+                        if (pos < ladder.Count) picked.Add(ladder[pos]);
+                    }
+
+                if (picked.Count >= 2) byRegion[region] = picked;
             }
 
-            return qualified;
+            return byRegion;
         }
+
+        /// <summary>대회를 여는 차례. 번호가 대회 id 가 되므로 <b>순서를 바꾸지 않는다</b>.</summary>
+        public static readonly string[] Regions =
+            { "유럽", "남아메리카", "북중미", "아시아", "아프리카", "오세아니아" };
+
+        static string RegionOf(string nationCode) => NameForge.ByCode(nationCode).Region;
+
+        /// <summary>대륙 대회 이름. 짧은 이름은 순위표와 일정의 폭을 맞춰 세 글자다.</summary>
+        static (string name, string shortName) ContinentalNames(string region) => region switch
+        {
+            "유럽" => ("유럽 챔피언스컵", "EUR"),
+            "남아메리카" => ("남아메리카 챔피언스컵", "SAM"),
+            "북중미" => ("북중미 챔피언스컵", "NAM"),
+            "아시아" => ("아시아 챔피언스컵", "ASI"),
+            "아프리카" => ("아프리카 챔피언스컵", "AFR"),
+            _ => ("오세아니아 챔피언스컵", "OCE"),
+        };
 
         /// <summary>조별리그가 치러지는 리그 라운드.</summary>
         public static readonly int[] GroupMatchdays = { 3, 7, 11, 15, 19, 23 };
 
-        /// <summary>조별리그 뒤 토너먼트가 치러지는 리그 라운드.</summary>
+        /// <summary>조별리그 뒤 토너먼트가 치러지는 리그 라운드. 네 개 조(8강부터).</summary>
         public static readonly int[] ContinentalKnockoutMatchdays = { 27, 31, 35 };
 
+        /// <summary>
+        /// 여덟 개 조일 때의 토너먼트 라운드. 16강부터이므로 한 번 더 치른다.
+        ///
+        /// 나라가 많은 대륙은 자리가 열여섯뿐이면 대부분이 평생 대륙 대회를 못 본다 —
+        /// 유럽에만 마흔 나라가 있다. 조를 여덟으로 늘려 서른두 자리를 연다.
+        /// </summary>
+        public static readonly int[] BigContinentalKnockoutMatchdays = { 26, 29, 32, 35 };
+
         public const int GroupCount = 4;
+
+        /// <summary>나라가 열여섯을 넘는 대륙에서 쓰는 조 수.</summary>
+        public const int BigGroupCount = 8;
+
         public const int GroupSize = 4;
 
         /// <summary>조마다 몇 팀이 토너먼트에 오르는지.</summary>
         public const int QualifyPerGroup = 2;
 
-        public static CupState BuildContinental(
-            GameWorld w, int year, Random rng, List<int> entrants = null)
+        /// <summary>대륙 대회를 전부 만든다 — 나라가 있는 대륙마다 하나씩.</summary>
+        public static List<CupState> BuildContinentalAll(
+            GameWorld w, int year, Random rng, Dictionary<string, List<int>> entrants = null)
         {
-            var qualified = entrants ?? Qualifiers(w);
-            if (qualified.Count < 2) return null;
+            var byRegion = entrants ?? QualifiersByRegion(w);
+            var cups = new List<CupState>();
 
-            // 16팀이 모이면 조별리그부터 치른다. 모자라면 예전처럼 바로 토너먼트.
+            for (int i = 0; i < Regions.Length; i++)
+            {
+                if (!byRegion.TryGetValue(Regions[i], out var qualified) || qualified.Count < 2)
+                    continue;
+
+                var cup = BuildContinental(w, Regions[i], ContinentalCupId + i, qualified, year, rng);
+                if (cup != null) cups.Add(cup);
+            }
+
+            return cups;
+        }
+
+        static CupState BuildContinental(
+            GameWorld w, string region, int id, List<int> qualified, int year, Random rng)
+        {
+            var (name, shortName) = ContinentalNames(region);
+
+            // 조별리그로 딱 떨어지면 조별리그부터, 아니면 바로 토너먼트.
             if (qualified.Count == GroupCount * GroupSize)
-                return BuildWithGroups(w, qualified, year, rng);
+                return BuildWithGroups(w, qualified, year, rng, id, name, shortName, GroupCount);
+            if (qualified.Count == BigGroupCount * GroupSize)
+                return BuildWithGroups(w, qualified, year, rng, id, name, shortName, BigGroupCount);
 
             return Build(w, new CupState
             {
-                id = ContinentalCupId,
-                name = "대륙 챔피언스컵",
-                shortName = "CCC",
+                id = id,
+                name = name,
+                shortName = shortName,
                 country = "",
                 year = year,
                 roundMatchdays = ContinentalMatchdays,
@@ -151,16 +243,21 @@ namespace FootballTactician.World
         /// 같은 나라 팀은 한 조에 넣지 않는다 — 리그에서 매주 만나는 팀을 대륙 대회에서
         /// 또 만나면 나라를 넘는 대회라는 의미가 없다.
         /// </summary>
-        static CupState BuildWithGroups(GameWorld w, List<int> qualified, int year, Random rng)
+        static CupState BuildWithGroups(GameWorld w, List<int> qualified, int year, Random rng,
+                                        int id = ContinentalCupId,
+                                        string name = "대륙 챔피언스컵", string shortName = "CCC",
+                                        int groupCount = GroupCount)
         {
             var cup = new CupState
             {
-                id = ContinentalCupId,
-                name = "대륙 챔피언스컵",
-                shortName = "CCC",
+                id = id,
+                name = name,
+                shortName = shortName,
                 country = "",
                 year = year,
-                roundMatchdays = ContinentalKnockoutMatchdays,
+                roundMatchdays = groupCount > GroupCount
+                    ? BigContinentalKnockoutMatchdays
+                    : ContinentalKnockoutMatchdays,
                 continental = true,
                 entrants = qualified,
             };
@@ -172,7 +269,7 @@ namespace FootballTactician.World
                 .Select(g => new Queue<int>(g.OrderBy(_ => rng.Next())))
                 .ToList();
 
-            for (int i = 0; i < GroupCount; i++)
+            for (int i = 0; i < groupCount; i++)
                 cup.groups.Add(new CupGroup { name = $"{(char)('A' + i)}조" });
 
             // 나라 번호와 뽑은 횟수를 더해 조를 정한다.
@@ -185,7 +282,7 @@ namespace FootballTactician.World
                 int taken = 0;
                 while (byNation[n].Count > 0)
                 {
-                    cup.groups[(n + taken) % GroupCount].clubIds.Add(byNation[n].Dequeue());
+                    cup.groups[(n + taken) % groupCount].clubIds.Add(byNation[n].Dequeue());
                     taken++;
                 }
             }
@@ -496,8 +593,29 @@ namespace FootballTactician.World
         public static CupState UserCup(GameWorld w) => CupFor(w, w.ManagedClubId);
 
         /// <summary>대륙 대회. 플레이어 구단이 참가했는지와 무관하게 돌려준다.</summary>
-        public static CupState ContinentalCup(GameWorld w)
-            => w.Cups.Values.FirstOrDefault(c => c.continental);
+        /// <summary>
+        /// 내 구단이 보는 대륙 대회. 대회가 대륙마다 하나씩 있으므로
+        /// <b>내 구단이 속한 대륙</b>의 것을 준다 — 나가지 못했어도 그 대회를 본다.
+        /// </summary>
+        public static CupState ContinentalCup(GameWorld w) => ContinentalCupFor(w, w.ManagedClubId);
+
+        public static CupState ContinentalCupFor(GameWorld w, int clubId)
+        {
+            if (clubId <= 0) return w.Cups.Values.FirstOrDefault(c => c.continental);
+
+            // 나간 대회가 있으면 그것이 먼저다.
+            var entered = w.Cups.Values.FirstOrDefault(
+                c => c.continental && c.entrants.Contains(clubId));
+            if (entered != null) return entered;
+
+            var nation = w.NationOf(clubId);
+            if (nation == null) return w.Cups.Values.FirstOrDefault(c => c.continental);
+
+            int index = Array.IndexOf(Regions, RegionOf(nation.Code));
+            return index < 0
+                ? w.Cups.Values.FirstOrDefault(c => c.continental)
+                : w.Cups.TryGetValue(ContinentalCupId + index, out var cup) ? cup : null;
+        }
 
         /// <summary>그 구단이 나가는 국내 컵. 같은 나라의 대회 하나.</summary>
         public static CupState CupFor(GameWorld w, int clubId)
@@ -512,7 +630,8 @@ namespace FootballTactician.World
         /// 대륙 대회 출전 구단. 시즌을 넘길 때는 순위표를 비우기 전에 잡아 둔 명단을 넘긴다.
         /// </param>
         /// <summary>한 시즌의 대회를 모두 만든다. 시즌 넘김이 부른다.</summary>
-        public static void BuildAll(GameWorld w, Random rng, List<int> continentalEntrants = null)
+        public static void BuildAll(GameWorld w, Random rng,
+                                    Dictionary<string, List<int>> continentalEntrants = null)
         {
             w.Cups.Clear();
             foreach (var nation in w.Nations)
@@ -521,8 +640,8 @@ namespace FootballTactician.World
                 if (cup != null) w.Cups[cup.id] = cup;
             }
 
-            var continental = CupCompetition.BuildContinental(w, w.SeasonYear, rng, continentalEntrants);
-            if (continental != null) w.Cups[continental.id] = continental;
+            foreach (var cup in CupCompetition.BuildContinentalAll(w, w.SeasonYear, rng, continentalEntrants))
+                w.Cups[cup.id] = cup;
         }
     }
 }

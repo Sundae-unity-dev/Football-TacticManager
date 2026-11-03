@@ -35,7 +35,8 @@ namespace FootballTactician.World
 
             int pos = Standings.PositionOf(w.MyLeague, w.ManagedClubId);
             var cup = CupCompetition.UserCup(w);
-            var continental = w.Cups.Values.FirstOrDefault(c => c.continental);
+            // 대회가 대륙마다 하나씩이므로 "아무 대륙 대회"가 아니라 내 것을 봐야 한다.
+            var continental = CupCompetition.ContinentalCupFor(w, w.ManagedClubId);
 
             foreach (var o in w.Objectives)
             {

@@ -901,7 +901,276 @@ namespace FootballTactician.World
                 "Bishkek","Osh","Jalal-Abad","Karakol","Tokmok","Naryn","Talas","Batken",
                 "Kant","Balykchy","Kyzyl-Kiya","Cholpon-Ata","Uzgen","Isfana","Kara-Balta","Sulyukta",
             }, NonePre, AsiaSuf, StGen, NamePools.CentralAsianFirst, NamePools.CentralAsianLast),
+            // ── 2026-11-03 (4차) 유럽 초소국 ─────────────────────────
+            N("AND", Nationality.AND, "안도라", 1, 0.38f, "유럽", new[]
+            {
+                "Andorra la Vella","Escaldes","Encamp","Sant Julia","La Massana","Ordino","Canillo","Pas de la Casa",
+                "Arinsal","Soldeu","Santa Coloma","Anyos","Erts","Llorts","Sispony","El Tarter",
+            }, EspPre, None, StEsp, NamePools.SpanishFirst, NamePools.SpanishLast),
+
+            N("SMR", Nationality.SMR, "산마리노", 1, 0.36f, "유럽", new[]
+            {
+                "Serravalle","Borgo Maggiore","San Marino","Domagnano","Fiorentino","Acquaviva","Faetano","Chiesanuova",
+                "Montegiardino","Dogana","Murata","Cailungo","Falciano","Gualdicciola","Montalbo","Torraccia",
+            }, ItaPre, None, StIta, NamePools.ItalianFirst, NamePools.ItalianLast),
+
+            N("GIB", Nationality.GIB, "지브롤터", 1, 0.38f, "유럽", new[]
+            {
+                "Gibraltar","Europa Point","Catalan Bay","Westside","Rosia","Waterport","Sandpits","Glacis",
+                "Devils Tower","Varyl Begg","Laguna","Montagu","Bayside","Alameda","Chatham","Lathbury",
+            }, EngPre, EngSuf, StEng, NamePools.AngloFirst, NamePools.AngloLast),
+
+            N("LIE", Nationality.LIE, "리히텐슈타인", 1, 0.36f, "유럽", new[]
+            {
+                "Vaduz","Schaan","Triesen","Balzers","Eschen","Mauren","Triesenberg","Ruggell",
+                "Gamprin","Schellenberg","Planken","Nendeln","Bendern","Malbun","Steg","Masescha",
+            }, GerPre, None, StGer, NamePools.GermanFirst, NamePools.GermanLast),
+
+            // ── 북중미 ────────────────────────────────────────────────
+            N("CUB", Nationality.CUB, "쿠바", 1, 0.46f, "북중미", new[]
+            {
+                "Havana","Santiago de Cuba","Camaguey","Holguin","Santa Clara","Guantanamo","Bayamo","Cienfuegos",
+                "Pinar del Rio","Las Tunas","Matanzas","Ciego de Avila","Sancti Spiritus","Manzanillo","Cardenas","Moron",
+            }, ArgPre, None, StEsp, NamePools.SpanishFirst, NamePools.SpanishLast),
+
+            N("DOM", Nationality.DOM, "도미니카공화국", 1, 0.44f, "북중미", new[]
+            {
+                "Santo Domingo","Santiago","La Romana","San Pedro","San Cristobal","Puerto Plata","Higuey","Bani",
+                "Moca","Bonao","Barahona","Azua","Mao","Nagua","Cotui","Jarabacoa",
+            }, ArgPre, None, StEsp, NamePools.SpanishFirst, NamePools.SpanishLast),
+
+            N("HAI", Nationality.HAI, "아이티", 1, 0.46f, "북중미", new[]
+            {
+                "Port-au-Prince","Cap-Haitien","Gonaives","Les Cayes","Jacmel","Jeremie","Hinche","Port-de-Paix",
+                "Saint-Marc","Petion-Ville","Leogane","Miragoane","Fort-Liberte","Mirebalais","Croix-des-Bouquets","Limbe",
+            }, FraPre, None, StFra, NamePools.FrenchFirst, NamePools.FrenchLast),
+
+            N("TRI", Nationality.TRI, "트리니다드토바고", 1, 0.44f, "북중미", new[]
+            {
+                "Port of Spain","San Fernando","Chaguanas","Arima","Point Fortin","Scarborough","Couva","Sangre Grande",
+                "Princes Town","Tunapuna","Diego Martin","Siparia","Rio Claro","Penal","Mayaro","Toco",
+            }, EngPre, EngSuf, StEng, NamePools.AngloFirst, NamePools.AngloLast),
+
+            N("NCA", Nationality.NCA, "니카라과", 1, 0.42f, "북중미", new[]
+            {
+                "Managua","Leon","Granada","Masaya","Chinandega","Matagalpa","Esteli","Jinotega",
+                "Bluefields","Rivas","Boaco","Juigalpa","Ocotal","Somoto","Jinotepe","Diriamba",
+            }, ArgPre, None, StEsp, NamePools.SpanishFirst, NamePools.SpanishLast),
+
+            N("SLV", Nationality.SLV, "엘살바도르", 1, 0.46f, "북중미", new[]
+            {
+                "San Salvador","Santa Ana","San Miguel","Soyapango","Mejicanos","Santa Tecla","Apopa","Delgado",
+                "Sonsonate","Usulutan","Ahuachapan","Zacatecoluca","Cojutepeque","Chalchuapa","Metapan","La Union",
+            }, ArgPre, None, StEsp, NamePools.SpanishFirst, NamePools.SpanishLast),
+
+            N("SUR", Nationality.SUR, "수리남", 1, 0.40f, "북중미", new[]
+            {
+                "Paramaribo","Lelydorp","Nieuw Nickerie","Moengo","Nieuw Amsterdam","Albina","Groningen","Brownsweg",
+                "Onverwacht","Wageningen","Totness","Brokopondo","Marienburg","Meerzorg","Domburg","Santo Boma",
+            }, NedPre, None, StGen, NamePools.DutchFirst, NamePools.DutchLast),
+
+            N("CUW", Nationality.CUW, "퀴라소", 1, 0.40f, "북중미", new[]
+            {
+                "Willemstad","Barber","Soto","Westpunt","Sint Michiel","Dorp Sint Willibrordus","Tera Kora","Montana",
+                "Jan Thiel","Punda","Otrobanda","Scharloo","Brievengat","Rio Canario","Koraal Specht","Julianadorp",
+            }, NedPre, None, StGen, NamePools.DutchFirst, NamePools.DutchLast),
+
+            // ── 아시아 ────────────────────────────────────────────────
+            N("PRK", Nationality.PRK, "북한", 1, 0.48f, "아시아", new[]
+            {
+                "Pyongyang","Hamhung","Chongjin","Nampo","Wonsan","Sinuiju","Tanchon","Kaechon",
+                "Kaesong","Sariwon","Haeju","Hyesan","Kanggye","Anju","Tokchon","Rason",
+            }, NonePre, AsiaSuf, StGen, NamePools.KoreanFirst, NamePools.KoreanLast),
+
+            N("MNG", Nationality.MNG, "몽골", 1, 0.40f, "아시아", new[]
+            {
+                "Ulaanbaatar","Erdenet","Darkhan","Choibalsan","Murun","Khovd","Olgii","Bayankhongor",
+                "Arvaikheer","Ulaangom","Sainshand","Altai","Dalanzadgad","Zuunmod","Baruun-Urt","Tsetserleg",
+            }, NonePre, AsiaSuf, StGen, NamePools.CentralAsianFirst, NamePools.CentralAsianLast),
+
+            N("NEP", Nationality.NEP, "네팔", 1, 0.40f, "아시아", new[]
+            {
+                "Kathmandu","Pokhara","Lalitpur","Biratnagar","Bharatpur","Birgunj","Dharan","Butwal",
+                "Hetauda","Nepalgunj","Janakpur","Dhangadhi","Itahari","Bhaktapur","Damak","Tulsipur",
+            }, NonePre, AsiaSuf, StGen, NamePools.IndianFirst, NamePools.IndianLast),
+
+            N("BAN", Nationality.BAN, "방글라데시", 1, 0.42f, "아시아", new[]
+            {
+                "Dhaka","Chittagong","Khulna","Rajshahi","Sylhet","Barisal","Rangpur","Comilla",
+                "Mymensingh","Narayanganj","Gazipur","Jessore","Bogra","Dinajpur","Tangail","Cox Bazar",
+            }, NonePre, AsiaSuf, StGen, NamePools.IndianFirst, NamePools.IndianLast),
+
+            N("SRI", Nationality.SRI, "스리랑카", 1, 0.38f, "아시아", new[]
+            {
+                "Colombo","Kandy","Galle","Jaffna","Negombo","Trincomalee","Batticaloa","Matara",
+                "Anuradhapura","Ratnapura","Badulla","Kurunegala","Puttalam","Hambantota","Vavuniya","Gampaha",
+            }, NonePre, AsiaSuf, StGen, NamePools.IndianFirst, NamePools.IndianLast),
+
+            N("MDV", Nationality.MDV, "몰디브", 1, 0.38f, "아시아", new[]
+            {
+                "Male","Addu","Fuvahmulah","Kulhudhuffushi","Thinadhoo","Naifaru","Hinnavaru","Eydhafushi",
+                "Dhidhdhoo","Mahibadhoo","Veymandoo","Funadhoo","Manadhoo","Ungoofaaru","Gan","Hulhumale",
+            }, NonePre, AsiaSuf, StGen, NamePools.IndianFirst, NamePools.IndianLast),
+
+            N("PAK", Nationality.PAK, "파키스탄", 1, 0.42f, "아시아", new[]
+            {
+                "Karachi","Lahore","Faisalabad","Rawalpindi","Multan","Peshawar","Quetta","Islamabad",
+                "Sialkot","Gujranwala","Hyderabad","Sargodha","Bahawalpur","Sukkur","Mardan","Abbottabad",
+            }, NonePre, AsiaSuf, StGen, NamePools.IndianFirst, NamePools.IndianLast),
+
+            N("AFG", Nationality.AFG, "아프가니스탄", 1, 0.40f, "아시아", new[]
+            {
+                "Kabul","Kandahar","Herat","Mazar-i-Sharif","Jalalabad","Kunduz","Ghazni","Lashkargah",
+                "Taloqan","Pul-e-Khumri","Khost","Bamyan","Farah","Gardez","Sheberghan","Maymana",
+            }, NonePre, AsiaSuf, StGen, NamePools.PersianFirst, NamePools.PersianLast),
+
+            N("TKM", Nationality.TKM, "투르크메니스탄", 1, 0.42f, "아시아", new[]
+            {
+                "Ashgabat","Turkmenabat","Dasoguz","Mary","Balkanabat","Bayramaly","Turkmenbashi","Tejen",
+                "Serdar","Kaka","Gazojak","Koneurgench","Atamyrat","Yoloten","Murgap","Sarahs",
+            }, NonePre, AsiaSuf, StGen, NamePools.CentralAsianFirst, NamePools.CentralAsianLast),
+
+            N("YEM", Nationality.YEM, "예멘", 1, 0.40f, "아시아", new[]
+            {
+                "Sanaa","Aden","Taiz","Hodeidah","Ibb","Mukalla","Dhamar","Amran",
+                "Sayun","Zinjibar","Hajjah","Saada","Marib","Lahij","Bajil","Zabid",
+            }, NonePre, AsiaSuf, StGen, NamePools.ArabicFirst, NamePools.ArabicLast),
+
+            N("PLE", Nationality.PLE, "팔레스타인", 1, 0.42f, "아시아", new[]
+            {
+                "Gaza","Hebron","Nablus","Ramallah","Jenin","Bethlehem","Tulkarm","Qalqilya",
+                "Khan Yunis","Rafah","Jericho","Salfit","Tubas","Deir al-Balah","Beit Lahia","Azzun",
+            }, NonePre, AsiaSuf, StGen, NamePools.ArabicFirst, NamePools.ArabicLast),
+
+            N("LAO", Nationality.LAO, "라오스", 1, 0.38f, "아시아", new[]
+            {
+                "Vientiane","Savannakhet","Pakse","Luang Prabang","Thakhek","Xam Neua","Phonsavan","Attapeu",
+                "Muang Xay","Salavan","Sayaboury","Vang Vieng","Paksan","Luang Namtha","Champasak","Phongsaly",
+            }, NonePre, AsiaSuf, StGen, NamePools.ThaiFirst, NamePools.ThaiLast),
+
+            // ── 아프리카 ──────────────────────────────────────────────
+            N("CGO", Nationality.CGO, "콩고", 1, 0.44f, "아프리카", new[]
+            {
+                "Brazzaville","Pointe-Noire","Dolisie","Nkayi","Ouesso","Impfondo","Madingou","Owando",
+                "Sibiti","Gamboma","Djambala","Kinkala","Mossendjo","Loandjili","Ewo","Kelle",
+            }, FraPre, None, StFra, NamePools.WestAfricanFirst, NamePools.WestAfricanLast),
+
+            N("NIG", Nationality.NIG, "니제르", 1, 0.40f, "아프리카", new[]
+            {
+                "Niamey","Zinder","Maradi","Agadez","Tahoua","Dosso","Arlit","Tessaoua",
+                "Birnin Konni","Gaya","Diffa","Tillaberi","Madaoua","Magaria","Ayorou","Dogondoutchi",
+            }, NonePre, AsiaSuf, StGen, NamePools.WestAfricanFirst, NamePools.WestAfricanLast),
+
+            N("MTN", Nationality.MTN, "모리타니", 1, 0.40f, "아프리카", new[]
+            {
+                "Nouakchott","Nouadhibou","Rosso","Kaedi","Zouerate","Kiffa","Atar","Selibaby",
+                "Aleg","Boutilimit","Tidjikja","Akjoujt","Nema","Aioun","Timbedra","Chinguetti",
+            }, NonePre, AsiaSuf, StGen, NamePools.ArabicFirst, NamePools.ArabicLast),
+
+            N("BOT", Nationality.BOT, "보츠와나", 1, 0.42f, "아프리카", new[]
+            {
+                "Gaborone","Francistown","Molepolole","Maun","Serowe","Selebi-Phikwe","Kanye","Mochudi",
+                "Mahalapye","Palapye","Lobatse","Ramotswa","Tlokweng","Jwaneng","Letlhakane","Ghanzi",
+            }, NonePre, AsiaSuf, StGen, NamePools.SouthAfricanFirst, NamePools.SouthAfricanLast),
+
+            N("NAM", Nationality.NAM, "나미비아", 1, 0.42f, "아프리카", new[]
+            {
+                "Windhoek","Walvis Bay","Swakopmund","Oshakati","Rundu","Katima Mulilo","Otjiwarongo","Gobabis",
+                "Keetmanshoop","Tsumeb","Grootfontein","Rehoboth","Mariental","Okahandja","Ondangwa","Luderitz",
+            }, NonePre, AsiaSuf, StGen, NamePools.SouthAfricanFirst, NamePools.SouthAfricanLast),
+
+            N("MWI", Nationality.MWI, "말라위", 1, 0.42f, "아프리카", new[]
+            {
+                "Lilongwe","Blantyre","Mzuzu","Zomba","Kasungu","Mangochi","Karonga","Salima",
+                "Nkhotakota","Liwonde","Balaka","Dedza","Mchinji","Nsanje","Rumphi","Mulanje",
+            }, NonePre, AsiaSuf, StGen, NamePools.EastAfricanFirst, NamePools.EastAfricanLast),
+
+            N("BDI", Nationality.BDI, "부룬디", 1, 0.40f, "아프리카", new[]
+            {
+                "Bujumbura","Gitega","Ngozi","Muyinga","Ruyigi","Kayanza","Rutana","Bururi",
+                "Makamba","Cibitoke","Karuzi","Muramvya","Kirundo","Rumonge","Bubanza","Mwaro",
+            }, FraPre, None, StFra, NamePools.EastAfricanFirst, NamePools.EastAfricanLast),
+
+            N("EQG", Nationality.EQG, "적도기니", 1, 0.40f, "아프리카", new[]
+            {
+                "Malabo","Bata","Ebebiyin","Aconibe","Mongomo","Luba","Evinayong","Mbini",
+                "Micomeseng","Anisok","Nsok","Rebola","Baney","Kogo","Niefang","Bitica",
+            }, EspPre, None, StEsp, NamePools.SpanishFirst, NamePools.SpanishLast),
+
+            N("SLE", Nationality.SLE, "시에라리온", 1, 0.40f, "아프리카", new[]
+            {
+                "Freetown","Bo","Kenema","Makeni","Koidu","Lunsar","Port Loko","Waterloo",
+                "Kabala","Magburaka","Moyamba","Bonthe","Kailahun","Pujehun","Kambia","Segbwema",
+            }, NonePre, AsiaSuf, StGen, NamePools.WestAfricanFirst, NamePools.WestAfricanLast),
+
+            N("LBR", Nationality.LBR, "라이베리아", 1, 0.40f, "아프리카", new[]
+            {
+                "Monrovia","Gbarnga","Kakata","Buchanan","Ganta","Zwedru","Harper","Voinjama",
+                "Robertsport","Greenville","Tubmanburg","Sanniquellie","Bensonville","Fish Town","Barclayville","Cestos",
+            }, NonePre, AsiaSuf, StGen, NamePools.WestAfricanFirst, NamePools.WestAfricanLast),
+
+            N("GAM", Nationality.GAM, "감비아", 1, 0.40f, "아프리카", new[]
+            {
+                "Banjul","Serekunda","Brikama","Bakau","Farafenni","Lamin","Basse","Gunjur",
+                "Soma","Kerewan","Mansa Konko","Janjanbureh","Kuntaur","Sukuta","Barra","Essau",
+            }, NonePre, AsiaSuf, StGen, NamePools.WestAfricanFirst, NamePools.WestAfricanLast),
+
+            N("GNB", Nationality.GNB, "기니비사우", 1, 0.38f, "아프리카", new[]
+            {
+                "Bissau","Bafata","Gabu","Canchungo","Mansoa","Buba","Catio","Farim",
+                "Quinhamel","Bolama","Bubaque","Cacheu","Fulacunda","Sao Domingos","Pirada","Quebo",
+            }, PorPre, None, StGen, NamePools.PortugueseFirst, NamePools.PortugueseLast),
+
+            N("CHA", Nationality.CHA, "차드", 1, 0.38f, "아프리카", new[]
+            {
+                "NDjamena","Moundou","Sarh","Abeche","Kelo","Koumra","Pala","Am Timan",
+                "Bongor","Mongo","Doba","Ati","Faya","Oum Hadjer","Bitkine","Mao",
+            }, FraPre, None, StFra, NamePools.ArabicFirst, NamePools.ArabicLast),
+
+            N("SOM", Nationality.SOM, "소말리아", 1, 0.38f, "아프리카", new[]
+            {
+                "Mogadishu","Hargeisa","Bosaso","Kismayo","Galkayo","Berbera","Baidoa","Burao",
+                "Jowhar","Beledweyne","Garowe","Marka","Afgooye","Erigavo","Las Anod","Qardho",
+            }, NonePre, AsiaSuf, StGen, NamePools.ArabicFirst, NamePools.ArabicLast),
+
+            // ── 오세아니아 ────────────────────────────────────────────
+            N("SOL", Nationality.SOL, "솔로몬 제도", 1, 0.40f, "오세아니아", new[]
+            {
+                "Honiara","Gizo","Auki","Munda","Tulagi","Buala","Kirakira","Lata",
+                "Taro","Tigoa","Noro","Malango","Avuavu","Yandina","Seghe","Ringgi",
+            }, NonePre, AsiaSuf, StGen, NamePools.AngloFirst, NamePools.AngloLast),
+
+            N("VAN", Nationality.VAN, "바누아투", 1, 0.38f, "오세아니아", new[]
+            {
+                "Port Vila","Luganville","Norsup","Isangel","Saratamata","Lakatoro","Sola","Lenakel",
+                "Longana","Port Olry","Melsisi","Craig Cove","Lamap","Ipota","Vila North","Mele",
+            }, NonePre, AsiaSuf, StGen, NamePools.AngloFirst, NamePools.AngloLast),
+
+            N("NCL", Nationality.NCL, "뉴칼레도니아", 1, 0.40f, "오세아니아", new[]
+            {
+                "Noumea","Mont-Dore","Dumbea","Paita","We","Kone","Bourail","Poindimie",
+                "La Foa","Canala","Thio","Hienghene","Koumac","Lifou","Mare","Houailou",
+            }, FraPre, None, StFra, NamePools.FrenchFirst, NamePools.FrenchLast),
+
+            N("TAH", Nationality.TAH, "타히티", 1, 0.38f, "오세아니아", new[]
+            {
+                "Papeete","Faaa","Punaauia","Pirae","Mahina","Paea","Arue","Papara",
+                "Taiarapu","Moorea","Teva I Uta","Hitiaa","Taravao","Papenoo","Afaahiti","Tiarei",
+            }, FraPre, None, StFra, NamePools.FrenchFirst, NamePools.FrenchLast),
+
+            N("SAM", Nationality.SAM, "사모아", 1, 0.34f, "오세아니아", new[]
+            {
+                "Apia","Vaitele","Faleula","Siusega","Vailele","Leulumoega","Mulifanua","Salelologa",
+                "Safotu","Asau","Lotofaga","Falealupo","Satupaitea","Lalomanu","Manono","Sataua",
+            }, NonePre, AsiaSuf, StGen, NamePools.AngloFirst, NamePools.AngloLast),
+
+            N("TGA", Nationality.TGA, "통가", 1, 0.34f, "오세아니아", new[]
+            {
+                "Nukualofa","Neiafu","Haveluloto","Vaini","Pangai","Ohonua","Hihifo","Mua",
+                "Kolonga","Lapaha","Houma","Fuaamotu","Talihau","Nomuka","Niutoua","Kolovai",
+            }, NonePre, AsiaSuf, StGen, NamePools.AngloFirst, NamePools.AngloLast),
         };
+
 
 
     }

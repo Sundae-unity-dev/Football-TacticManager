@@ -169,8 +169,8 @@ namespace FootballTactician.World
                 if (cup != null) w.Cups[cup.id] = cup;
             }
 
-            var continental = CupCompetition.BuildContinental(w, w.SeasonYear, rng);
-            if (continental != null) w.Cups[continental.id] = continental;
+            foreach (var continental in CupCompetition.BuildContinentalAll(w, w.SeasonYear, rng))
+                w.Cups[continental.id] = continental;
         }
 
         /// <summary>리그 하나와 그 구단·스쿼드·일정을 만든다.</summary>

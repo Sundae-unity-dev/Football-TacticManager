@@ -401,7 +401,7 @@ namespace FootballTactician.World
             ApplyPromotionAndRelegation(w);
 
             // 순위표를 비우기 전에 대륙 대회 출전권을 확정한다.
-            var continentalEntrants = CupCompetition.Qualifiers(w);
+            var continentalEntrants = CupCompetition.QualifiersByRegion(w);
 
             foreach (var league in w.Leagues.Values)
             {

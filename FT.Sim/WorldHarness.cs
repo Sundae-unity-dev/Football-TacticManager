@@ -1578,6 +1578,49 @@ namespace FT.Sim
         /// 하나가 다 하면 "좋은 스태프"를 모으는 것 말고 할 일이 없다.
         /// </summary>
         /// <summary>
+        /// 대륙 대회를 들여다본다. 나라를 전부 넣은 세계에서 대륙마다 어떤 대회가
+        /// 서는지, 출전 구단이 어느 나라에서 왔는지.
+        /// </summary>
+        public static void Confederations()
+        {
+            var w = WorldGenerator.Create(31415, 2026, NameForge.All);
+
+            Console.WriteLine("\n== 대륙 대회 ==\n");
+            Console.WriteLine($"  나라 {w.Nations.Count} · 리그 {w.Leagues.Count} · 구단 {w.Clubs.Count}\n");
+            Console.WriteLine("  대회                     출전   나라   형식     예시");
+
+            foreach (var cup in w.Cups.Values.Where(c => c.continental).OrderBy(c => c.id))
+            {
+                var nations = cup.entrants
+                    .Select(id => w.NationOf(id)?.Country ?? "?")
+                    .Distinct().ToList();
+
+                string form = cup.HasGroups ? "조별리그" : "토너먼트";
+                string sample = string.Join(", ", cup.entrants.Take(3).Select(id => w.Club(id)?.name));
+                Console.WriteLine($"  {cup.name,-22} {cup.entrants.Count,4}팀 {nations.Count,4}개  {form,-8} {sample}");
+            }
+
+            // 섞이지 않았는지 확인.
+            int mixed = 0;
+            foreach (var cup in w.Cups.Values.Where(c => c.continental))
+            {
+                var regions = cup.entrants
+                    .Select(id => NameForge.ByCode(w.NationOf(id)!.Code).Region)
+                    .Distinct().Count();
+                if (regions > 1) mixed++;
+            }
+            Console.WriteLine($"\n  대륙이 섞인 대회 {mixed}개");
+
+            // 어느 나라가 자리를 못 받았는지.
+            var entered = w.Cups.Values.Where(c => c.continental)
+                .SelectMany(c => c.entrants)
+                .Select(id => w.NationOf(id)?.Code).Distinct().ToHashSet();
+            var missing = w.Nations.Where(n => !entered.Contains(n.Code)).ToList();
+            Console.WriteLine($"  출전권을 못 받은 나라 {missing.Count}개" +
+                (missing.Count == 0 ? "" : $" — 예: {string.Join(", ", missing.Take(6).Select(n => n.Country))}"));
+        }
+
+        /// <summary>
         /// 이름이 겹치는지 전수로 센다. 49개국을 전부 넣은 세계에서 본다.
         ///
         /// 구단 이름이 겹치면 순위표에서 어느 쪽인지 알 수 없고, 약칭이 겹치면
