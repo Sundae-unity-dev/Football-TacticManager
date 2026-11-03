@@ -1586,7 +1586,9 @@ namespace FT.Sim
             var w = WorldGenerator.Create(31415, 2026, NameForge.All);
 
             Console.WriteLine("\n== 대륙 대회 ==\n");
-            Console.WriteLine($"  나라 {w.Nations.Count} · 리그 {w.Leagues.Count} · 구단 {w.Clubs.Count}\n");
+            var save = SaveGame.Serialize(w, "전부");
+            Console.WriteLine($"  나라 {w.Nations.Count} · 리그 {w.Leagues.Count} · 구단 {w.Clubs.Count}"
+                + $" · 선수 {w.Players.Count:N0} · 세이브 {save.Length / 1024.0 / 1024.0:F2}MB\n");
             Console.WriteLine("  대회                     출전   나라   형식     예시");
 
             foreach (var cup in w.Cups.Values.Where(c => c.continental).OrderBy(c => c.id))

@@ -109,7 +109,14 @@ else
                         선수 @((PickedTiers * 20 * 25).ToString("N0")) ·
                         세이브 약 @((PickedTiers * 20 / 240.0 * 0.6).ToString("F1"))MB
                     </div>
-                    @if (PickedTiers > 36)
+                    @if (PickedTiers > 120)
+                    {
+                        <div class="tiny" style="color:var(--coral)">
+                            리그가 아주 많습니다. 저장 한 번에 몇 초씩 걸립니다 —
+                            둘러보기에는 좋지만 길게 플레이하기에는 무겁습니다.
+                        </div>
+                    }
+                    else if (PickedTiers > 36)
                     {
                         <div class="tiny" style="color:var(--amber)">
                             리그가 많습니다. 저장과 라운드 진행이 눈에 띄게 느려집니다.
