@@ -103,8 +103,10 @@ namespace FT.Core.Tests
             }
 
             // 인원은 그대로여야 한다
-            Assert.Equal(WorldGenerator.ClubsPerLeague, top.clubIds.Count);
-            Assert.Equal(WorldGenerator.ClubsPerLeague, below.clubIds.Count);
+            // 팀 수는 리그마다 다르다(잉글랜드 1부 20 · 2부 24). 승강으로 자리가
+            // 바뀌어도 **각 리그의 팀 수는 그대로**여야 한다 — 올라간 만큼 내려간다.
+            Assert.Equal(top.numberOfTeams, top.clubIds.Count);
+            Assert.Equal(below.numberOfTeams, below.clubIds.Count);
         }
 
         [Fact]

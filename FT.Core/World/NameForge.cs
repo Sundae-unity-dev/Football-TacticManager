@@ -39,6 +39,25 @@ namespace FootballTactician.World
         /// <summary>대륙. 새 게임에서 나라를 고를 때 묶어 보여 준다.</summary>
         public string Region = "유럽";
 
+        /// <summary>
+        /// 부마다의 팀 수. <b>리그의 모양은 그 나라의 성격이다</b> —
+        /// 스무 팀이 서른여덟 경기를 치르는 것은 기본값일 뿐이고, 실제로는 열 팀이
+        /// 네 번씩 맞붙는 리그도 열두 팀이 치고받는 리그도 있다.
+        /// 아래로 갈수록 팀이 늘어나는 나라도 많다(잉글랜드 2·3·4부는 24팀).
+        ///
+        /// 길이가 <see cref="Tiers"/> 보다 짧으면 마지막 값을 이어 쓴다.
+        /// 비워 두면 전부 스무 팀이다(docs/리그-제도.md).
+        /// </summary>
+        public int[] TeamsPerTier;
+
+        /// <summary>그 부의 팀 수. 적어 두지 않았으면 스무 팀.</summary>
+        public int TeamsIn(int tier)
+        {
+            if (TeamsPerTier == null || TeamsPerTier.Length == 0) return 20;
+            int i = System.Math.Clamp(tier - 1, 0, TeamsPerTier.Length - 1);
+            return System.Math.Clamp(TeamsPerTier[i], 6, 30);
+        }
+
         public string[] Cities;
         public string[] ClubPrefixes;    // 도시 앞에 붙는 것
         public string[] ClubSuffixes;    // 도시 뒤에 붙는 것

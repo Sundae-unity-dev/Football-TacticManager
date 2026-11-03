@@ -201,23 +201,42 @@ namespace FT.Core.Tests
         public void 질문은_구단_상황을_따른다()
         {
             // 자리가 위태로우면 그 질문이 나와야 한다.
-            var w = Make(7788);
-            w.Manager.boardConfidence = 30;
+            //
+            // 시드 하나로 보면 흔들린다 — 그 한 시즌에 기자회견이 몇 번 열리는지,
+            // 그 사이에 경질되는지가 시드마다 다르다. 성질은 여러 시드를 모아서 보고,
+            // "신뢰도가 낮을 때 더 자주 나오는가"라는 인과까지 함께 본다.
+            int lowAsked = CountJobQuestions(confidence: 30);
+            int highAsked = CountJobQuestions(confidence: 85);
 
-            bool asked = false;
-            for (int round = 0; round < 38 && !asked; round++)
+            Assert.True(lowAsked > 0, "신뢰도가 바닥인데 자리 질문이 한 번도 안 나왔다");
+            Assert.True(lowAsked > highAsked,
+                $"신뢰도가 낮을 때 {lowAsked}번, 높을 때 {highAsked}번 — 상황을 따르지 않는다");
+        }
+
+        /// <summary>여러 시드를 돌려 "자리" 질문이 몇 번 나오는지 센다.</summary>
+        static int CountJobQuestions(int confidence)
+        {
+            int asked = 0;
+
+            foreach (int seed in new[] { 7788, 31415, 606, 90210, 24680 })
             {
-                GameEngine.PlayNextRound(w);
-                w.Manager.boardConfidence = 30;
-                if (w.Sacked) break;
+                var w = Make(seed);
+                w.Manager.boardConfidence = confidence;
 
-                var s = PressRoom.Open(w);
-                if (s == null) continue;
-                asked = s.question == PressConferenceQuestion.ManagerJobSecurity;
-                PressRoom.Skip(w);
+                for (int round = 0; round < 38; round++)
+                {
+                    GameEngine.PlayNextRound(w);
+                    w.Manager.boardConfidence = confidence;   // 결과에 흔들리지 않게 붙잡아 둔다
+                    if (w.Sacked) break;
+
+                    var s = PressRoom.Open(w);
+                    if (s == null) continue;
+                    if (s.question == PressConferenceQuestion.ManagerJobSecurity) asked++;
+                    PressRoom.Skip(w);
+                }
             }
 
-            Assert.True(asked, "신뢰도가 바닥인데 자리 질문이 한 번도 안 나왔다");
+            return asked;
         }
 
         [Fact]

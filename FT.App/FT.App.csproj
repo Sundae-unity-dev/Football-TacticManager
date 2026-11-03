@@ -13,7 +13,7 @@
       새로고침해서 눈으로 보는 편이 Actions 로그를 뒤지는 것보다 빠릅니다.
       올릴 때는 CHANGELOG.md 에 한 칸 쓰고 git tag 를 같이 밀어 주세요.
     -->
-    <Version>0.9.0</Version>
+    <Version>0.10.0</Version>
 
     <!--
       트리밍을 켠다. 끄면 쓰지도 않는 BCL 이 통째로 실려 내려받기가 8.0MB 가 된다

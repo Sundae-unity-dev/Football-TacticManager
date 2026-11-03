@@ -13,7 +13,20 @@ namespace FootballTactician.World
     /// </summary>
     public static class WorldGenerator
     {
+        /// <summary>
+        /// 적어 두지 않은 나라의 리그 팀 수. 실제 팀 수는 나라마다 다르다
+        /// (<see cref="NationNames.TeamsPerTier"/> · docs/리그-제도.md).
+        /// </summary>
         public const int ClubsPerLeague = 20;
+
+        /// <summary>
+        /// 그 팀 수로 치르는 라운드 수.
+        ///
+        /// 홀수면 매 라운드 한 팀이 쉬므로 라운드가 하나 더 필요하다 — 부전승 자리까지
+        /// 세어야 일정과 시즌 길이가 맞는다. 열 팀처럼 적으면 네 번씩 맞붙는데(36경기),
+        /// 그건 일정 생성기가 아니라 제도의 문제라 아직 두 번으로 둔다.
+        /// </summary>
+        public static int Matchdays(int teams) => (teams % 2 == 0 ? teams - 1 : teams) * 2;
         public const int SquadSize = 25;
 
         /// <summary>성격 가짓수. 구단마다 리플렉션으로 다시 세고 있었다.</summary>
@@ -31,26 +44,46 @@ namespace FootballTactician.World
         /// </summary>
         public const int Tiers = 3;
 
-        /// <summary>1부 리그 안의 평판 분포. 길이가 ClubsPerLeague 와 같아야 한다.</summary>
-        static readonly int[] RepLadder =
+        /// <summary>
+        /// 리그 안의 평판 분포를 <b>팀 수에 맞춰 만든다</b>.
+        ///
+        /// 예전에는 길이 20짜리 배열 셋을 박아 두었다. 리그마다 팀 수가 달라지면
+        /// 그 배열이 바로 깨지므로(12팀 리그에서 13번째를 읽는다) 비율로 적는다.
+        ///
+        /// 1부는 5성 둘·4성 셋·3성 다섯·2성 넷·1성 여섯이 스무 팀 기준이었다.
+        /// 같은 비율을 지키면서 길이만 바꾼다 — 열두 팀이면 5성 하나·4성 둘…이 된다.
+        /// </summary>
+        static int[] BuildRepLadder(LeagueTier tier, int teams)
         {
-            5, 5, 4, 4, 4, 3, 3, 3, 3, 3,
-            2, 2, 2, 2, 1, 1, 1, 1, 1, 1
-        };
+            // (별점, 스무 팀 기준 몫) — 위에서부터 채운다.
+            var shape = tier switch
+            {
+                LeagueTier.First => new[] { (5, 2), (4, 3), (3, 5), (2, 4), (1, 6) },
+                LeagueTier.Second => new[] { (2, 3), (1, 17) },
+                _ => new[] { (2, 1), (1, 19) },
+            };
 
-        /// <summary>2부 리그 평판 분포. 상위 몇 팀만 1부 하위권과 겨룰 만하다.</summary>
-        static readonly int[] SecondTierRepLadder =
-        {
-            2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-        };
+            var ladder = new int[teams];
+            int filled = 0;
+            for (int i = 0; i < shape.Length && filled < teams; i++)
+            {
+                var (stars, share) = shape[i];
 
-        /// <summary>3부 리그 평판 분포. 여기서는 1성이 보통이고 2성이 강팀이다.</summary>
-        static readonly int[] ThirdTierRepLadder =
-        {
-            2, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-        };
+                // 마지막 묶음은 남은 자리를 전부 가져간다 — 반올림으로 자리가 비면 안 된다.
+                int count = i == shape.Length - 1
+                    ? teams - filled
+                    : (int)System.Math.Round(share * teams / 20.0);
+
+                // 위쪽 묶음이 통째로 사라지지 않게 적어도 하나는 남긴다.
+                if (count < 1 && i < shape.Length - 1) count = 1;
+
+                for (int k = 0; k < count && filled < teams; k++) ladder[filled++] = stars;
+            }
+
+            // 반올림 때문에 남은 자리가 있으면 가장 낮은 별점으로 메운다.
+            while (filled < teams) ladder[filled++] = shape[^1].Item1;
+            return ladder;
+        }
 
         /// <summary>스쿼드 포지션 구성 — 25인을 이 순서로 채운다.</summary>
         static readonly Position[] SquadShape =
@@ -100,20 +133,25 @@ namespace FootballTactician.World
                 // 도시를 섞어 시드마다 평판 서열이 달라지게 한다. 각 부가 도시를 나눠 쓴다.
                 // 도시가 모자라면 돌려 쓴다 — 한 도시에 구단이 둘인 것은 축구에서 흔하다
                 // (접두사가 달라 이름은 겹치지 않는다).
-                int needed = ClubsPerLeague * tiers;
+                int needed = 0;
+                for (int t = 1; t <= tiers; t++) needed += nation.TeamsIn(t);
+
                 var pool = nation.Cities.OrderBy(_ => rng.Next()).ToList();
                 var cities = new List<string>(needed);
                 while (cities.Count < needed)
                     cities.AddRange(pool.Take(Math.Min(pool.Count, needed - cities.Count)));
 
                 var leagues = new List<LeagueData>();
+                int cityCursor = 0;
                 for (int t = 0; t < tiers; t++)
                 {
-                    using (SimProfile.Measure("리그 12개"))
+                    int teams = nation.TeamsIn(t + 1);
+                    using (SimProfile.Measure("리그 한 부"))
                     leagues.Add(MakeLeague(w, rng, nation, (LeagueTier)(t + 1), nextLeagueId++,
-                        cities.Skip(ClubsPerLeague * t).Take(ClubsPerLeague).ToList(), startYear,
+                        cities.Skip(cityCursor).Take(teams).ToList(), startYear,
                         usedClubNames,
                         ref nextClubId, ref nextPlayerId, ref nextFixtureId));
+                    cityCursor += teams;
                 }
 
                 // 승강을 위아래로 이어 붙인다. 한 칸씩만 이어야 3부에서 1부로 건너뛰지 않는다.
@@ -181,6 +219,7 @@ namespace FootballTactician.World
         {
             bool top = tier == LeagueTier.First;
             bool bottom = (int)tier >= Math.Clamp(nation.Tiers, 1, 3);
+            int teams = cities.Count;
 
             var (name, shortName) = tier switch
             {
@@ -197,7 +236,7 @@ namespace FootballTactician.World
                 regionName = nation.Country,
                 tier = tier,
                 type = CompetitionType.League,
-                numberOfTeams = ClubsPerLeague,
+                numberOfTeams = teams,
 
                 // 맨 위는 올라갈 곳이, 맨 아래는 내려갈 곳이 없다.
                 promotionSpots = top ? 0 : PromotionSpots,
@@ -208,17 +247,12 @@ namespace FootballTactician.World
                 matchRules = new MatchRules(),
             };
 
-            var ladder = tier switch
-            {
-                LeagueTier.First => RepLadder,
-                LeagueTier.Second => SecondTierRepLadder,
-                _ => ThirdTierRepLadder,
-            };
+            var ladder = BuildRepLadder(tier, teams);
 
             // 약칭은 **같은 리그 안에서만** 겹치지 않으면 된다 — 리그마다 새로 센다.
             var usedShorts = new HashSet<string>();
 
-            for (int i = 0; i < ClubsPerLeague; i++)
+            for (int i = 0; i < teams; i++)
             {
                 int stars = ladder[i];
                 var club = MakeClub(rng, nextClubId++, league.id, nation, cities[i], i, stars, tier,
@@ -239,9 +273,9 @@ namespace FootballTactician.World
             {
                 year = startYear,
                 startDate = start,
-                endDate = FixtureScheduler.SeasonEnd(startYear, (ClubsPerLeague - 1) * 2),
+                endDate = FixtureScheduler.SeasonEnd(startYear, Matchdays(teams)),
                 currentMatchday = 0,
-                totalMatchdays = (ClubsPerLeague - 1) * 2,
+                totalMatchdays = Matchdays(teams),
                 fixtures = fixtures,
                 standings = league.clubIds.Select(id => new StandingEntry { clubId = id }).ToList(),
             };

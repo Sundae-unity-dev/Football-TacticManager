@@ -128,7 +128,7 @@ namespace FT.Core.Tests
                 SeasonRollover.StartNextSeason(w);
 
                 foreach (var league in w.Leagues.Values)
-                    Assert.Equal(WorldGenerator.ClubsPerLeague, league.clubIds.Count);
+                    Assert.Equal(league.numberOfTeams, league.clubIds.Count);
             }
         }
 

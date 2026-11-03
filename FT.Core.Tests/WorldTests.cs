@@ -28,7 +28,14 @@ namespace FT.Core.Tests
 
             Assert.Equal(put.Count, w.Nations.Count);
             Assert.Equal(expectedLeagues, w.Leagues.Count);
-            Assert.Equal(expectedLeagues * WorldGenerator.ClubsPerLeague, w.Clubs.Count);
+            // 리그마다 팀 수가 다르므로 합으로 센다.
+            int expectedClubs = put.Sum(n =>
+            {
+                int total = 0;
+                for (int t = 1; t <= n.Tiers; t++) total += n.TeamsIn(t);
+                return total;
+            });
+            Assert.Equal(expectedClubs, w.Clubs.Count);
             Assert.Equal(w.Clubs.Count * WorldGenerator.SquadSize, w.Players.Count);
 
             foreach (var nation in w.Nations)
