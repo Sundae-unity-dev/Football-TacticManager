@@ -283,12 +283,77 @@ namespace FootballTactician.World
             ["AUS"] = new[] { 0 },
         };
 
+
+        /// <summary>
+        /// 승격 플레이오프에 나가는 팀 수. 마지막 한 자리를 그 팀들이 다툰다.
+        /// 잉글랜드 2부 3~6위, 이탈리아는 여섯 팀 (docs/리그-제도.md ④).
+        /// </summary>
+        static readonly Dictionary<string, int[]> PlayoffCounts = new()
+        {
+            ["ENG"] = new[] { 4, 4 },
+            ["ESP"] = new[] { 4, 4 },
+            ["ITA"] = new[] { 6, 4 },
+            ["TUR"] = new[] { 4, 4 },
+            ["SCO"] = new[] { 4, 4 },
+            ["POR"] = new[] { 0, 4 },
+            ["RUS"] = new[] { 0, 2 },
+            ["POL"] = new[] { 4, 4 },
+            ["ROU"] = new[] { 0, 4 },
+            ["CYP"] = new[] { 4, 0 },
+            ["ISR"] = new[] { 0, 4 },
+            ["CZE"] = new[] { 2 },
+            ["GRE"] = new[] { 4 },
+            ["SRB"] = new[] { 2 },
+            ["BUL"] = new[] { 2 },
+            ["SVK"] = new[] { 2 },
+            ["BIH"] = new[] { 2 },
+            ["KAZ"] = new[] { 2 },
+            ["IRL"] = new[] { 2 },
+            ["WAL"] = new[] { 4 },
+            ["COL"] = new[] { 2 },
+            ["URU"] = new[] { 2 },
+            ["CHI"] = new[] { 2 },
+            ["PER"] = new[] { 2 },
+            ["IDN"] = new[] { 4 },
+            ["IRQ"] = new[] { 2 },
+            ["EGY"] = new[] { 2 },
+            ["RSA"] = new[] { 2 },
+        };
+
+        /// <summary>
+        /// 승강 플레이오프를 치르는 나라. 독일 1부 16위 대 2부 3위가 그 모양이다.
+        /// </summary>
+        static readonly Dictionary<string, bool[]> SurvivalPlayoffs = new()
+        {
+            ["GER"] = new[] { true, true },
+            ["FRA"] = new[] { true, false },
+            ["NED"] = new[] { true, true },
+            ["DEN"] = new[] { true, false },
+            ["SWE"] = new[] { true, true },
+            ["NOR"] = new[] { true, false },
+            ["UKR"] = new[] { true, false },
+            ["HUN"] = new[] { true, false },
+            ["FIN"] = new[] { true, false },
+            ["KOR"] = new[] { true },
+            ["SUI"] = new[] { true },
+            ["AUT"] = new[] { true },
+            ["SVN"] = new[] { true },
+            ["CRO"] = new[] { true },
+            ["ALB"] = new[] { true },
+            ["JOR"] = new[] { true },
+            ["UAE"] = new[] { true },
+            ["MAR"] = new[] { true },
+            ["TUN"] = new[] { true },
+        };
+
         static Nations()
         {
             foreach (var n in All)
             {
                 if (TeamCounts.TryGetValue(n.Code, out var sizes)) n.TeamsPerTier = sizes;
                 if (SwapCounts.TryGetValue(n.Code, out var swaps)) n.SwapPerTier = swaps;
+                if (PlayoffCounts.TryGetValue(n.Code, out var po)) n.PlayoffPerTier = po;
+                if (SurvivalPlayoffs.TryGetValue(n.Code, out var sp)) n.SurvivalPlayoffPerTier = sp;
             }
         }
 

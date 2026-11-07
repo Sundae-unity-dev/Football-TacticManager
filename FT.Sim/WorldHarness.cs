@@ -1591,6 +1591,130 @@ namespace FT.Sim
         /// 대륙 대회를 들여다본다. 나라를 전부 넣은 세계에서 대륙마다 어떤 대회가
         /// 서는지, 출전 구단이 어느 나라에서 왔는지.
         /// </summary>
+        /// <summary>
+        /// 승격 플레이오프를 들여다본다.
+        ///
+        /// 세 가지를 확인한다 — 리그 크기가 유지되는가, 순위 그대로가 아닌가
+        /// (플레이오프가 실제로 끼어드는가), 그리고 독일식 승강 플레이오프가 도는가.
+        /// </summary>
+        /// <summary>
+        /// 승격 플레이오프를 들여다본다.
+        ///
+        /// 네 가지를 확인한다 — 리그 크기가 유지되는가, 자동 승격은 순위대로인가,
+        /// 마지막 한 자리가 플레이오프 참가 범위에서 나오는가, 그리고 알림이 남는가.
+        /// </summary>
+        public static void Playoffs()
+        {
+            var codes = new[] { "ENG", "ESP", "ITA", "GER", "KOR", "BRA", "USA" };
+            var w = WorldGenerator.Create(777,
+                nations: codes.Select(NameForge.ByCode).ToList());
+
+            var club = w.Clubs.Values.First(c => c.reputation == 3);
+            ManagerCareer.TakeCharge(w, club.id, "하네스");
+
+            Console.WriteLine("== 승격 플레이오프 ==");
+            Console.WriteLine();
+            foreach (var nation in w.Nations)
+            {
+                var spec = NameForge.ByCode(nation.Code);
+                Console.WriteLine($"[{nation.Country}] 승강 {spec.SwapBelow(1)}팀"
+                    + $" · 승격PO {spec.PlayoffTeams(1)}팀"
+                    + $" · 승강PO {(spec.HasSurvivalPlayoff(1) ? "있음" : "없음")}");
+            }
+            Console.WriteLine();
+
+            int guard = 0;
+            while (!w.SeasonFinished && guard++ < 80) GameEngine.PlayNextRound(w);
+            SeasonRollover.FinishRemainingFixtures(w);
+
+            // 순위는 시즌이 끝난 뒤에 찍어야 뜻이 있다.
+            var finalTable = new Dictionary<int, List<int>>();
+            var sizes = new Dictionary<int, int>();
+            foreach (var league in w.Leagues.Values)
+            {
+                finalTable[league.id] = league.currentSeason.standings
+                    .OrderBy(e => e.position).Select(e => e.clubId).ToList();
+                sizes[league.id] = league.clubIds.Count;
+            }
+
+            SeasonRollover.StartNextSeason(w);
+
+            int broken = 0;
+            foreach (var (id, n) in sizes)
+                if (w.League(id).clubIds.Count != n)
+                {
+                    broken++;
+                    Console.WriteLine($"  [!] {w.League(id).name} {n} -> {w.League(id).clubIds.Count}");
+                }
+            Console.WriteLine(broken == 0 ? "  리그 크기 전부 유지"
+                                          : $"  [!] 크기가 달라진 리그 {broken}개");
+            Console.WriteLine();
+
+            int ok = 0, bad = 0;
+            foreach (var nation in w.Nations)
+            {
+                var spec = NameForge.ByCode(nation.Code);
+
+                for (int t = 0; t + 1 < nation.LeagueIds.Count; t++)
+                {
+                    var top = w.League(nation.LeagueIds[t]);
+                    var below = w.League(nation.LeagueIds[t + 1]);
+                    int spots = Math.Min(top.relegationSpots, below.promotionSpots);
+                    if (spots <= 0) continue;
+
+                    var was = finalTable[below.id];
+                    var rose = was.Select((id, i) => (id, pos: i + 1))
+                                  .Where(x => top.clubIds.Contains(x.id))
+                                  .Select(x => x.pos).OrderBy(x => x).ToList();
+
+                    int entrants = spec.PlayoffTeams(t + 1);
+                    bool survival = spec.HasSurvivalPlayoff(t + 1);
+
+                    string verdict;
+                    if (entrants >= 2)
+                    {
+                        // 자동 spots-1 자리 + 플레이오프 한 자리.
+                        int auto = spots - 1;
+                        bool autoOk = rose.Take(auto).SequenceEqual(Enumerable.Range(1, auto));
+                        bool lastOk = rose.Count == spots
+                            && rose[^1] > auto && rose[^1] <= auto + entrants;
+                        verdict = autoOk && lastOk ? "맞음" : "틀림";
+                    }
+                    else if (survival)
+                    {
+                        // 자동 spots 자리, 운 좋으면 (spots+1) 위가 하나 더.
+                        bool autoOk = rose.Take(spots).SequenceEqual(Enumerable.Range(1, spots));
+                        bool extraOk = rose.Count == spots
+                            || (rose.Count == spots + 1 && rose[^1] == spots + 1);
+                        verdict = autoOk && extraOk ? "맞음" : "틀림";
+                    }
+                    else
+                    {
+                        verdict = rose.SequenceEqual(Enumerable.Range(1, spots)) ? "맞음" : "틀림";
+                    }
+
+                    if (verdict == "맞음") ok++; else bad++;
+
+                    string shape = entrants >= 2 ? $"승격PO {entrants}팀"
+                                 : survival ? "승강PO"
+                                 : "순위대로";
+                    Console.WriteLine($"  {below.name,-16} {shape,-12} "
+                        + $"올라간 순위 {string.Join(",", rose),-10} {verdict}");
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"  맞음 {ok}곳 · 틀림 {bad}곳");
+
+            var inbox = w.Inbox.Where(m => m.title.Contains("플레이오프")).ToList();
+            Console.WriteLine($"  소식에 남은 플레이오프 알림 {inbox.Count}건");
+            foreach (var m in inbox.Take(1))
+            {
+                Console.WriteLine($"    [{m.title}]");
+                foreach (var line in m.body.Split('\n')) Console.WriteLine($"      {line}");
+            }
+        }
+
         public static void Confederations()
         {
             var w = WorldGenerator.Create(31415, 2026, NameForge.All);

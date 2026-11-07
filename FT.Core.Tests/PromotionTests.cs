@@ -307,5 +307,101 @@ namespace FT.Core.Tests
             var nation = w.Nations.First(n => n.Code == code);
             return w.League(nation.LeagueIds[0])!;
         }
+
+        [Fact]
+        public void 승격_플레이오프가_마지막_한_자리를_가린다()
+        {
+            // 잉글랜드 2부는 1·2위가 자동 승격하고 3~6위가 한 자리를 다툰다.
+            // 그러니 세 번째로 올라간 팀은 3위가 아닐 수 있다.
+            var w = Season(4242, "ENG");
+
+            var top = TopLeague(w, "ENG");
+            var below = w.League(w.Nations.First(n => n.Code == "ENG").LeagueIds[1])!;
+
+            var table = below.currentSeason.standings
+                .OrderBy(e => e.position).Select(e => e.clubId).ToList();
+
+            SeasonRollover.StartNextSeason(w);
+
+            var rose = table.Select((id, i) => (id, pos: i + 1))
+                            .Where(x => top.clubIds.Contains(x.id))
+                            .Select(x => x.pos).OrderBy(x => x).ToList();
+
+            Assert.Equal(3, rose.Count);                 // 자리 셋
+            Assert.Equal(new[] { 1, 2 }, rose.Take(2));  // 두 자리는 순위대로
+            Assert.InRange(rose[2], 3, 6);               // 나머지 한 자리는 3~6위 중에서
+        }
+
+        [Fact]
+        public void 승강_플레이오프는_자리를_한_쌍_더_만들_수_있다()
+        {
+            // 독일은 1부 16위와 2부 3위가 직접 맞붙는다. 2부 팀이 이기면
+            // 그 해에만 오가는 팀이 하나 늘어난다 - 올라간 수와 내려간 수는 그래도 같다.
+            var w = Season(515, "GER");
+            var nation = w.Nations.First(n => n.Code == "GER");
+            var top = w.League(nation.LeagueIds[0])!;
+            var below = w.League(nation.LeagueIds[1])!;
+
+            int topSize = top.clubIds.Count;
+            int belowSize = below.clubIds.Count;
+
+            var table = below.currentSeason.standings
+                .OrderBy(e => e.position).Select(e => e.clubId).ToList();
+
+            SeasonRollover.StartNextSeason(w);
+
+            var rose = table.Select((id, i) => (id, pos: i + 1))
+                            .Where(x => top.clubIds.Contains(x.id))
+                            .Select(x => x.pos).OrderBy(x => x).ToList();
+
+            // 자동 두 자리는 순위대로, 그리고 3위가 더 올라왔을 수도 있다.
+            Assert.Equal(new[] { 1, 2 }, rose.Take(2));
+            Assert.InRange(rose.Count, 2, 3);
+            if (rose.Count == 3) Assert.Equal(3, rose[2]);
+
+            // 어느 쪽이든 리그 크기는 그대로다.
+            Assert.Equal(topSize, top.clubIds.Count);
+            Assert.Equal(belowSize, below.clubIds.Count);
+        }
+
+        [Fact]
+        public void 플레이오프가_있어도_리그_크기는_유지된다()
+        {
+            // 승격 플레이오프(잉글랜드·이탈리아)와 승강 플레이오프(독일·한국)를
+            // 한 세계에 섞어 놓고 여러 시즌을 넘겨 본다.
+            var w = Season(909, "ENG", "ITA", "GER", "KOR");
+
+            var sizes = w.Leagues.Values.ToDictionary(l => l.id, l => l.clubIds.Count);
+
+            for (int s = 0; s < 3; s++)
+            {
+                SeasonRollover.StartNextSeason(w);
+
+                int guard = 0;
+                while (!w.SeasonFinished && guard++ < 80) GameEngine.PlayNextRound(w);
+                SeasonRollover.FinishRemainingFixtures(w);
+            }
+
+            foreach (var (id, n) in sizes)
+                Assert.Equal(n, w.League(id)!.clubIds.Count);
+        }
+
+        /// <summary>그 나라들로 세계를 만들고 한 시즌을 끝까지 치른다.</summary>
+        static GameWorld Season(int seed, params string[] codes)
+        {
+            var w = WorldGenerator.Create(seed,
+                nations: codes.Select(NameForge.ByCode).ToList());
+
+            var club = w.Clubs.Values.First(c => c.reputation == 3);
+            ManagerCareer.TakeCharge(w, club.id, "테스트");
+
+            int guard = 0;
+            while (!w.SeasonFinished && guard++ < 80) GameEngine.PlayNextRound(w);
+            Assert.True(w.SeasonFinished, $"{guard}라운드를 돌려도 시즌이 끝나지 않았다");
+
+            // 아래 리그는 라운드가 더 많다. 남은 경기를 마쳐야 순위표가 완성된다.
+            SeasonRollover.FinishRemainingFixtures(w);
+            return w;
+        }
     }
 }

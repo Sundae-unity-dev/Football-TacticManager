@@ -62,6 +62,38 @@ namespace FootballTactician.World
         /// </summary>
         public int[] SwapPerTier;
 
+        /// <summary>
+        /// 승격 플레이오프에 나가는 팀 수. 0번이 1부↔2부, 1번이 2부↔3부다.
+        ///
+        /// 0 이면 순위만으로 올라간다. 잉글랜드는 네 팀(2부 3~6위), 이탈리아는 여섯 팀이
+        /// 마지막 한 자리를 다툰다 — 나머지 자리는 그대로 자동 승격이다.
+        /// </summary>
+        public int[] PlayoffPerTier;
+
+        /// <summary>
+        /// 승강 플레이오프를 치르는지. 0번이 1부↔2부, 1번이 2부↔3부다.
+        ///
+        /// 독일식이다 — 내려갈 뻔한 위 리그 팀과 올라올 뻔한 아래 리그 팀이 직접 맞붙는다.
+        /// 자동 자리 위에 한 쌍이 더 붙으므로, 아래 팀이 이긴 해에만 오가는 팀이 하나 늘어난다.
+        /// </summary>
+        public bool[] SurvivalPlayoffPerTier;
+
+        /// <summary>그 경계의 승격 플레이오프 참가 팀 수. 없으면 0.</summary>
+        public int PlayoffTeams(int tier)
+        {
+            if (PlayoffPerTier == null || PlayoffPerTier.Length == 0) return 0;
+            int i = System.Math.Clamp(tier - 1, 0, PlayoffPerTier.Length - 1);
+            return System.Math.Clamp(PlayoffPerTier[i], 0, 8);
+        }
+
+        /// <summary>그 경계에서 승강 플레이오프를 치르는지.</summary>
+        public bool HasSurvivalPlayoff(int tier)
+        {
+            if (SurvivalPlayoffPerTier == null || SurvivalPlayoffPerTier.Length == 0) return false;
+            int i = System.Math.Clamp(tier - 1, 0, SurvivalPlayoffPerTier.Length - 1);
+            return SurvivalPlayoffPerTier[i];
+        }
+
         /// <summary>그 부와 한 칸 아래 사이를 오가는 팀 수. 적어 두지 않았으면 세 팀.</summary>
         public int SwapBelow(int tier)
         {

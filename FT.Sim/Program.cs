@@ -49,6 +49,7 @@ namespace FT.Sim
             if (mode is "wages") WorldHarness.Wages(args.Length > 1 ? int.Parse(args[1]) : 0);
             if (mode is "scale") WorldHarness.Scale(args.Length > 1 ? int.Parse(args[1]) : 32);
             if (mode is "names") WorldHarness.NameCheck();
+            if (mode is "playoff") WorldHarness.Playoffs();
             if (mode is "conf") WorldHarness.Confederations();
 
             if (mode is "ages") WorldHarness.Ages(args.Length > 1 ? int.Parse(args[1]) : 12);

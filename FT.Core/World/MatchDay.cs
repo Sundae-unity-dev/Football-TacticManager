@@ -149,18 +149,32 @@ namespace FootballTactician.World
 
         /// <summary>컵 경기 한 판. 리그 경기와 같은 엔진을 쓰되 일정에는 기록하지 않는다.</summary>
         public static (int home, int away) SimulateCupTie(GameWorld w, CupState cup, CupTie tie)
+            => SimulateOneOff(w, tie.homeClubId, tie.awayClubId,
+                              cup.id * 100 + cup.currentRound * 10 + tie.homeClubId % 10,
+                              SeedMix.Of(w.Seed,
+                                         cup.id * 977 + cup.currentRound * 31 + tie.homeClubId,
+                                         5501));
+
+        /// <summary>
+        /// 일정에 없는 한 판. 리그 경기와 같은 엔진을 쓰되 일정에는 기록하지 않는다.
+        ///
+        /// 컵과 승격 플레이오프가 같이 쓴다 — 둘 다 "순위표에 남지 않는 경기"다.
+        /// 씨드를 부르는 쪽이 정하므로, 같은 세계를 다시 돌리면 같은 결과가 나온다.
+        /// </summary>
+        public static (int home, int away) SimulateOneOff(
+            GameWorld w, int homeClubId, int awayClubId, int fixtureId, int seed)
         {
-            var home = BuildLineup(w, tie.homeClubId);
-            var away = BuildLineup(w, tie.awayClubId);
+            var home = BuildLineup(w, homeClubId);
+            var away = BuildLineup(w, awayClubId);
             if (home == null || away == null) return (0, 0);
 
             var ctx = new MatchSimContext
             {
-                fixtureId = cup.id * 100 + cup.currentRound * 10 + tie.homeClubId % 10,
+                fixtureId = fixtureId,
                 home = home,
                 away = away,
-                seed = SeedMix.Of(w.Seed, cup.id * 977 + cup.currentRound * 31 + tie.homeClubId, 5501),
-                rules = w.LeagueOf(tie.homeClubId)?.matchRules ?? new MatchRules(),
+                seed = seed,
+                rules = w.LeagueOf(homeClubId)?.matchRules ?? new MatchRules(),
             };
 
             var result = MatchEngine.Simulate(ctx, w.Lookup);

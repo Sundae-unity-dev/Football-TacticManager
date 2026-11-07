@@ -299,6 +299,8 @@ namespace FootballTactician.World
                 // 먼저 내려갈 팀과 올라갈 팀을 전부 추려 둔 뒤에 옮긴다. 한 쌍씩 옮기면
                 // 2부에서 1부로 올라간 팀이 곧바로 3부와의 처리에 끼어든다.
                 var moves = new List<(int clubId, LeagueData from, LeagueData to, bool down)>();
+                var spec = NameForge.ByCode(nation.Code);
+                var playoffLog = new List<string>();
 
                 for (int t = 0; t + 1 < nation.LeagueIds.Count; t++)
                 {
@@ -309,12 +311,13 @@ namespace FootballTactician.World
                     int spots = Math.Min(top.relegationSpots, below.promotionSpots);
                     if (spots <= 0) continue;
 
-                    var goingDown = top.currentSeason.standings
-                        .OrderByDescending(e => e.position).Take(spots).Select(e => e.clubId).ToList();
-                    var goingUp = below.currentSeason.standings
-                        .OrderBy(e => e.position).Take(spots).Select(e => e.clubId).ToList();
+                    // 순위만으로 올라가는 리그가 오히려 소수다 — 마지막 한 자리를
+                    // 플레이오프로 가리는 나라가 많다(docs/리그-제도.md ④).
+                    var rng = new Random(SeedMix.Of(w.Seed, top.id * 131 + w.SeasonYear, 60611));
+                    var (goingDown, goingUp) =
+                        PromotionPlayoff.Resolve(w, spec, t + 1, top, below, spots, rng, playoffLog);
 
-                    if (goingDown.Count < spots || goingUp.Count < spots) continue;
+                    if (goingDown.Count == 0 || goingUp.Count == 0) continue;
 
                     foreach (int id in goingDown) moves.Add((id, top, below, true));
                     foreach (int id in goingUp) moves.Add((id, below, top, false));
@@ -333,6 +336,14 @@ namespace FootballTactician.World
                 // "올라가면 올려 준다"고 적은 계약은 여기서 오른다.
                 foreach (var (id, _, _, down) in moves)
                     if (!down) ContractBonuses.ApplyPromotionRaises(w, id);
+
+                // 플레이오프는 따로 알린다 — 순위만 보면 왜 그 팀이 올라갔는지 알 수 없다.
+                if (w.ManagedClubId > 0 && playoffLog.Count > 0
+                    && nation.LeagueIds.Contains(w.LeagueOf(w.ManagedClubId)?.id ?? -1))
+                {
+                    w.Post($"{nation.Country} 플레이오프",
+                           string.Join("\n", playoffLog), InboxKind.News);
+                }
 
                 // 내 나라의 승강은 단계를 가리지 않고 알린다 — 3부 승강도 내 다음 상대를 바꾼다.
                 if (w.ManagedClubId > 0 && moves.Count > 0
