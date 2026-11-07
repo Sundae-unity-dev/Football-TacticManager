@@ -34,6 +34,16 @@ def file_url(path):
     return 'file:///' + path.replace('\\', '/').replace(' ', '%20')
 
 
+def say(line):
+    """윈도 콘솔은 cp949 라 이모지를 못 찍는다. 찍을 수 없는 글자는 버리고 알린다.
+
+    예전에는 여기서 UnicodeEncodeError 가 나서, 북마크를 이미 넣은 뒤인데도
+    스크립트가 실패한 것처럼 보였다.
+    """
+    enc = getattr(sys.stdout, 'encoding', None) or 'utf-8'
+    print(line.encode(enc, 'replace').decode(enc, 'replace'))
+
+
 WANT = [
     ('⚽ 기획서', file_url(PLAN_HTML)),
     ('⚽ 기획서(GitHub)', GITHUB_DOC),
@@ -65,23 +75,23 @@ def main():
     check_only = '--check' in sys.argv
 
     if not os.path.exists(BOOKMARKS):
-        print('[x] 북마크 파일을 못 찾았습니다: %s' % BOOKMARKS)
+        say('[x] 북마크 파일을 못 찾았습니다: %s' % BOOKMARKS)
         return 1
     if not os.path.exists(PLAN_HTML):
-        print('[x] 기획서가 없습니다. 먼저: py tools/make-plan.py')
+        say('[x] 기획서가 없습니다. 먼저: py tools/make-plan.py')
         return 1
 
     running = chrome_running()
-    print('기획서    : %s' % PLAN_HTML)
-    print('북마크    : %s' % BOOKMARKS)
-    print('크롬      : %s' % ('실행 중 - 닫아야 합니다' if running else '꺼져 있음'))
+    say('기획서    : %s' % PLAN_HTML)
+    say('북마크    : %s' % BOOKMARKS)
+    say('크롬      : %s' % ('실행 중 - 닫아야 합니다' if running else '꺼져 있음'))
 
     if check_only:
         return 0
     if running:
-        print()
-        print('[!] 크롬이 켜져 있어 넣지 않았습니다.')
-        print('    크롬을 완전히 닫고(트레이 아이콘까지) 다시 돌려 주세요.')
+        say('')
+        say('[!] 크롬이 켜져 있어 넣지 않았습니다.')
+        say('    크롬을 완전히 닫고(트레이 아이콘까지) 다시 돌려 주세요.')
         return 2
 
     data = json.loads(io.open(BOOKMARKS, encoding='utf-8').read())
@@ -120,13 +130,13 @@ def main():
     io.open(BOOKMARKS, 'w', encoding='utf-8', newline='\n').write(
         json.dumps(data, ensure_ascii=False, indent=3))
 
-    print()
-    print('[o] 북마크바에 넣었습니다 (%d개 교체, %d개 추가)' % (replaced, len(WANT)))
+    say('')
+    say('[o] 북마크바에 넣었습니다 (%d개 교체, %d개 추가)' % (replaced, len(WANT)))
     for name, url in WANT:
-        print('    - %s' % name)
-    print('    원본 백업: %s' % backup)
-    print()
-    print('    크롬을 켜고 Ctrl+Shift+B 로 북마크바를 켜면 보입니다.')
+        say('    - %s' % name)
+    say('    원본 백업: %s' % backup)
+    say('')
+    say('    크롬을 켜고 Ctrl+Shift+B 로 북마크바를 켜면 보입니다.')
     return 0
 
 
