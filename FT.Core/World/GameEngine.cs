@@ -101,6 +101,9 @@ namespace FootballTactician.World
                     season.currentMatchday = Math.Max(season.currentMatchday, matchday);
                     using (SimProfile.Measure("  ├ 순위 재계산"))
                         Standings.Recalculate(league);
+
+                    // 정규리그가 끝났으면 상·하위로 가른다. 순위가 정해진 뒤여야 한다.
+                    LeagueSplit.ApplyIfDue(w, league);
                 }
             }
 

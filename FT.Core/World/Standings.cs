@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FootballTactician.Data;
@@ -53,8 +54,17 @@ namespace FootballTactician.World
                 }
             }
 
+            // 승점 절반 같은 보정은 경기에서 셀 수 없으니 따로 적어 둔 것을 더한다.
+            if (season.pointsCarry != null)
+                foreach (var e in table.Values)
+                    if (season.pointsCarry.TryGetValue(e.clubId, out int carry))
+                        e.points = Math.Max(0, e.points + carry);
+
+            // **조 경계가 승점보다 우선한다** — 하위 조 1위는 상위 조 꼴찌보다 승점이
+            // 많아도 위로 올라서지 못한다. 그게 스플릿의 핵심이다.
             var ordered = table.Values
-                .OrderByDescending(e => e.points)
+                .OrderBy(e => LeagueSplit.GroupOf(season, e.clubId))
+                .ThenByDescending(e => e.points)
                 .ThenByDescending(e => e.GoalDifference)
                 .ThenByDescending(e => e.goalsFor)
                 .ThenBy(e => e.clubId)

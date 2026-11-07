@@ -1715,6 +1715,107 @@ namespace FT.Sim
             }
         }
 
+        /// <summary>
+        /// 스플릿을 들여다본다.
+        ///
+        /// 네 가지를 확인한다 — 갈라지는가, 갈린 뒤에는 같은 조끼리만 치르는가,
+        /// 조 경계가 승점보다 우선하는가, 승점 절반이 실제로 깎는가.
+        /// </summary>
+        public static void Splits()
+        {
+            var codes = new[] { "SCO", "KOR", "AUT", "BEL", "ENG" };
+            var w = WorldGenerator.Create(31337,
+                nations: codes.Select(NameForge.ByCode).ToList());
+
+            var club = w.Clubs.Values.First(c => c.reputation == 3);
+            ManagerCareer.TakeCharge(w, club.id, "하네스");
+
+            Console.WriteLine("== 스플릿 ==");
+            Console.WriteLine();
+
+            // 갈리기 전의 승점을 적어 둔다 (승점 절반을 확인하려면 필요하다).
+            var beforePoints = new Dictionary<int, Dictionary<int, int>>();
+
+            int guard = 0;
+            while (!w.SeasonFinished && guard++ < 90)
+            {
+                GameEngine.PlayNextRound(w);
+
+                foreach (var l in w.Leagues.Values)
+                {
+                    var se = l.currentSeason;
+                    if (se.splitMatchday == 0 || beforePoints.ContainsKey(l.id)) continue;
+
+                    // 갈린 직후다. 이미 보정이 들어갔으므로 되돌려 적는다.
+                    beforePoints[l.id] = se.standings.ToDictionary(
+                        e => e.clubId,
+                        e => e.points - (se.pointsCarry != null
+                             && se.pointsCarry.TryGetValue(e.clubId, out int c) ? c : 0));
+                }
+            }
+
+            SeasonRollover.FinishRemainingFixtures(w);
+
+            foreach (var nation in w.Nations)
+            {
+                var spec = NameForge.ByCode(nation.Code);
+                foreach (int lid in nation.LeagueIds)
+                {
+                    var l = w.League(lid);
+                    var se = l.currentSeason;
+                    int top = spec.SplitTopSize((int)l.tier);
+
+                    if (top == 0)
+                    {
+                        Console.WriteLine($"  {l.name,-16} 스플릿 없음 · "
+                            + $"{se.totalMatchdays}라운드");
+                        continue;
+                    }
+
+                    int regular = WorldGenerator.Matchdays(l.numberOfTeams);
+
+                    // 갈린 뒤 경기가 조를 넘나들지 않는지.
+                    int crossed = se.fixtures.Count(f => f.matchday > se.splitMatchday
+                        && LeagueSplit.GroupOf(se, f.homeClubId)
+                           != LeagueSplit.GroupOf(se, f.awayClubId));
+
+                    // 조 경계가 지켜졌는지 — 하위 조가 상위 조보다 위에 있으면 틀렸다.
+                    var order = se.standings.OrderBy(e => e.position).ToList();
+                    int boundary = order.FindIndex(e => LeagueSplit.GroupOf(se, e.clubId) == 1);
+                    bool clean = boundary == top
+                        && order.Take(top).All(e => LeagueSplit.GroupOf(se, e.clubId) == 0);
+
+                    // 승점이 가장 많은 하위 조 팀과 가장 적은 상위 조 팀.
+                    var bestLower = order.Where(e => LeagueSplit.GroupOf(se, e.clubId) == 1)
+                                         .OrderByDescending(e => e.points).First();
+                    var worstUpper = order.Where(e => LeagueSplit.GroupOf(se, e.clubId) == 0)
+                                          .OrderBy(e => e.points).First();
+                    bool inverted = bestLower.points > worstUpper.points;
+
+                    string halved = "";
+                    if (spec.HalvesPoints((int)l.tier) && beforePoints.TryGetValue(l.id, out var bp))
+                    {
+                        int sample = bp.Keys.First();
+                        halved = $" · 절반 {bp[sample]}→{(bp[sample] + 1) / 2}점";
+                    }
+
+                    Console.WriteLine($"  {l.name,-16} 정규 {regular} + 스플릿 "
+                        + $"{se.totalMatchdays - regular} = {se.totalMatchdays}라운드 · "
+                        + $"상위 {top}팀{halved}");
+                    Console.WriteLine($"    조를 넘나든 경기 {crossed} · 경계 "
+                        + $"{(clean ? "지켜짐" : "깨짐")}"
+                        + (inverted ? $" (하위 1위 {bestLower.points}점 > 상위 꼴찌 "
+                                      + $"{worstUpper.points}점 — 경계가 일한 경우)" : ""));
+                }
+            }
+
+            Console.WriteLine();
+            var inbox = w.Inbox.Where(m => m.title.Contains("스플릿")).ToList();
+            Console.WriteLine($"  소식에 남은 스플릿 알림 {inbox.Count}건");
+            foreach (var m in inbox.Take(1))
+                Console.WriteLine($"    [{m.title}] {m.body}");
+        }
+
         public static void Confederations()
         {
             var w = WorldGenerator.Create(31415, 2026, NameForge.All);

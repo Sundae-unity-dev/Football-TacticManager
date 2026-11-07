@@ -663,3 +663,12 @@ table.ft tr.dim-row td { opacity: .45; }
 
 /* 이룬 목표의 진행 막대 */
 .bar.good i { background: linear-gradient(90deg, var(--emerald-d), var(--emerald)); }
+
+/* 스플릿 경계 — 위 조와 아래 조 사이. 승점만 보면 뒤집혀 보이므로 선을 그어 준다. */
+tr.split-line td {
+    border-top: 2px solid var(--amber);
+    background: color-mix(in srgb, var(--amber) 10%, transparent);
+    padding: .3rem .5rem;
+    text-align: center;
+    letter-spacing: .02em;
+}

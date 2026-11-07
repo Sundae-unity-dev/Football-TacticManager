@@ -42,6 +42,22 @@ namespace FootballTactician.Data
         public List<StandingEntry> standings;
         public List<FixtureData>   fixtures;
 
+        /// <summary>
+        /// 스플릿이 일어난 라운드. 0 이면 아직 갈라지지 않았거나 스플릿이 없는 리그다
+        /// (docs/리그-제도.md ⑤).
+        /// </summary>
+        public int splitMatchday;
+
+        /// <summary>구단 → 조. 0 이 상위, 1 이 하위. 스플릿 전에는 비어 있다.</summary>
+        public Dictionary<int, int> splitGroups;
+
+        /// <summary>
+        /// 구단 → 승점 보정. 승점 절반 규칙이 여기로 들어온다(보통 음수).
+        ///
+        /// 순위표는 매번 경기에서 다시 세므로, 줄인 승점을 따로 적어 두어야 남는다.
+        /// </summary>
+        public Dictionary<int, int> pointsCarry;
+
         /// <summary>일정을 다 치렀는지. "시즌이 끝났다" 의 뜻은 여기 한 곳에만 둔다.</summary>
         [JsonIgnore] public bool Finished => fixtures.All(f => f.isPlayed);
     }

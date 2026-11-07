@@ -78,6 +78,33 @@ namespace FootballTactician.World
         /// </summary>
         public bool[] SurvivalPlayoffPerTier;
 
+        /// <summary>
+        /// 스플릿의 상위 조 팀 수. 0 이면 스플릿이 없다 (docs/리그-제도.md ⑤).
+        ///
+        /// 정규리그를 치른 뒤 상·하위로 갈라 자기들끼리 한 바퀴 더 돈다. 열두 팀이면
+        /// 여섯씩 갈라 다섯 경기를 더 치른다.
+        /// </summary>
+        public int[] SplitPerTier;
+
+        /// <summary>스플릿 때 승점을 절반(올림)으로 줄이는지. 오스트리아·스위스·루마니아·벨기에.</summary>
+        public bool[] HalvePointsPerTier;
+
+        /// <summary>그 부의 상위 조 팀 수. 스플릿이 없으면 0.</summary>
+        public int SplitTopSize(int tier)
+        {
+            if (SplitPerTier == null || SplitPerTier.Length == 0) return 0;
+            int i = System.Math.Clamp(tier - 1, 0, SplitPerTier.Length - 1);
+            return System.Math.Clamp(SplitPerTier[i], 0, 15);
+        }
+
+        /// <summary>그 부에서 갈라질 때 승점을 절반으로 줄이는지.</summary>
+        public bool HalvesPoints(int tier)
+        {
+            if (HalvePointsPerTier == null || HalvePointsPerTier.Length == 0) return false;
+            int i = System.Math.Clamp(tier - 1, 0, HalvePointsPerTier.Length - 1);
+            return HalvePointsPerTier[i];
+        }
+
         /// <summary>그 경계의 승격 플레이오프 참가 팀 수. 없으면 0.</summary>
         public int PlayoffTeams(int tier)
         {

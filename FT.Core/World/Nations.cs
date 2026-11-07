@@ -346,6 +346,43 @@ namespace FootballTactician.World
             ["TUN"] = new[] { true },
         };
 
+
+        /// <summary>
+        /// 스플릿의 상위 조 팀 수. 정규리그 뒤에 상·하위로 갈라 한 바퀴 더 돈다.
+        ///
+        /// 리그의 절반으로 둔다 — 두 조가 더 치르는 경기 수가 같아야 억울한 쪽이 없다
+        /// (실제로는 벨기에처럼 상위 6·하위 10 으로 갈리는 나라도 있다).
+        /// </summary>
+        static readonly Dictionary<string, int[]> SplitSizes = new()
+        {
+            ["SCO"] = new[] { 6, 5 },
+            ["KOR"] = new[] { 6 },
+            ["DEN"] = new[] { 6, 6 },
+            ["AUT"] = new[] { 6 },
+            ["SUI"] = new[] { 6 },
+            ["FIN"] = new[] { 6, 5 },
+            ["ISL"] = new[] { 6, 6 },
+            ["HUN"] = new[] { 6, 8 },
+            ["CYP"] = new[] { 7, 8 },
+            ["ISR"] = new[] { 7, 8 },
+            ["BEL"] = new[] { 8, 8 },
+            ["ROU"] = new[] { 8, 10 },
+            ["CZE"] = new[] { 8 },
+            ["SVK"] = new[] { 6 },
+            ["SVN"] = new[] { 5 },
+            ["NOR"] = new[] { 8, 8 },
+            ["SWE"] = new[] { 8, 8 },
+        };
+
+        /// <summary>갈라질 때 승점을 절반으로 줄이는 나라. 막판을 다시 붙여 놓는 장치다.</summary>
+        static readonly Dictionary<string, bool[]> HalvePoints = new()
+        {
+            ["AUT"] = new[] { true },
+            ["SUI"] = new[] { true },
+            ["ROU"] = new[] { true, true },
+            ["BEL"] = new[] { true, true },
+        };
+
         static Nations()
         {
             foreach (var n in All)
@@ -354,6 +391,8 @@ namespace FootballTactician.World
                 if (SwapCounts.TryGetValue(n.Code, out var swaps)) n.SwapPerTier = swaps;
                 if (PlayoffCounts.TryGetValue(n.Code, out var po)) n.PlayoffPerTier = po;
                 if (SurvivalPlayoffs.TryGetValue(n.Code, out var sp)) n.SurvivalPlayoffPerTier = sp;
+                if (SplitSizes.TryGetValue(n.Code, out var sz)) n.SplitPerTier = sz;
+                if (HalvePoints.TryGetValue(n.Code, out var hp)) n.HalvePointsPerTier = hp;
             }
         }
 

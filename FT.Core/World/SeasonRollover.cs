@@ -428,6 +428,7 @@ namespace FootballTactician.World
 
                     season.currentMatchday = Math.Max(season.currentMatchday, matchday);
                     Standings.Recalculate(league);
+                    LeagueSplit.ApplyIfDue(w, league);
                 }
             }
         }
@@ -473,7 +474,9 @@ namespace FootballTactician.World
                 }
 
                 var start = FixtureScheduler.SeasonStart(nextYear);
-                int matchdays = (league.clubIds.Count - 1) * 2;
+                // 홀수 팀이면 매 라운드 한 팀이 쉬므로 라운드가 하나 더 필요하다.
+                // 직접 세면 29팀 리그가 56라운드로 적힌다(실제로는 58).
+                int matchdays = WorldGenerator.Matchdays(league.clubIds.Count);
 
                 league.currentSeason = new LeagueSeason
                 {
