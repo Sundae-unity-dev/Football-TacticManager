@@ -137,12 +137,14 @@ namespace FootballTactician.World
 
             if (called.Count == 0) return;
 
+            // 한 명만 불려 갔으면 그 선수로 이어 준다. 여럿이면 가리킬 한 곳이 없어 그냥 둔다.
             w.Post("A매치 소집",
                 $"{called.Count}명이 국가대표에 소집됐습니다 — " +
                 string.Join(", ", called.Take(6).Select(p => p.FullName)) +
                 (called.Count > 6 ? " 외" : "") +
                 ". 지친 상태로 돌아옵니다.",
-                InboxKind.News);
+                InboxKind.News,
+                playerId: called.Count == 1 ? called[0].id : 0);
         }
 
         /// <summary>대표 경력이 몸값에 붙이는 배수.</summary>

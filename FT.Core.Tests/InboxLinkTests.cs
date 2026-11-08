@@ -48,6 +48,42 @@ namespace FT.Core.Tests
             Assert.Equal(0, back.Inbox[0].clubId);
         }
 
+        /// <summary>
+        /// A매치 소집 소식만 대상 id 를 달지 않고 있었다 — 본문이 내 선수 이름을 대 놓고
+        /// 가리키는데도 눌리지 않았다. 한 명만 불려 갔으면 그 선수로 이어져야 한다.
+        /// </summary>
+        [Fact]
+        public void 한_명만_소집되면_그_선수로_이어진다()
+        {
+            bool sawSingle = false;
+
+            foreach (int seed in new[] { 13579, 2468, 31337, 909, 4242, 515, 24680 })
+            {
+                var w = WorldGenerator.Create(seed);
+                var club = w.Clubs.Values.First(c => c.reputation == 3);
+                ManagerCareer.TakeCharge(w, club.id, "테스트");
+
+                NationalTeam.RunBreak(w, new System.Random(seed));
+
+                var call = w.Inbox.FirstOrDefault(i => i.title == "A매치 소집");
+                if (call == null) continue;
+
+                if (call.body.StartsWith("1명이"))
+                {
+                    sawSingle = true;
+                    Assert.True(call.playerId > 0, "한 명만 소집됐는데 가리키는 선수가 없다");
+                    Assert.Equal(club.id, w.Player(call.playerId)?.clubId);
+                }
+                else
+                {
+                    // 여럿이면 가리킬 한 곳이 없다.
+                    Assert.Equal(0, call.playerId);
+                }
+            }
+
+            Assert.True(sawSingle, "한 명만 소집된 경우가 없어 규칙이 일하는지 알 수 없다");
+        }
+
         static string Unzip(byte[] packed)
         {
             using var src = new MemoryStream(packed);
