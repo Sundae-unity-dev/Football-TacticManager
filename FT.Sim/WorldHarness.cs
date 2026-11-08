@@ -1839,6 +1839,10 @@ namespace FT.Sim
             var sizes = new Dictionary<int, int>();      // 리그 → 참가 팀 수
             var sample = new Dictionary<int, string>();  // 리그 → 한 줄 예시
 
+            // 대진에 나가는 팀들의 전력 폭과 그 리그의 정규리그 득점. 한쪽이 크게 세면
+            // 플레이오프 점수가 크게 나오는데, 그건 대진이 아니라 리그가 벌어진 탓이다.
+            var spread = new Dictionary<int, (double lo, double hi, double gpg)>();
+
             for (int s = 0; s < seasons; s++)
             {
                 int guard = 0;
@@ -1849,6 +1853,21 @@ namespace FT.Sim
                 var topBefore = w.Leagues.Values.ToDictionary(
                     l => l.id,
                     l => l.currentSeason.standings.OrderBy(e => e.position).First().clubId);
+
+                // 마지막 시즌의 전력 폭과 득점을 재 둔다.
+                foreach (var l in w.Leagues.Values)
+                {
+                    int n = ChampionPlayoff.EntrantsFor(w, l);
+                    if (n < 2) continue;
+
+                    var field = l.currentSeason.standings.OrderBy(e => e.position)
+                                 .Take(n).Select(e => w.Strength(e.clubId)).ToList();
+                    var done = l.currentSeason.fixtures.Where(f => f.isPlayed && f.result != null).ToList();
+                    double gpg = done.Count == 0 ? 0
+                        : done.Average(f => f.result.homeGoals + f.result.awayGoals);
+
+                    spread[l.id] = (field.Min(), field.Max(), gpg);
+                }
 
                 SeasonRollover.StartNextSeason(w);
 
@@ -1883,15 +1902,46 @@ namespace FT.Sim
                 int up = upsets.GetValueOrDefault(l.id);
                 Console.WriteLine($"  {l.name,-18} 상위 {sizes[l.id]}팀 · {n}시즌 중 "
                     + $"{up}번 1위가 놓침");
+
+                if (spread.TryGetValue(l.id, out var sp))
+                    Console.WriteLine($"    진출팀 전력 {sp.lo:F0}~{sp.hi:F0} "
+                        + $"(폭 {sp.hi - sp.lo:F0}) · 정규리그 득점 {sp.gpg:F2}/경기");
                 if (sample.TryGetValue(l.id, out string? line))
                     Console.WriteLine($"    예: {line}");
             }
 
             Console.WriteLine();
             var inbox = w.Inbox.Where(m => m.title.Contains("챔피언 결정전")).ToList();
+
+            // 플레이오프 경기가 리그 경기보다 많이 터지는지. 눈으로 보면 큰 점수만
+            // 기억에 남으므로 세어 본다.
+            var goals = inbox.SelectMany(m => m.body.Split('\n'))
+                             .SelectMany(LegGoals).ToList();
+            if (goals.Count > 0)
+                Console.WriteLine($"  플레이오프 {goals.Count}경기 득점 "
+                    + $"{goals.Average():F2}/경기 · 가장 큰 경기 {goals.Max()}골");
+
             Console.WriteLine($"  소식에 남은 챔피언 결정전 알림 {inbox.Count}건");
             foreach (var m in inbox.Take(1))
                 Console.WriteLine($"    [{m.title}]\n{m.body}");
+        }
+
+        /// <summary>
+        /// 로그 한 줄에서 <b>실제로 치른 경기</b>의 총 득점을 꺼낸다.
+        ///
+        /// 두 경기 줄은 "A 8-3 B (합산 1-4, 4-2)" 꼴이라 앞의 8-3 은 합계다 — 세면 두 번
+        /// 센다. 결승 줄은 한 판뿐이다.
+        /// </summary>
+        static IEnumerable<int> LegGoals(string line)
+        {
+            var pairs = System.Text.RegularExpressions.Regex
+                .Matches(line, @"(\d+)-(\d+)")
+                .Select(m => int.Parse(m.Groups[1].Value) + int.Parse(m.Groups[2].Value))
+                .ToList();
+
+            if (line.Contains("합산")) return pairs.Skip(1);   // 앞의 하나는 합계다
+            if (line.Contains("결승")) return pairs.Take(1);
+            return Enumerable.Empty<int>();
         }
 
         public static void Confederations()

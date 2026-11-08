@@ -441,13 +441,19 @@ namespace FootballTactician.World
             // 남은 경기를 먼저 치른다. 미완성 순위표로 올리고 내리면 안 된다.
             FinishRemainingFixtures(w);
 
-            // 우승팀을 토너먼트로 가리는 나라가 있다(docs/리그-제도.md ⑥).
-            // 시상보다 먼저 치러야 한다 — 누가 우승인지 정해져야 기록이 맞는다.
-            RunChampionPlayoffs(w);
-
             // 시상과 명예는 순위표·기록을 비우기 전에, 그리고 승강으로 리그가 바뀌기 전에 끝낸다.
             // 뒤로 밀면 우승팀이 다른 리그 소속으로 기록된다.
             SeasonAwards.RunAll(w, w.SeasonYear);
+
+            // 챔피언 결정전은 시상 **뒤**다(docs/리그-제도.md ⑥).
+            //
+            // 일정에 없는 경기도 득점과 평점을 선수 기록에 남긴다. 시상보다 먼저 치르면
+            // 득점왕이 플레이오프 골로 뒤집힌다 — 실제로는 정규리그만 센다. 승격
+            // 플레이오프(④)도 같은 이유로 시상 뒤에 있다.
+            //
+            // 다만 명예(RecordSeasonTitles)보다는 앞서야 한다. 누가 우승인지 먼저 정해져야 한다.
+            RunChampionPlayoffs(w);
+
             RecordSeasonTitles(w);
 
             ApplyPromotionAndRelegation(w);

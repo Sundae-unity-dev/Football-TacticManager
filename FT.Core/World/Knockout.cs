@@ -90,8 +90,10 @@ namespace FootballTactician.World
             int winner = highGoals >= lowGoals ? high : low;
             string how = highGoals == lowGoals ? ", 순위가 높은 쪽이 오름" : "";
 
-            log.Add($"  {Name(w, high)} {highGoals}-{lowGoals} {Name(w, low)}"
-                    + $" (합산 {Score(leg1)}, {Score(leg2)}{how})");
+            // "A 8-3 B (합산 1-4, 4-2)" 라고 적었더니 8-3 이 한 경기 점수로 읽혔다.
+            // 합계인지 한 판인지가 숫자 앞에 있어야 한다.
+            log.Add($"  {Name(w, high)} 합산 {highGoals}-{lowGoals} {Name(w, low)}"
+                    + $" (1차 {Score(leg1)} · 2차 {Score(leg2)}{how})");
             return winner;
         }
 
