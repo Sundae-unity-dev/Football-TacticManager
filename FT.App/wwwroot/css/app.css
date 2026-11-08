@@ -196,6 +196,24 @@ a:hover { text-decoration: underline; }
   .content { padding: 1rem; }
 }
 
+/*
+   상단 바는 한 줄에 다 들어가지 않는다. 날짜·다음 경기 뒤에 이사회 배지와 단추 서넛이
+   줄줄이 붙는데, 폰 너비에서는 단추들이 화면 밖으로 밀려 나가 *모든 화면*이 가로로
+   스크롤됐다. 늘어나기만 하던 빈 칸을 한 줄 통째로 차지하게 만들어 단추를 아랫줄로 접는다.
+*/
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; gap: .5rem .7rem; padding: .6rem .9rem; }
+  .topbar .nowrap { white-space: normal; }
+  .topbar-spacer { flex-basis: 100%; height: 0; }
+
+  /*
+     구단 화면의 작은 경기 표. 구단 이름 칸이 nowrap 이라 폰 너비에서 표가 카드보다
+     몇 px 넓어졌다 — 긴 이름 하나에 오른쪽 끝이 잘렸다. 좁을 때는 이름을 접는다.
+  */
+  table.ft.compact td { padding: .4rem .35rem; }
+  table.ft.compact td.nowrap { white-space: normal; }
+}
+
 /* ── 카드 ───────────────────────────────────────────────────────── */
 
 .card {
