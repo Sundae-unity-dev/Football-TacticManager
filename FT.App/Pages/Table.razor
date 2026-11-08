@@ -30,7 +30,47 @@ else
             </select>
         </div>
 
-        @{ var poTeams = ChampionPlayoff.EntrantsFor(w, league); }
+        @{
+            var poTeams = ChampionPlayoff.EntrantsFor(w, league);
+
+            // ⑦ 한 해를 둘로 가르는 리그는 보고 있는 단계가 따로 있다.
+            bool twoStage = TwoStage.Has(season);
+            int stage = twoStage ? (stageChoice ?? TwoStage.CurrentStage(season)) : TwoStage.Apertura;
+            var rows = !twoStage ? season.standings
+                     : stage == Aggregate ? TwoStage.SeasonTable(league)
+                     : TwoStage.StageTable(league, stage);
+        }
+
+        @if (twoStage)
+        {
+            <p class="tiny" style="color:var(--sky)">
+                이 리그는 <strong>한 해에 우승팀이 둘</strong>입니다 —
+                1~@(season.stageMatchday)라운드가 아페르투라,
+                @(season.stageMatchday + 1)~@(season.totalMatchdays)라운드가 클라우수라이고
+                순위표를 각각 처음부터 셉니다.
+                <strong>강등은 한 해 합산</strong>으로 정합니다.
+                @if (season.aperturaChampionClubId > 0)
+                {
+                    <span>
+                        올해 아페르투라 우승은
+                        <ClubLink Id="season.aperturaChampionClubId" /> 였습니다.
+                    </span>
+                }
+            </p>
+
+            <div class="btn-row" style="margin-bottom:.7rem">
+                @foreach (var (label, value) in new[]
+                          {
+                              ("아페르투라", TwoStage.Apertura),
+                              ("클라우수라", TwoStage.Clausura),
+                              ("한 해 합산", Aggregate),
+                          })
+                {
+                    <button class="btn btn-sm @(stage == value ? "btn-primary" : "")"
+                            @onclick="() => stageChoice = value">@label</button>
+                }
+            </div>
+        }
         @if (poTeams >= 2)
         {
             <p class="tiny" style="color:var(--sky)">
@@ -81,7 +121,7 @@ else
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var e in season.standings)
+                    @foreach (var e in rows)
                     {
                         @if (SplitStartsHere(season, e))
                         {
@@ -129,6 +169,12 @@ else
 
 @code {
     int viewLeagueId;
+
+    /// <summary>⑦ 순위표에서 "한 해 합산"을 고른 경우.</summary>
+    const int Aggregate = -1;
+
+    /// <summary>골라 둔 단계. null 이면 지금 치르고 있는 단계를 보여 준다.</summary>
+    int? stageChoice;
 
     // 구단 화면의 리그 이름은 table?league={id}로 온다.
     [SupplyParameterFromQuery(Name = "league")] public int? LeagueId { get; set; }

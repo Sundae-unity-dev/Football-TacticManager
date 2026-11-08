@@ -16,10 +16,31 @@ namespace FootballTactician.World
             foreach (var league in w.Leagues.Values) Recalculate(league);
         }
 
+        /// <summary>
+        /// 지금 단계의 순위표를 다시 센다.
+        ///
+        /// 한 해를 둘로 가르는 리그(⑦)에서는 <b>지금 치르고 있는 단계만</b> 센다 —
+        /// 클라우수라 순위표에 아페르투라 경기가 섞이면 안 된다. 합산이 필요한 곳
+        /// (승강·대륙 출전권)은 <see cref="TwoStage.SeasonTable"/> 를 따로 부른다.
+        /// </summary>
         public static void Recalculate(LeagueData league)
         {
-            var season = league.currentSeason;
+            var season = league?.currentSeason;
             if (season == null) return;
+
+            int stage = TwoStage.CurrentStage(season);
+            season.standings = Build(league, f => TwoStage.InStage(season, f, stage));
+        }
+
+        /// <summary>
+        /// 고른 경기만으로 순위표를 만든다. 순위도 매겨서 돌려준다.
+        ///
+        /// 경기마다 누적하지 않고 전체를 다시 세는 쪽이, 결과를 되돌리는 기능이 붙어도
+        /// 어긋나지 않는다.
+        /// </summary>
+        public static List<StandingEntry> Build(LeagueData league, Func<FixtureData, bool> include)
+        {
+            var season = league.currentSeason;
 
             var table = league.clubIds.ToDictionary(
                 id => id, id => new StandingEntry { clubId = id });
@@ -27,6 +48,7 @@ namespace FootballTactician.World
             foreach (var f in season.fixtures)
             {
                 if (!f.isPlayed || f.result == null) continue;
+                if (include != null && !include(f)) continue;
                 if (!table.TryGetValue(f.homeClubId, out var h)) continue;
                 if (!table.TryGetValue(f.awayClubId, out var a)) continue;
 
@@ -71,7 +93,7 @@ namespace FootballTactician.World
                 .ToList();
 
             for (int i = 0; i < ordered.Count; i++) ordered[i].position = i + 1;
-            season.standings = ordered;
+            return ordered;
         }
 
         public static int PositionOf(LeagueData league, int clubId)

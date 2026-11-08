@@ -399,6 +399,22 @@ namespace FootballTactician.World
             ["IDN"] = new[] { 4, 0 },
         };
 
+        /// <summary>
+        /// 한 해를 둘로 가르는 나라 (docs/리그-제도.md ⑦).
+        ///
+        /// 아페르투라와 클라우수라가 각각 우승팀을 뽑고, 강등은 한 해 합산으로 정한다.
+        /// 우루과이 2부처럼 아래 단계는 한 번만 치르는 나라도 있어 부마다 따로 적는다.
+        /// </summary>
+        static readonly Dictionary<string, bool[]> TwoStages = new()
+        {
+            ["MEX"] = new[] { true, true },
+            ["URU"] = new[] { true, false },
+            ["PAR"] = new[] { true, true },
+            ["CRC"] = new[] { true, true },
+            ["HON"] = new[] { true, true },
+            ["GUA"] = new[] { true, true },
+        };
+
         static Nations()
         {
             foreach (var n in All)
@@ -410,6 +426,7 @@ namespace FootballTactician.World
                 if (SplitSizes.TryGetValue(n.Code, out var sz)) n.SplitPerTier = sz;
                 if (HalvePoints.TryGetValue(n.Code, out var hp)) n.HalvePointsPerTier = hp;
                 if (ChampionPlayoffs.TryGetValue(n.Code, out var cp)) n.ChampionPlayoffPerTier = cp;
+                if (TwoStages.TryGetValue(n.Code, out var ts)) n.TwoStagePerTier = ts;
             }
         }
 

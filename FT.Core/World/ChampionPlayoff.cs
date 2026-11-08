@@ -21,8 +21,15 @@ namespace FootballTactician.World
     /// </summary>
     public static class ChampionPlayoff
     {
-        /// <summary>우승 대진의 씨드 열쇠와 경기 id 바닥. 승격 대진과 달라야 한다.</summary>
-        static readonly Knockout.Rules Rules = new(51229, 910000, "우승");
+        /// <summary>
+        /// 우승 대진의 씨드 열쇠와 경기 id 바닥.
+        ///
+        /// <b>해와 단계를 섞는다.</b> 섞지 않으면 씨드가 세계·구단·회차만으로 정해져서,
+        /// 같은 두 팀이 다시 만나면 몇 해가 지나도 똑같은 점수가 나온다. ⑦ 에서는 한 해에
+        /// 같은 리그가 대진을 두 번 치르므로 더 잘 드러난다.
+        /// </summary>
+        static Knockout.Rules RulesFor(int year, int stage)
+            => new(SeedMix.Of(51229, year, stage), 910000 + stage * 20000, "우승");
 
         /// <summary>
         /// 그 리그의 챔피언 결정전 참가 팀 수. 치르지 않으면 0.
@@ -49,10 +56,26 @@ namespace FootballTactician.World
         /// </summary>
         public static int Resolve(GameWorld w, LeagueData league, List<string> log)
         {
+            var season = league?.currentSeason;
+            if (season == null) return 0;
+
+            int champion = ResolveFor(w, league, season.standings, TwoStage.CurrentStage(season), log);
+            if (champion > 0) season.championClubId = champion;
+            return champion;
+        }
+
+        /// <summary>
+        /// 주어진 순위표로 대진을 치른다. 플레이오프가 없거나 팀이 모자라면 0.
+        ///
+        /// 한 해를 둘로 가르는 리그(⑦)는 아페르투라 순위표로도 한 번 치러야 하므로,
+        /// "어느 순위표로" 와 "어느 단계인지" 를 밖에서 받는다. 아무 데도 적지 않으니
+        /// 부르는 쪽이 결과를 간수한다.
+        /// </summary>
+        public static int ResolveFor(GameWorld w, LeagueData league,
+                                     List<StandingEntry> table, int stage, List<string> log)
+        {
             int entrants = EntrantsFor(w, league);
             if (entrants < 2) return 0;
-
-            var table = league.currentSeason?.standings;
             if (table is not { Count: > 0 }) return 0;
 
             var byPos = table.OrderBy(e => e.position).Select(e => e.clubId).ToList();
@@ -63,9 +86,8 @@ namespace FootballTactician.World
             log.Add($"{league.name} 챔피언 결정전 — 정규리그 상위 {entrants}팀");
             log.Add($"  정규리그 1위 {Knockout.Name(w, byPos[0])}");
 
-            int champion = Knockout.Run(w, field, Rules, log);
-            league.currentSeason.championClubId = champion;
-            return champion;
+            int year = league.currentSeason?.year ?? 0;
+            return Knockout.Run(w, field, RulesFor(year, stage), log);
         }
 
         /// <summary>

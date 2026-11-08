@@ -99,6 +99,16 @@ namespace FootballTactician.World
         /// </summary>
         public int[] ChampionPlayoffPerTier;
 
+        /// <summary>
+        /// 한 해를 둘로 갈라 각각 우승팀을 뽑는지 (docs/리그-제도.md ⑦).
+        /// 0번이 1부, 1번이 2부다.
+        ///
+        /// 아페르투라(전반기)와 클라우수라(후반기)다. 멕시코·우루과이·파라과이·
+        /// 코스타리카·온두라스·과테말라. <b>강등은 한 해 합산</b>으로 정한다 —
+        /// 반 년 못했다고 내려가면 너무 가혹하다.
+        /// </summary>
+        public bool[] TwoStagePerTier;
+
         /// <summary>그 부의 상위 조 팀 수. 스플릿이 없으면 0.</summary>
         public int SplitTopSize(int tier)
         {
@@ -121,6 +131,14 @@ namespace FootballTactician.World
             if (PlayoffPerTier == null || PlayoffPerTier.Length == 0) return 0;
             int i = System.Math.Clamp(tier - 1, 0, PlayoffPerTier.Length - 1);
             return System.Math.Clamp(PlayoffPerTier[i], 0, 8);
+        }
+
+        /// <summary>그 부가 한 해를 둘로 가르는지.</summary>
+        public bool HasTwoStages(int tier)
+        {
+            if (TwoStagePerTier == null || TwoStagePerTier.Length == 0) return false;
+            int i = System.Math.Clamp(tier - 1, 0, TwoStagePerTier.Length - 1);
+            return TwoStagePerTier[i];
         }
 
         /// <summary>그 부의 챔피언 결정 플레이오프 참가 팀 수. 없으면 0.</summary>
