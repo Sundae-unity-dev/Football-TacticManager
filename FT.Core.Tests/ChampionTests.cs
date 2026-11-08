@@ -192,6 +192,63 @@ namespace FT.Core.Tests
             Assert.True(ChampionPlayoff.WonFromBehind(season));
         }
 
+        /// <summary>
+        /// 플레이오프 골은 득점왕에 들어가면 안 된다.
+        ///
+        /// 일정에 없는 경기도 득점과 평점을 선수 기록에 남긴다. 그래서 챔피언 결정전을
+        /// 시상보다 먼저 치르면 득점왕이 플레이오프 골로 뒤집힌다 — 실제로는 정규리그만
+        /// 센다. 순서 하나에 달린 규칙이라, 나중에 줄을 옮기면 조용히 깨진다.
+        /// </summary>
+        /// <summary>
+        /// 먼저 전제를 확인한다 — <b>플레이오프 골은 실제로 선수 기록에 쌓인다.</b>
+        /// 이게 참이라서 시상 순서가 문제가 된다. 거짓이면 아래 테스트는 아무것도 지키지 않는다.
+        /// </summary>
+        [Fact]
+        public void 플레이오프_골은_선수_기록에_쌓인다()
+        {
+            var w = Start(31337, "USA");
+            var league = League(w, "USA");
+            PlaySeason(w);
+
+            int Goals() => league.clubIds.SelectMany(id => w.Squad(id))
+                                 .Sum(p => p.seasonStats?.goals ?? 0);
+
+            int before = Goals();
+            ChampionPlayoff.Resolve(w, league, new List<string>());
+
+            Assert.True(Goals() > before,
+                $"플레이오프를 치렀는데 득점이 그대로다 ({before})");
+        }
+
+        /// <summary>
+        /// 플레이오프 골은 <b>득점왕에는</b> 들어가면 안 된다. 실제로도 정규리그만 센다.
+        ///
+        /// 챔피언 결정전을 시상보다 먼저 치르면 깨진다. 한 시드만 보면 그 해 득점왕이
+        /// 플레이오프에서 안 넣어 통과해 버리므로 여러 시드로 본다.
+        /// </summary>
+        [Fact]
+        public void 플레이오프_골은_득점왕에_들어가지_않는다()
+        {
+            foreach (int seed in new[] { 31337, 4242, 909, 515, 2468, 13579, 24680 })
+            {
+                var w = Start(seed, "USA");
+                var league = League(w, "USA");
+
+                PlaySeason(w);
+                int year = league.currentSeason!.year;
+
+                int regularGoals = league.clubIds.SelectMany(id => w.Squad(id))
+                    .Max(p => p.seasonStats?.goals ?? 0);
+
+                SeasonRollover.StartNextSeason(w);
+
+                var set = w.Awards.First(a => a.leagueId == league.id && a.year == year);
+
+                Assert.True(set.topScorerGoals > 0, $"시드 {seed}: 득점왕이 0골이다");
+                Assert.Equal(regularGoals, set.topScorerGoals);
+            }
+        }
+
         [Fact]
         public void 우승_기록은_세이브를_왕복한다()
         {
