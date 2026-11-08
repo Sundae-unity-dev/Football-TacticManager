@@ -73,8 +73,7 @@ else
                         <tr class="@RowClass(e, league)">
                             <td class="mono">@e.position</td>
                             <td class="nowrap">
-                                <span class="kit" style="background:@w.Club(e.clubId)!.colors.primaryHex; width:12px; height:12px; display:inline-block; vertical-align:-1px; margin-right:.4rem; border-radius:3px"></span>
-                                @Session.ClubName(e.clubId)
+                                <ClubLink Id="e.clubId" Kit="true" />
                             </td>
                             <td class="num">@e.played</td>
                             <td class="num">@e.won</td>
@@ -102,10 +101,18 @@ else
 @code {
     int viewLeagueId;
 
+    // 구단 화면의 리그 이름은 table?league={id}로 온다.
+    [SupplyParameterFromQuery(Name = "league")] public int? LeagueId { get; set; }
+
     protected override void OnInitialized()
     {
         base.OnInitialized();
         viewLeagueId = Session.World?.MyLeague?.id ?? 0;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (LeagueId is { } id && Session.World?.League(id) != null) viewLeagueId = id;
     }
 
     /// <summary>그 줄 바로 앞에 하위 조 경계선을 그릴지.</summary>

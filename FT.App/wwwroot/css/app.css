@@ -196,6 +196,24 @@ a:hover { text-decoration: underline; }
   .content { padding: 1rem; }
 }
 
+/*
+   상단 바는 한 줄에 다 들어가지 않는다. 날짜·다음 경기 뒤에 이사회 배지와 단추 서넛이
+   줄줄이 붙는데, 폰 너비에서는 단추들이 화면 밖으로 밀려 나가 *모든 화면*이 가로로
+   스크롤됐다. 늘어나기만 하던 빈 칸을 한 줄 통째로 차지하게 만들어 단추를 아랫줄로 접는다.
+*/
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; gap: .5rem .7rem; padding: .6rem .9rem; }
+  .topbar .nowrap { white-space: normal; }
+  .topbar-spacer { flex-basis: 100%; height: 0; }
+
+  /*
+     구단 화면의 작은 경기 표. 구단 이름 칸이 nowrap 이라 폰 너비에서 표가 카드보다
+     몇 px 넓어졌다 — 긴 이름 하나에 오른쪽 끝이 잘렸다. 좁을 때는 이름을 접는다.
+  */
+  table.ft.compact td { padding: .4rem .35rem; }
+  table.ft.compact td.nowrap { white-space: normal; }
+}
+
 /* ── 카드 ───────────────────────────────────────────────────────── */
 
 .card {
@@ -672,3 +690,88 @@ tr.split-line td {
     text-align: center;
     letter-spacing: .02em;
 }
+
+/* ── 선수 행동 (막대 · ⋯ 메뉴) ──────────────────────────────────── */
+
+.act-bar { margin: .25rem 0 1rem; }
+.act-menu { position: relative; display: inline-block; }
+.act-trigger { padding: .2rem .55rem; line-height: 1; font-size: 1rem; }
+.act-backdrop { position: fixed; inset: 0; z-index: 40; }
+.act-list {
+  position: fixed; z-index: 41;
+  display: flex; flex-direction: column; min-width: 12rem;
+  background: var(--navy-700); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: var(--shadow); padding: .25rem; text-align: left;
+}
+.act-item {
+  display: flex; justify-content: space-between; align-items: baseline; gap: .75rem;
+  background: transparent; border: 0; border-radius: 6px; color: var(--text);
+  font: inherit; font-size: .88rem; padding: .45rem .6rem; cursor: pointer; white-space: nowrap;
+}
+.act-item:hover { background: var(--navy-600); }
+.act-item:disabled { opacity: .45; cursor: not-allowed; }
+.focus-anchor:focus { outline: none; }
+
+/* ── 구단 링크 ─────────────────────────────────────────────────── */
+
+a.club-link { color: inherit; text-decoration: none; border-bottom: 1px dotted transparent; }
+a.club-link:hover { color: var(--emerald); border-bottom-color: currentColor; }
+.kit-dot {
+  display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+  vertical-align: -1px; margin-right: .4rem;
+}
+.kit-dot.lg { width: 20px; height: 20px; border-radius: 5px; vertical-align: 0; }
+
+/* ── 능력치 3열 ─────────────────────────────────────────────────── */
+
+.attr-grid {
+  display: grid; gap: .25rem 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.attr-grid h4 {
+  margin: 0 0 .3rem; font-size: .78rem; letter-spacing: .06em; color: var(--text-mute);
+}
+.attr-cell {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: .88rem; padding: .14rem .45rem; border-radius: 4px;
+  border-left: 2px solid transparent;
+}
+.attr-cell .name { color: var(--text-dim); }
+.attr-cell .val { font-family: var(--font-mono); font-weight: 600; min-width: 1.6rem; text-align: right; }
+.attr-cell.key { background: rgba(61,220,163,.10); border-left-color: var(--emerald); }
+.attr-cell.key .name { color: var(--text); }
+.attr-key-swatch {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px;
+  background: rgba(61,220,163,.25); border-left: 2px solid var(--emerald);
+}
+.val.g1 { color: var(--coral); }
+.val.g2 { color: var(--amber); }
+.val.g3 { color: var(--text); }
+.val.g4 { color: var(--emerald); }
+
+/* ── 스쿼드 보기 · 정렬 · 포지션 칩 ──────────────────────────────── */
+
+.chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: 0 0 .6rem; }
+.chip {
+  font: inherit; font-size: .82rem; padding: .22rem .65rem; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--text-dim); border: 1px solid var(--line);
+}
+.chip:hover { border-color: var(--navy-500); color: var(--text); }
+.chip.on { background: rgba(61,220,163,.14); border-color: var(--emerald); color: var(--text); }
+table.ft th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+table.ft th.sortable:hover { color: var(--text); }
+table.ft th.sorted { color: var(--emerald); }
+.sort-arrow { font-size: .65em; margin-left: .25rem; }
+
+/* ── 받은 소식: 누르면 그 대상으로 ──────────────────────────────── */
+
+.inbox-item.linked { cursor: pointer; transition: background .12s; }
+.inbox-item.linked:hover, .inbox-item.linked:focus-visible { background: var(--navy-600); outline: none; }
+.inbox-item.unread .inbox-title { color: var(--text); }
+.inbox-item:not(.unread) .inbox-title { color: var(--text-dim); font-weight: 500; }
+.unread-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--emerald); margin-left: .35rem; vertical-align: 1px;
+}
+.inbox-go { font-size: .78rem; color: var(--emerald); margin-top: .15rem; }
+.inbox-item.linked:not(:hover) .inbox-go { opacity: .7; }

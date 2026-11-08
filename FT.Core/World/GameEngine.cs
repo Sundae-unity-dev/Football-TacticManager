@@ -258,7 +258,7 @@ namespace FootballTactician.World
 
             string vs = $"{(home ? "홈" : "원정")} {opp?.name}";
             w.Post($"{us}-{them} {(us > them ? "승리" : us == them ? "무승부" : "패배")}",
-                   $"{vs} 경기. 리그 {f.matchday}라운드.", InboxKind.Match);
+                   $"{vs} 경기. 리그 {f.matchday}라운드.", InboxKind.Match, clubId: opp?.id ?? 0);
 
             if (w.Manager.boardConfidence < BalanceConfig.SackThreshold && !w.Sacked)
             {
@@ -336,7 +336,7 @@ namespace FootballTactician.World
 
             w.Post($"{cup.name} {round!.name} {(won ? "승리" : "탈락")}",
                    $"{w.Club(oppId)?.name} 와 {us}-{them}{pens}.",
-                   InboxKind.Match);
+                   InboxKind.Match, clubId: oppId);
         }
 
         // ── 이적 ──────────────────────────────────────────────────────────

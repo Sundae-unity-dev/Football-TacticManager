@@ -59,7 +59,7 @@ else
                     <div class="side">
                         <span class="kit" style="background:@(home ? club.colors.primaryHex : opp.colors.primaryHex)"></span>
                         <div>
-                            <div class="club">@Session.ClubName(next.homeClubId)</div>
+                            <div class="club"><ClubLink Id="next.homeClubId" /></div>
                             <div class="meta">홈</div>
                         </div>
                     </div>
@@ -67,7 +67,7 @@ else
                     <div class="side away">
                         <span class="kit" style="background:@(home ? opp.colors.primaryHex : club.colors.primaryHex)"></span>
                         <div>
-                            <div class="club">@Session.ClubName(next.awayClubId)</div>
+                            <div class="club"><ClubLink Id="next.awayClubId" /></div>
                             <div class="meta">원정</div>
                         </div>
                     </div>
@@ -128,7 +128,7 @@ else
                     {
                         <tr class="@(e.clubId == club.id ? "me" : "")">
                             <td class="mono">@e.position</td>
-                            <td>@Session.ClubName(e.clubId)</td>
+                            <td><ClubLink Id="e.clubId" /></td>
                             <td class="num">@e.played</td>
                             <td class="num">@e.points</td>
                             <td class="num">@e.GoalDifference.ToString("+0;-0;0")</td>
@@ -151,11 +151,7 @@ else
             {
                 @foreach (var item in w.Inbox.Take(5))
                 {
-                    <div class="inbox-item kind-@item.kind">
-                        <div class="inbox-date">@Ui.DateLabel(item.date)</div>
-                        <div class="inbox-title">@item.title</div>
-                        <div class="inbox-body">@item.body</div>
-                    </div>
+                    <InboxEntry Item="item" />
                 }
             }
         </div>

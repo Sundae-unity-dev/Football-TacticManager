@@ -145,7 +145,7 @@ namespace FootballTactician.World
                 w.Post($"{p.FullName} 계약 만료 임박",
                        $"{months}개월 남았습니다. 요구 주급은 주 {DemandedWage(w, p) / 1000d:F0}K€ 입니다. " +
                        "재계약하지 않으면 시즌이 끝날 때 떠납니다.",
-                       InboxKind.Transfer);
+                       InboxKind.Transfer, playerId: p.id);
             }
         }
     }

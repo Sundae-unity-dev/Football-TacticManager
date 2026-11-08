@@ -1,0 +1,77 @@
+@*
+    받은 소식 한 줄. 누르면 읽음으로 표시하고, 소식이 가리키는 곳으로 간다.
+
+    갈 곳은 소식에 적힌 선수 → 구단 순으로 고르고, 둘 다 없으면 소식의 종류로 정한다
+    (경기 → 일정, 부상 → 스쿼드 …). 대상 id 가 없던 예전 세이브의 소식도 이렇게 어딘가로 이어진다.
+*@
+@inject GameSession Session
+@inject NavigationManager Nav
+
+@{
+    var (href, label) = Target();
+}
+<div class="inbox-item kind-@Item.kind @(Item.read ? "" : "unread") @(href is null ? "" : "linked")"
+     role="@(href is null ? null : "link")" tabindex="@(href is null ? null : "0")"
+     @onclick="Open" @onkeydown="Key">
+    <div class="inbox-date">
+        @Ui.DateLabel(Item.date)@if (ShowKind) {<span> · @KindLabel(Item.kind)</span>}
+        @if (!Item.read) { <span class="unread-dot" title="읽지 않음"></span> }
+    </div>
+    <div class="inbox-title">@Item.title</div>
+    <div class="inbox-body">@Item.body</div>
+    @if (label is not null)
+    {
+        <div class="inbox-go">@label →</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public InboxItem Item { get; set; } = default!;
+    [Parameter] public bool ShowKind { get; set; }
+
+    (string? href, string? label) Target()
+    {
+        var w = Session.World;
+        if (w is null) return (null, null);
+
+        if (Item.playerId > 0 && w.Player(Item.playerId) is { } p)
+            return ($"player/{p.id}", p.FullName);
+        if (Item.clubId > 0 && w.Club(Item.clubId) is { } c)
+            return ($"club/{c.id}", c.name);
+
+        return Item.kind switch
+        {
+            InboxKind.Match => ("fixtures", "일정"),
+            InboxKind.Board => ("dashboard", "이사회 목표"),
+            InboxKind.Injury => ("squad", "스쿼드"),
+            InboxKind.Transfer => ("transfers", "이적"),
+            InboxKind.Staff => ("staff", "스태프"),
+            _ => (null, null),
+        };
+    }
+
+    void Open()
+    {
+        if (!Item.read)
+        {
+            Item.read = true;
+            Session.NotifyChanged();     // 메뉴의 안 읽은 수 배지를 갱신한다
+        }
+        if (Target().href is { } href) Nav.NavigateTo(href);
+    }
+
+    void Key(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or " ") Open();
+    }
+
+    public static string KindLabel(InboxKind k) => k switch
+    {
+        InboxKind.Board => "이사회",
+        InboxKind.Match => "경기",
+        InboxKind.Injury => "부상",
+        InboxKind.Transfer => "이적",
+        InboxKind.Staff => "스태프",
+        _ => "소식",
+    };
+}

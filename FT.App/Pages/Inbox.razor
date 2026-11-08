@@ -20,6 +20,8 @@ else
                 <option value="Board">이사회</option>
                 <option value="Match">경기</option>
                 <option value="Injury">부상</option>
+                <option value="Transfer">이적</option>
+                <option value="Staff">스태프</option>
                 <option value="News">소식</option>
             </select>
             <button class="btn btn-sm" @onclick="MarkAllRead">모두 읽음</button>
@@ -33,11 +35,7 @@ else
         {
             @foreach (var item in Items)
             {
-                <div class="inbox-item kind-@item.kind">
-                    <div class="inbox-date">@Ui.DateLabel(item.date) · @KindLabel(item.kind)</div>
-                    <div class="inbox-title">@item.title</div>
-                    <div class="inbox-body">@item.body</div>
-                </div>
+                <InboxEntry Item="item" ShowKind="true" />
             }
         }
     </div>
@@ -62,14 +60,4 @@ else
         foreach (var i in Session.World?.Inbox ?? []) i.read = true;
         Session.NotifyChanged();
     }
-
-    static string KindLabel(InboxKind k) => k switch
-    {
-        InboxKind.Board => "이사회",
-        InboxKind.Match => "경기",
-        InboxKind.Injury => "부상",
-        InboxKind.Transfer => "이적",
-        InboxKind.Staff => "스태프",
-        _ => "소식",
-    };
 }

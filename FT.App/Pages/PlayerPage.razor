@@ -20,9 +20,13 @@ else
     <h1>@p.FullName</h1>
     <p class="muted">
         <span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span>
-        @club?.name · @(w.Age(p))세 · <Flag Of="p.nationality" /> @Ui.NationCode(p.nationality) · @p.height cm / @p.weight kg ·
+        @if (club is not null) { <ClubLink Id="club.id" Kit="true" /> } else { <span>자유 계약</span> } · @(w.Age(p))세 · <Flag Of="p.nationality" /> @Ui.NationCode(p.nationality) · @p.height cm / @p.weight kg ·
         @(p.preferredFoot == PreferredFoot.Left ? "왼발" : p.preferredFoot == PreferredFoot.Right ? "오른발" : "양발")
+        @if (p.transferStatus == TransferStatus.ListedForTransfer) { <span class="badge warn">이적 명단</span> }
+        @if (w.OnLoan(p.id) != null) { <span class="badge">임대 중</span> }
     </p>
+
+    <PlayerActions Player="p" />
 
     @if (p.IsInjured)
     {
@@ -58,69 +62,60 @@ else
         </div>
     </div>
 
-    <div class="grid grid-2 mt1">
-        <div class="card">
-            <div class="card-head"><h3>기술</h3></div>
-            @Attr("패스", p.technical.passing)
-            @Attr("드리블", p.technical.dribbling)
-            @Attr("슈팅", p.technical.shooting)
-            @Attr("마무리", p.technical.finishing)
-            @Attr("헤더", p.technical.heading)
-            @Attr("크로스", p.technical.crossing)
-            @Attr("태클", p.technical.tackling)
-            @Attr("마킹", p.technical.marking)
-            @Attr("퍼스트터치", p.technical.firstTouch)
-            @Attr("롱패스", p.technical.longPassing)
-            @Attr("세트피스", p.technical.setPieces)
+    var tacticRole = TacticRole(w, p);
+    var shownRole = ShownRole(w, p);
+    var keyDef = shownRole is { } sr ? RoleDatabase.Get(sr) : null;
+    var keys = KeySet(keyDef);
+    var isGk = (p.positionFlags & Position.GK) != 0;
+    <div class="card mt1">
+        <div class="card-head">
+            <h3>능력치</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim nowrap"><span class="attr-key-swatch"></span> 역할의 핵심</span>
+            <select @bind="RolePick" title="핵심 능력치를 볼 역할">
+                @foreach (var (role, fit) in RoleChoices(p, tacticRole))
+                {
+                    <option value="@role">
+                        @RoleDatabase.Get(role).displayName (@fit)@(role == tacticRole ? " · 전술" : "")
+                    </option>
+                }
+            </select>
         </div>
-
-        <div class="card">
-            <div class="card-head"><h3>신체</h3></div>
-            @Attr("속도", p.physical.speed)
-            @Attr("가속", p.physical.acceleration)
-            @Attr("체력", p.physical.stamina)
-            @Attr("몸싸움", p.physical.strength)
-            @Attr("점프", p.physical.jumping)
-            @Attr("민첩", p.physical.agility)
-            @Attr("밸런스", p.physical.balance)
-
-            <div class="card-head mt1"><h3>정신</h3></div>
-            @Attr("시야", p.mental.vision)
-            @Attr("침착", p.mental.composure)
-            @Attr("리더십", p.mental.leadership)
-            @Attr("투지", p.mental.courage)
-            @Attr("활동량", p.mental.workRate)
-            @Attr("집중", p.mental.concentration)
-            @Attr("판단", p.mental.decisions)
-            @Attr("위치선정", p.mental.positioning)
-            @Attr("적극성", p.mental.aggression)
-            @Attr("팀워크", p.mental.teamwork)
-            @Attr("오프더볼", p.mental.offTheBall)
+        <div class="attr-grid">
+            <section>
+                @if (isGk)
+                {
+                    <h4>골키퍼</h4>
+                    @foreach (var a in GkAttrs) { @Attr(a.label, a.get(p), keys.Contains(a.key)) }
+                }
+                else
+                {
+                    <h4>기술</h4>
+                    @foreach (var a in TechAttrs) { @Attr(a.label, a.get(p), keys.Contains(a.key)) }
+                }
+            </section>
+            <section>
+                <h4>정신</h4>
+                @foreach (var a in MentalAttrs) { @Attr(a.label, a.get(p), keys.Contains(a.key)) }
+            </section>
+            <section>
+                <h4>신체</h4>
+                @foreach (var a in PhysAttrs) { @Attr(a.label, a.get(p), keys.Contains(a.key)) }
+                @if (isGk)
+                {
+                    <h4 class="mt1">기술</h4>
+                    @foreach (var a in TechAttrs) { @Attr(a.label, a.get(p), keys.Contains(a.key)) }
+                }
+            </section>
         </div>
+        @if (keyDef is not null)
+        {
+            <p class="tiny dim mb0 mt1">
+                <strong>@keyDef.displayName</strong> — @keyDef.shortDescription
+                · 적합도는 강조된 능력치가 본인 평균보다 얼마나 높은지로 셉니다.
+            </p>
+        }
     </div>
-
-    @if ((p.positionFlags & Position.GK) != 0)
-    {
-        <div class="card">
-            <div class="card-head"><h3>골키퍼</h3></div>
-            <div class="grid grid-2">
-                <div>
-                    @Attr("핸들링", p.goalkeeper.handling)
-                    @Attr("다이빙", p.goalkeeper.diving)
-                    @Attr("반사신경", p.goalkeeper.reflexes)
-                    @Attr("위치선정", p.goalkeeper.positioning)
-                    @Attr("커맨드", p.goalkeeper.commandArea)
-                </div>
-                <div>
-                    @Attr("일대일", p.goalkeeper.oneOnOne)
-                    @Attr("제공권", p.goalkeeper.aerialAbility)
-                    @Attr("킥", p.goalkeeper.kicking)
-                    @Attr("스로", p.goalkeeper.throwing)
-                    @Attr("소통", p.goalkeeper.communication)
-                </div>
-            </div>
-        </div>
-    }
 
     <div class="grid grid-2">
         <div class="card">
@@ -293,9 +288,119 @@ else
         _ => "동료",
     };
 
-    RenderFragment Attr(string name, int value) => @<div class="attr-row">
+    // ── 능력치 ────────────────────────────────────────────────────────────
+    //
+    // 막대 없이 숫자와 색 등급만 둔다. 36개가 한 화면에 들어와야 서로 비교된다.
+    // 강조는 RoleFit 이 실제로 세는 핵심 능력치 목록 그대로다 — 화면과 계산이 어긋나지 않게.
+
+    PlayerRole? pickedRole;
+    int pickedFor;
+
+    string RolePick
+    {
+        get => Session.World is { } w && Player is { } p ? ShownRole(w, p)?.ToString() ?? "" : "";
+        set => pickedRole = Enum.TryParse<PlayerRole>(value, out var r) ? r : null;
+    }
+
+    // 다른 선수로 넘어가면 고른 역할을 버린다. 같은 컴포넌트가 재사용되기 때문이다.
+    protected override void OnParametersSet()
+    {
+        if (pickedFor != Id) { pickedRole = null; pickedFor = Id; }
+    }
+
+    record AttrDef(object key, string label, Func<PlayerData, int> get);
+
+    static readonly AttrDef[] TechAttrs =
+    [
+        new(TechnicalAttribute.Passing, "패스", p => p.technical.passing),
+        new(TechnicalAttribute.Dribbling, "드리블", p => p.technical.dribbling),
+        new(TechnicalAttribute.Shooting, "슈팅", p => p.technical.shooting),
+        new(TechnicalAttribute.Finishing, "마무리", p => p.technical.finishing),
+        new(TechnicalAttribute.Heading, "헤더", p => p.technical.heading),
+        new(TechnicalAttribute.Crossing, "크로스", p => p.technical.crossing),
+        new(TechnicalAttribute.Tackling, "태클", p => p.technical.tackling),
+        new(TechnicalAttribute.Marking, "마킹", p => p.technical.marking),
+        new(TechnicalAttribute.FirstTouch, "퍼스트터치", p => p.technical.firstTouch),
+        new(TechnicalAttribute.LongPassing, "롱패스", p => p.technical.longPassing),
+        new(TechnicalAttribute.SetPieces, "세트피스", p => p.technical.setPieces),
+    ];
+
+    static readonly AttrDef[] MentalAttrs =
+    [
+        new(MentalAttribute.Vision, "시야", p => p.mental.vision),
+        new(MentalAttribute.Composure, "침착", p => p.mental.composure),
+        new(MentalAttribute.Leadership, "리더십", p => p.mental.leadership),
+        new(MentalAttribute.Courage, "투지", p => p.mental.courage),
+        new(MentalAttribute.WorkRate, "활동량", p => p.mental.workRate),
+        new(MentalAttribute.Concentration, "집중", p => p.mental.concentration),
+        new(MentalAttribute.Decisions, "판단", p => p.mental.decisions),
+        new(MentalAttribute.Positioning, "위치선정", p => p.mental.positioning),
+        new(MentalAttribute.Aggression, "적극성", p => p.mental.aggression),
+        new(MentalAttribute.Teamwork, "팀워크", p => p.mental.teamwork),
+        new(MentalAttribute.OffTheBall, "오프더볼", p => p.mental.offTheBall),
+    ];
+
+    static readonly AttrDef[] PhysAttrs =
+    [
+        new(PhysicalAttribute.Speed, "속도", p => p.physical.speed),
+        new(PhysicalAttribute.Acceleration, "가속", p => p.physical.acceleration),
+        new(PhysicalAttribute.Stamina, "체력", p => p.physical.stamina),
+        new(PhysicalAttribute.Strength, "몸싸움", p => p.physical.strength),
+        new(PhysicalAttribute.Jumping, "점프", p => p.physical.jumping),
+        new(PhysicalAttribute.Agility, "민첩", p => p.physical.agility),
+        new(PhysicalAttribute.Balance, "밸런스", p => p.physical.balance),
+    ];
+
+    static readonly AttrDef[] GkAttrs =
+    [
+        new(GkAttribute.Handling, "핸들링", p => p.goalkeeper.handling),
+        new(GkAttribute.Diving, "다이빙", p => p.goalkeeper.diving),
+        new(GkAttribute.Reflexes, "반사신경", p => p.goalkeeper.reflexes),
+        new(GkAttribute.Positioning, "위치선정", p => p.goalkeeper.positioning),
+        new(GkAttribute.CommandArea, "커맨드", p => p.goalkeeper.commandArea),
+        new(GkAttribute.OneOnOne, "일대일", p => p.goalkeeper.oneOnOne),
+        new(GkAttribute.AerialAbility, "제공권", p => p.goalkeeper.aerialAbility),
+        new(GkAttribute.Kicking, "킥", p => p.goalkeeper.kicking),
+        new(GkAttribute.Throwing, "스로", p => p.goalkeeper.throwing),
+        new(GkAttribute.Communication, "소통", p => p.goalkeeper.communication),
+    ];
+
+    /// <summary>강조할 역할: 고른 것 → 전술에서 맡은 것 → 가장 잘 맞는 것.</summary>
+    PlayerRole? ShownRole(GameWorld w, PlayerData p)
+        => pickedRole ?? TacticRole(w, p) ?? BestRoles(p).Select(x => (PlayerRole?)x.role).FirstOrDefault();
+
+    static HashSet<object> KeySet(RoleDefinition? def)
+    {
+        var set = new HashSet<object>();
+        if (def is null) return set;
+        foreach (var a in def.keyTechnicalAttributes ?? []) set.Add(a);
+        foreach (var a in def.keyMentalAttributes ?? []) set.Add(a);
+        foreach (var a in def.keyPhysicalAttributes ?? []) set.Add(a);
+        foreach (var a in def.keyGkAttributes ?? []) set.Add(a);
+        return set;
+    }
+
+    /// <summary>소속 구단의 현재 전술에서 이 선수가 맡은 역할. 선발이 아니면 null.</summary>
+    static PlayerRole? TacticRole(GameWorld w, PlayerData p)
+    {
+        var club = w.Club(p.clubId);
+        var tac = club?.savedTactics.FirstOrDefault(t => t.id == club.activeTacticsId);
+        return tac?.slots.FirstOrDefault(s => s.assignedPlayerId == p.id)?.role?.role;
+    }
+
+    /// <summary>고를 수 있는 역할: 전술에서 맡은 역할 + 잘 맞는 다섯.</summary>
+    static List<(PlayerRole role, int fit)> RoleChoices(PlayerData p, PlayerRole? tacticRole)
+    {
+        var list = BestRoles(p);
+        if (tacticRole is { } tr && list.All(x => x.role != tr))
+            list.Insert(0, (tr, RoleFit.Percent(p, RoleDatabase.Get(tr))));
+        return list;
+    }
+
+    static string Grade(int v) => v >= 16 ? "g4" : v >= 11 ? "g3" : v >= 6 ? "g2" : "g1";
+
+    RenderFragment Attr(string name, int value, bool key) => @<div class="attr-cell @(key ? "key" : "")">
         <span class="name">@name</span>
-        <span class="bar @Ui.BarClass(value / 20f)"><i style="width:@(value * 5)%"></i></span>
-        <span class="val">@value</span>
+        <span class="val @Grade(value)">@value</span>
     </div>;
 }

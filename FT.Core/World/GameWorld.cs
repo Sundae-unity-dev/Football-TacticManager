@@ -285,9 +285,16 @@ namespace FootballTactician.World
         [JsonIgnore]
         public bool TransferWindowOpen => Date.month is 6 or 7 or 8 or 1;
 
-        public void Post(string title, string body, InboxKind kind = InboxKind.News)
+        /// <param name="playerId">소식이 가리키는 선수. 화면이 그 선수로 데려간다. 0 이면 없음.</param>
+        /// <param name="clubId">소식이 가리키는 구단. 0 이면 없음.</param>
+        public void Post(string title, string body, InboxKind kind = InboxKind.News,
+                         int playerId = 0, int clubId = 0)
         {
-            Inbox.Insert(0, new InboxItem { date = Date, title = title, body = body, kind = kind });
+            Inbox.Insert(0, new InboxItem
+            {
+                date = Date, title = title, body = body, kind = kind,
+                playerId = playerId, clubId = clubId,
+            });
             if (Inbox.Count > 80) Inbox.RemoveRange(80, Inbox.Count - 80);
         }
     }
@@ -302,6 +309,11 @@ namespace FootballTactician.World
         public string body;
         public InboxKind kind;
         public bool read;
+
+        // 소식이 가리키는 대상. 화면 주소가 아니라 id 만 둔다 — 핵심 로직은 화면을 모른다.
+        // 0 은 저장하지 않으므로(WhenWritingDefault) 예전 세이브도, 대상 없는 소식도 그대로다.
+        public int playerId;
+        public int clubId;
     }
 
     /// <summary>국가 하나 — 지금은 1부 리그만 둔다. 하부 리그는 승강과 함께 뒤에 붙인다.</summary>

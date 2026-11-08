@@ -140,17 +140,46 @@ namespace FootballTactician.World
             return ms.ToArray();
         }
 
+        /// <summary>
+        /// 통째로 읽기 전에 포맷 번호만 먼저 본다. 못 찾으면 0.
+        ///
+        /// 포맷이 달라지면 변환기가 먼저 터진다 — 자리가 밀린 배열을 만나 "FormationSlot 으로
+        /// 바꿀 수 없다" 같은 소리를 한다. 그래서 예전 세이브를 연 사람은 포맷이 달라졌다는
+        /// 안내 대신 알 수 없는 오류를 봤다. 숫자 하나는 변환기 없이 훑을 수 있다.
+        /// </summary>
+        static int PeekVersion(ReadOnlySpan<byte> json)
+        {
+            var r = new Utf8JsonReader(json);
+            if (!r.Read() || r.TokenType != JsonTokenType.StartObject) return 0;
+
+            while (r.Read() && r.TokenType == JsonTokenType.PropertyName)
+            {
+                bool isVersion = r.ValueTextEquals("version");
+                if (!r.Read()) return 0;
+
+                if (isVersion)
+                    return r.TokenType == JsonTokenType.Number && r.TryGetInt32(out int v) ? v : 0;
+
+                r.Skip();      // world 는 통째로 건너뛴다 — 여는 괄호만 세고 지나간다
+            }
+            return 0;
+        }
+
         public static Envelope Deserialize(byte[] packed)
         {
             using var src = new MemoryStream(packed);
             using var gz = new GZipStream(src, CompressionMode.Decompress);
             using var outMs = new MemoryStream();
             gz.CopyTo(outMs);
+            byte[] json = outMs.ToArray();
 
-            var env = JsonSerializer.Deserialize<Envelope>(outMs.ToArray(), Options);
+            // 포맷 검사가 먼저다. 읽고 나서 보면 변환기가 먼저 터진다.
+            int version = PeekVersion(json);
+            if (version != FormatVersion)
+                throw new InvalidDataException($"세이브 포맷이 맞지 않습니다 (파일 {version}, 현재 {FormatVersion}).");
+
+            var env = JsonSerializer.Deserialize<Envelope>(json, Options);
             if (env?.world == null) throw new InvalidDataException("세이브를 읽을 수 없습니다.");
-            if (env.version != FormatVersion)
-                throw new InvalidDataException($"세이브 포맷이 맞지 않습니다 (파일 {env.version}, 현재 {FormatVersion}).");
 
             Rehydrate(env.world);
             return env;

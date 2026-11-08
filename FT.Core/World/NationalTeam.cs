@@ -118,7 +118,7 @@ namespace FootballTactician.World
                             w.Post("A매치 부상",
                                 $"{p.FullName} 이 국가대표 경기에서 다쳐 돌아왔습니다. " +
                                 $"복귀까지 약 {weeks}주로 보입니다.",
-                                InboxKind.Injury);
+                                InboxKind.Injury, playerId: p.id);
                     }
                 }
             }
@@ -137,12 +137,16 @@ namespace FootballTactician.World
 
             if (called.Count == 0) return;
 
+            // 한 명이면 그 선수로, 여럿이면 가리킬 선수가 하나로 안 정해지니 내 구단으로
+            // 이어 준다(대상은 선수 → 구단 순으로 고른다). 어느 쪽이든 눌리기는 한다.
             w.Post("A매치 소집",
                 $"{called.Count}명이 국가대표에 소집됐습니다 — " +
                 string.Join(", ", called.Take(6).Select(p => p.FullName)) +
                 (called.Count > 6 ? " 외" : "") +
                 ". 지친 상태로 돌아옵니다.",
-                InboxKind.News);
+                InboxKind.News,
+                playerId: called.Count == 1 ? called[0].id : 0,
+                clubId: w.ManagedClubId);
         }
 
         /// <summary>대표 경력이 몸값에 붙이는 배수.</summary>

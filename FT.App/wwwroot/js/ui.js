@@ -17,3 +17,14 @@ export function set(scale) {
     else if (scale === 'xl') html.classList.add('ui-xl');
     try { localStorage.setItem(KEY, scale); } catch { /* 시크릿 창이면 이번만 적용된다 */ }
 }
+
+// 화면별 작은 설정. 키는 'ft.ui.' 로 시작하는 것만 받는다.
+export function getItem(key) {
+    if (!String(key).startsWith('ft.ui.')) return null;
+    try { return localStorage.getItem(key); } catch { return null; }
+}
+
+export function setItem(key, value) {
+    if (!String(key).startsWith('ft.ui.')) return;
+    try { localStorage.setItem(key, value); } catch { /* 시크릿 창이면 이번만 */ }
+}

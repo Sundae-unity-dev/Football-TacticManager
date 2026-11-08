@@ -40,8 +40,7 @@ else
                         <td class="mono">@f.matchday</td>
                         <td class="tiny dim">@Ui.DateLabel(f.date)</td>
                         <td class="nowrap">
-                            <span class="kit" style="background:@w.Club(oppId)!.colors.primaryHex; width:12px; height:12px; display:inline-block; vertical-align:-1px; margin-right:.4rem; border-radius:3px"></span>
-                            @Session.ClubName(oppId)
+                            <ClubLink Id="oppId" Kit="true" />
                         </td>
                         <td class="center"><span class="badge">@(home ? "홈" : "원정")</span></td>
                         <td class="center">
@@ -78,11 +77,11 @@ else
                 @foreach (var f in league.currentSeason.fixtures.Where(x => x.matchday == Round(league)).OrderBy(x => x.id))
                 {
                     <tr class="@((f.homeClubId == club.id || f.awayClubId == club.id) ? "me" : "")">
-                        <td class="right nowrap" style="width:40%">@Session.ClubName(f.homeClubId)</td>
+                        <td class="right nowrap" style="width:40%"><ClubLink Id="f.homeClubId" /></td>
                         <td class="center mono" style="width:20%">
                             @(f.isPlayed && f.result is { } r ? $"{r.homeGoals} : {r.awayGoals}" : "vs")
                         </td>
-                        <td class="nowrap" style="width:40%">@Session.ClubName(f.awayClubId)</td>
+                        <td class="nowrap" style="width:40%"><ClubLink Id="f.awayClubId" /></td>
                     </tr>
                 }
             </tbody>
