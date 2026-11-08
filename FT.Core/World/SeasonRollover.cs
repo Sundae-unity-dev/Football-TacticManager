@@ -429,6 +429,7 @@ namespace FootballTactician.World
                     season.currentMatchday = Math.Max(season.currentMatchday, matchday);
                     Standings.Recalculate(league);
                     LeagueSplit.ApplyIfDue(w, league);
+                    TwoStage.ApplyIfDue(w, league);
                 }
             }
         }
@@ -466,7 +467,9 @@ namespace FootballTactician.World
                 var old = league.currentSeason;
                 if (old != null)
                 {
-                    foreach (var e in old.standings)
+                    // ⑧ 의 구단 기록은 한 해 합산이다 — "2026시즌 3위" 가 두 줄이나
+                    // 남으면 역대 성적을 읽을 수 없다.
+                    foreach (var e in TwoStage.SeasonTable(league))
                     {
                         var club = w.Club(e.clubId);
                         club?.history?.recentSeasons?.Add(new SeasonRecord
@@ -497,6 +500,12 @@ namespace FootballTactician.World
                     totalMatchdays = matchdays,
                     fixtures = FixtureScheduler.Build(league.clubIds, start, w.NextFixtureId, rng),
                     standings = league.clubIds.Select(id => new StandingEntry { clubId = id }).ToList(),
+
+                    // 한 해를 둘로 가르는 나라는 해마다 다시 정한다 — 승강으로 팀 수가
+                    // 바뀌면 경계도 따라 움직인다(⑦).
+                    stageMatchday = TwoStage.BoundaryFor(
+                        NameForge.ByCode(w.Nations.FirstOrDefault(
+                            n => n.LeagueIds.Contains(league.id))?.Code ?? ""), league),
                 };
                 w.NextFixtureId += league.currentSeason.fixtures.Count + 1;
 
@@ -616,21 +625,26 @@ namespace FootballTactician.World
                 // 1부만 우승으로 센다. 2·3부 1위는 승격이지 우승이 아니다.
                 if (league.tier != LeagueTier.First) continue;
 
-                // 우승팀은 순위표 1위가 아닐 수 있다 — 플레이오프로 가리는 나라가 있다(⑥).
-                int championId = ChampionPlayoff.ChampionOf(league.currentSeason);
-                var champ = table.FirstOrDefault(e => e.clubId == championId)
-                            ?? table.OrderBy(e => e.position).First();
+                // 한 해에 우승이 둘 나오는 리그가 있다(⑧ 아페르투라·클라우수라).
+                // 같은 구단이 둘 다 가져갔으면 두 번 새긴다 — 두 번 우승한 것이 맞다.
+                foreach (int championId in TwoStage.ChampionsOf(league.currentSeason))
+                {
+                    var champ = table.FirstOrDefault(e => e.clubId == championId);
 
-                winners.Add((champ.clubId, SeasonAwards.Honour.League));
-                ContractBonuses.PayTitle(w, champ.clubId);   // 계약서에 적은 우승 보너스
+                    winners.Add((championId, SeasonAwards.Honour.League));
+                    ContractBonuses.PayTitle(w, championId);   // 계약서에 적은 우승 보너스
 
-                if (champ.clubId == w.ManagedClubId)
+                    if (championId != w.ManagedClubId) continue;
+
+                    string how =
+                        ChampionPlayoff.WonFromBehind(league.currentSeason) && champ != null
+                            ? $"정규리그 {champ.position}위에서 챔피언 결정전을 뚫었습니다."
+                        : champ != null ? $"승점 {champ.points}."
+                        : "전반기 우승입니다.";
+
                     w.Post($"{league.name} 우승",
-                           ChampionPlayoff.WonFromBehind(league.currentSeason)
-                               ? $"정규리그 {champ.position}위에서 챔피언 결정전을 뚫었습니다. "
-                                 + "구단 역사에 새겨집니다."
-                               : $"승점 {champ.points}. 구단 역사에 새겨집니다.",
-                           InboxKind.Board);
+                           how + " 구단 역사에 새겨집니다.", InboxKind.Board);
+                }
             }
 
             foreach (var cup in w.Cups.Values)

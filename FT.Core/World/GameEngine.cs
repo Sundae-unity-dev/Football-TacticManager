@@ -104,6 +104,9 @@ namespace FootballTactician.World
 
                     // 정규리그가 끝났으면 상·하위로 가른다. 순위가 정해진 뒤여야 한다.
                     LeagueSplit.ApplyIfDue(w, league);
+
+                    // 아페르투라가 끝났으면 전반기 우승을 가린다(⑦). 역시 순위 뒤다.
+                    TwoStage.ApplyIfDue(w, league);
                 }
             }
 

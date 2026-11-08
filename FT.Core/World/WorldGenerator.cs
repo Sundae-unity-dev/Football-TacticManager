@@ -284,6 +284,9 @@ namespace FootballTactician.World
                 totalMatchdays = Matchdays(teams),
                 fixtures = fixtures,
                 standings = league.clubIds.Select(id => new StandingEntry { clubId = id }).ToList(),
+
+                // 한 해를 둘로 가르는 나라는 여기서 경계를 정한다(⑦). 일정은 그대로다.
+                stageMatchday = TwoStage.BoundaryFor(nation, league),
             };
             league.transferWindow = new TransferWindowData
             {

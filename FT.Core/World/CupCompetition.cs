@@ -127,9 +127,12 @@ namespace FootballTactician.World
                     if (top?.currentSeason == null) { ladders.Add(new List<int>()); continue; }
 
                     // 치른 경기가 있으면 순위를, 없으면(첫 시즌) 전력을 쓴다.
-                    bool played = top.currentSeason.standings.Any(s => s.played > 0);
+                    // 한 해를 둘로 가르는 리그(⑧)는 한 해 합산으로 본다 — 한 대회만
+                    // 잘한 팀이 대륙 대회를 가져가지 않게.
+                    var ladder = TwoStage.SeasonTable(top);
+                    bool played = ladder.Any(s => s.played > 0);
                     ladders.Add((played
-                        ? top.currentSeason.standings.OrderBy(s => s.position).Select(s => s.clubId)
+                        ? ladder.OrderBy(s => s.position).Select(s => s.clubId)
                         : top.clubIds.OrderByDescending(id => w.Strength(id)))
                         .Take(ContinentalSpotsPerNation).ToList());
                 }

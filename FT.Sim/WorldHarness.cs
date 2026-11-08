@@ -1944,6 +1944,88 @@ namespace FT.Sim
             return Enumerable.Empty<int>();
         }
 
+        /// <summary>
+        /// ⑦ 아페르투라/클라우수라. 한 해에 우승팀이 둘 나오는지, 강등은 합산으로 정해지는지.
+        /// </summary>
+        public static void Stages(int seasons)
+        {
+            var codes = new[] { "MEX", "URU", "PAR", "CRC", "ENG" };
+            var w = WorldGenerator.Create(31337,
+                nations: codes.Select(NameForge.ByCode).ToList());
+
+            var club = w.Clubs.Values.First(c => c.reputation == 3);
+            ManagerCareer.TakeCharge(w, club.id, "하네스");
+
+            Console.WriteLine($"== 아페르투라 · 클라우수라 ({seasons}시즌) ==");
+            Console.WriteLine();
+
+            var twice = new Dictionary<int, int>();   // 리그 → 같은 팀이 둘 다 먹은 횟수
+            var runs = new Dictionary<int, int>();
+            var last = new Dictionary<int, string>();
+
+            for (int s = 0; s < seasons; s++)
+            {
+                int guard = 0;
+                while (!w.SeasonFinished && guard++ < 90) GameEngine.PlayNextRound(w);
+                SeasonRollover.FinishRemainingFixtures(w);
+
+                foreach (var l in w.Leagues.Values)
+                {
+                    var se = l.currentSeason;
+                    if (!TwoStage.Has(se)) continue;
+
+                    // 두 단계를 합치면 한 해 전체여야 한다. 한 경기도 새거나 겹치면 안 된다.
+                    int a = TwoStage.StageTable(l, TwoStage.Apertura).Sum(e => e.played);
+                    int c = TwoStage.StageTable(l, TwoStage.Clausura).Sum(e => e.played);
+                    int all = TwoStage.SeasonTable(l).Sum(e => e.played);
+                    if (a + c != all)
+                        Console.WriteLine($"  !! {l.name} 집계가 어긋남 {a}+{c} != {all}");
+
+                    int ap = se.aperturaChampionClubId;
+                    int cl = ChampionPlayoff.ChampionOf(se);
+
+                    runs[l.id] = runs.GetValueOrDefault(l.id) + 1;
+                    if (ap > 0 && ap == cl) twice[l.id] = twice.GetValueOrDefault(l.id) + 1;
+
+                    last[l.id] = $"{se.year} 아페르투라 {w.Club(ap)?.name ?? "?"} · "
+                               + $"클라우수라 {w.Club(cl)?.name ?? "?"}"
+                               + (ap > 0 && ap == cl ? "  ← 같은 팀" : "");
+                }
+
+                SeasonRollover.StartNextSeason(w);
+            }
+
+            foreach (var l in w.Leagues.Values.OrderBy(x => x.name))
+            {
+                if (!runs.TryGetValue(l.id, out int n))
+                {
+                    Console.WriteLine($"  {l.name,-18} 한 해 한 번 — 우승팀 하나");
+                    continue;
+                }
+
+                var se = l.currentSeason;
+                Console.WriteLine($"  {l.name,-18} {l.numberOfTeams}팀 · "
+                    + $"1~{se.stageMatchday}R / {se.stageMatchday + 1}~{se.totalMatchdays}R · "
+                    + $"{n}시즌 중 {twice.GetValueOrDefault(l.id)}번 같은 팀이 둘 다");
+                if (last.TryGetValue(l.id, out string line))
+                    Console.WriteLine($"    {line}");
+            }
+
+            Console.WriteLine();
+
+            // 대진 경기가 리그 경기보다 많이 터지는지. 눈으로 보면 큰 점수만 기억에 남는다.
+            var goals = w.Inbox.SelectMany(m => m.body.Split('\n'))
+                               .SelectMany(LegGoals).ToList();
+            if (goals.Count > 0)
+                Console.WriteLine($"  대진 {goals.Count}경기 득점 {goals.Average():F2}/경기 "
+                    + $"· 가장 큰 경기 {goals.Max()}골");
+
+            var notes = w.Inbox.Where(m => m.title.Contains("아페르투라")).ToList();
+            Console.WriteLine($"  소식에 남은 아페르투라 알림 {notes.Count}건");
+            foreach (var m in notes.Take(1))
+                Console.WriteLine($"    [{m.title}]\n{m.body}");
+        }
+
         public static void Confederations()
         {
             var w = WorldGenerator.Create(31415, 2026, NameForge.All);

@@ -52,6 +52,7 @@ namespace FT.Sim
             if (mode is "split") WorldHarness.Splits();
             if (mode is "playoff") WorldHarness.Playoffs();
             if (mode is "champion") WorldHarness.Champions(args.Length > 1 ? int.Parse(args[1]) : 6);
+            if (mode is "stage") WorldHarness.Stages(args.Length > 1 ? int.Parse(args[1]) : 5);
             if (mode is "conf") WorldHarness.Confederations();
 
             if (mode is "ages") WorldHarness.Ages(args.Length > 1 ? int.Parse(args[1]) : 12);

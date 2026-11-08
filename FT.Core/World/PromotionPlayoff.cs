@@ -21,8 +21,13 @@ namespace FootballTactician.World
     /// </summary>
     public static class PromotionPlayoff
     {
-        /// <summary>승격 대진의 씨드 열쇠와 경기 id 바닥. 바꾸면 지난 결과가 달라진다.</summary>
-        static readonly Knockout.Rules Rules = new(40519, 900000, "승격");
+        /// <summary>
+        /// 승격 대진의 씨드 열쇠와 경기 id 바닥.
+        ///
+        /// <b>해를 섞는다.</b> 섞지 않으면 같은 두 팀이 다시 만났을 때 몇 해가 지나도
+        /// 똑같은 점수가 나온다 — 씨드가 세계·구단·회차만으로 정해지기 때문이다.
+        /// </summary>
+        static Knockout.Rules RulesFor(int year) => new(SeedMix.Of(40519, year, 7), 900000, "승격");
 
         /// <summary>
         /// 그 경계에서 내려갈 팀과 올라갈 팀. 플레이오프가 없으면 순위 그대로다.
@@ -34,9 +39,11 @@ namespace FootballTactician.World
             LeagueData top, LeagueData below, int spots,
             Random rng, List<string> log)
         {
-            var upByPos = below.currentSeason.standings
+            // 한 해를 둘로 가르는 리그(⑦)는 **한 해 합산**으로 오르내린다 — 반 년
+            // 못했다고 내려보내면 너무 가혹하고, 실제 규정도 두 대회를 합친다.
+            var upByPos = TwoStage.SeasonTable(below)
                 .OrderBy(e => e.position).Select(e => e.clubId).ToList();
-            var downByPos = top.currentSeason.standings
+            var downByPos = TwoStage.SeasonTable(top)
                 .OrderByDescending(e => e.position).Select(e => e.clubId).ToList();
 
             // 아무 것도 못 할 만큼 순위표가 모자라면 손대지 않는다.
@@ -46,6 +53,8 @@ namespace FootballTactician.World
             int entrants = spec?.PlayoffTeams(tier) ?? 0;
             bool survival = spec?.HasSurvivalPlayoff(tier) ?? false;
 
+            var rules = RulesFor(top.currentSeason?.year ?? 0);
+
             // ── 승격 플레이오프 (잉글랜드식) ──────────────────────────────
             if (entrants >= 2 && spots >= 1 && upByPos.Count >= spots - 1 + entrants)
             {
@@ -54,7 +63,7 @@ namespace FootballTactician.World
                 var field = upByPos.Skip(auto).Take(entrants).ToList();
 
                 log.Add($"{below.name} 승격 플레이오프 — {entrants}팀");
-                up.Add(Knockout.Run(w, field, Rules, log));
+                up.Add(Knockout.Run(w, field, rules, log));
 
                 return (downByPos.Take(spots).ToList(), up);
             }
@@ -72,8 +81,8 @@ namespace FootballTactician.World
                         + $"대 {Knockout.Name(w, challenger)}({below.shortName})");
 
                 // 아래 팀이 먼저 홈에서 치른다. 두 경기 합산이 같으면 위 팀이 남는다.
-                var leg1 = Knockout.Leg(w, challenger, safe, Rules, 1);
-                var leg2 = Knockout.Leg(w, safe, challenger, Rules, 2);
+                var leg1 = Knockout.Leg(w, challenger, safe, rules, 1);
+                var leg2 = Knockout.Leg(w, safe, challenger, rules, 2);
                 int challengerGoals = leg1.home + leg2.away;
                 int safeGoals = leg1.away + leg2.home;
 

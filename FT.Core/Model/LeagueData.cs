@@ -74,9 +74,22 @@ namespace FootballTactician.Data
         /// 플레이오프로 가린 우승팀. <b>0 이면 정규리그 1위가 곧 우승팀</b>이다
         /// (docs/리그-제도.md ⑥).
         ///
+        /// 한 해를 둘로 가르는 리그(⑦)에서는 <b>클라우수라</b>의 우승팀이다.
         /// 0 은 저장하지 않으므로 예전 세이브도 그대로 읽힌다.
         /// </summary>
         public int championClubId;
+
+        /// <summary>
+        /// 아페르투라가 끝나는 라운드. <b>0 이면 한 해에 우승팀이 하나</b>다
+        /// (docs/리그-제도.md ⑦).
+        ///
+        /// 일정은 원래부터 전반기 한 바퀴 · 후반기 한 바퀴로 짜여 있다. 그래서 한 해를
+        /// 둘로 가르는 데에 일정을 새로 짤 필요가 없다 — 어디서 끊어 셀지만 정하면 된다.
+        /// </summary>
+        public int stageMatchday;
+
+        /// <summary>아페르투라 우승팀. 0 이면 아직 끝나지 않았거나 두 단계가 아니다.</summary>
+        public int aperturaChampionClubId;
 
         /// <summary>일정을 다 치렀는지. "시즌이 끝났다" 의 뜻은 여기 한 곳에만 둔다.</summary>
         [JsonIgnore] public bool Finished => fixtures.All(f => f.isPlayed);
