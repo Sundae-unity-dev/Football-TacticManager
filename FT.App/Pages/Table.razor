@@ -35,7 +35,7 @@ else
         {
             <p class="tiny" style="color:var(--sky)">
                 이 리그는 <strong>정규리그 1위가 우승이 아닙니다</strong> —
-                상위 @poTeams 팀이 시즌 뒤에 챔피언 결정전을 치릅니다.
+                상위 @(poTeams)팀이 시즌 뒤에 챔피언 결정전을 치릅니다.
                 1위에게는 정규리그 우승의 몫이 따로 돌아갑니다.
                 @if (league.lastChampionClubId > 0)
                 {
@@ -62,7 +62,11 @@ else
             @if (league.tier == LeagueTier.First)
             {
                 <span><span style="color:var(--sky)">■</span> 대륙 대회</span>
-                <span><span style="color:var(--coral)">■</span> 강등권</span>
+                @* 닫힌 리그에는 강등이 없다(③) — 범례에만 남아 있으면 거짓말이 된다. *@
+                @if (league.relegationSpots > 0)
+                {
+                    <span><span style="color:var(--coral)">■</span> 강등권</span>
+                }
             }
         </p>
 
