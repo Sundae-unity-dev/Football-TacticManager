@@ -118,7 +118,7 @@ namespace FootballTactician.World
                             w.Post("A매치 부상",
                                 $"{p.FullName} 이 국가대표 경기에서 다쳐 돌아왔습니다. " +
                                 $"복귀까지 약 {weeks}주로 보입니다.",
-                                InboxKind.Injury);
+                                InboxKind.Injury, playerId: p.id);
                     }
                 }
             }

@@ -40,7 +40,7 @@ else
                     {
                         <tr class="@(e.clubId == w.ManagedClubId ? "me" : "")">
                             <td class="mono">@e.position</td>
-                            <td>@Session.ClubName(e.clubId)</td>
+                            <td><ClubLink Id="e.clubId" /></td>
                             <td class="num">@e.goalsFor</td>
                             <td class="num">@e.goalsAgainst</td>
                             <td class="num">@(e.played > 0 ? (e.goalsFor / (float)e.played).ToString("F2") : "—")</td>

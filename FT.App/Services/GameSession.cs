@@ -251,7 +251,7 @@ public sealed class GameSession(SaveStore store)
             TransferMarket.Execute(w, offer);
             w.Post($"{target.FullName} 영입",
                    $"{w.Club(offer.toClubId)?.name} 에서 이적료 {fee / 1_000_000d:F1}M€ 에 영입했습니다.",
-                   InboxKind.Transfer);
+                   InboxKind.Transfer, playerId: target.id);
             NotifyChanged();
             await SaveAsync();
         }
@@ -331,7 +331,7 @@ public sealed class GameSession(SaveStore store)
         w.Post($"{p.FullName} 재계약",
                $"주 {terms.weeklyWage / 1000d:F0}K€ · {terms.years}년 · "
                + $"{ContractNegotiation.RoleLabel(terms.role)} 자리로 합의했습니다.",
-               InboxKind.Transfer);
+               InboxKind.Transfer, playerId: p.id);
         NotifyChanged();
         await SaveAsync();
     }
@@ -380,7 +380,7 @@ public sealed class GameSession(SaveStore store)
         w.Post($"{p.FullName} 영입",
                $"이적료 {fee / 1_000_000d:F1}M€ · 주 {terms.weeklyWage / 1000d:F0}K€ · "
                + $"{terms.years}년 · {ContractNegotiation.RoleLabel(terms.role)} 자리.",
-               InboxKind.Transfer);
+               InboxKind.Transfer, playerId: p.id);
         NotifyChanged();
         await SaveAsync();
         return null;
@@ -419,7 +419,7 @@ public sealed class GameSession(SaveStore store)
         {
             LoanMarket.Send(w, p, host);
             w.Post($"{p.FullName} 임대",
-                   $"{host.name} 으로 시즌 말까지 임대 보냈습니다.", InboxKind.Transfer);
+                   $"{host.name} 으로 시즌 말까지 임대 보냈습니다.", InboxKind.Transfer, playerId: p.id);
             NotifyChanged();
             await SaveAsync();
         }
@@ -433,7 +433,7 @@ public sealed class GameSession(SaveStore store)
         if (p == null) return;
 
         LoanMarket.Recall(w, p);
-        w.Post($"{p.FullName} 임대 복귀", "임대를 중도에 끝내고 불러들였습니다.", InboxKind.Transfer);
+        w.Post($"{p.FullName} 임대 복귀", "임대를 중도에 끝내고 불러들였습니다.", InboxKind.Transfer, playerId: p.id);
         NotifyChanged();
         await SaveAsync();
     }

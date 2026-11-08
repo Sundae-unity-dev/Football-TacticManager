@@ -29,58 +29,58 @@ else
         <div class="card-head">
             <h3>선수 목록</h3>
             <span class="spacer"></span>
-            <select @bind="sort" @bind:after="StateHasChanged">
-                <option value="ca">기량 순</option>
-                <option value="pos">포지션 순</option>
-                <option value="age">나이 순</option>
-                <option value="value">가치 순</option>
-                <option value="goals">득점 순</option>
-                <option value="rating">평점 순</option>
-            </select>
             <label class="tiny muted nowrap" style="display:flex; align-items:center; gap:.3rem">
                 <input type="checkbox" @bind="startersOnly" @bind:after="StateHasChanged" /> 선발만
             </label>
+            <select @bind="ViewKey" title="보기 — 표에 띄울 열 묶음">
+                @foreach (var (key, view) in Views)
+                {
+                    <option value="@key">@view.Label</option>
+                }
+            </select>
+        </div>
+
+        <div class="chip-row">
+            @foreach (var (key, label) in PosChips)
+            {
+                var n = key == "" ? Session.Squad.Count() : Session.Squad.Count(x => Ui.PosClassOf(x) == key);
+                <button class="chip @(posFilter == key ? "on" : "")" @onclick="() => posFilter = key">
+                    @label <span class="dim">@n</span>
+                </button>
+            }
+            <span class="spacer"></span>
+            <span class="tiny dim">머리글을 누르면 정렬합니다</span>
         </div>
 
         <div style="overflow-x:auto">
             <table class="ft">
                 <thead>
                     <tr>
-                        <th></th><th>이름</th><th>포지션</th>
-                        <th class="num">나이</th><th class="num">CA</th><th class="num">PA</th>
-                        <th>컨디션</th><th>사기</th>
-                        <th class="num">경기</th><th class="num">골</th><th class="num">도움</th><th class="num">평점</th>
-                        <th class="num">가치</th><th class="num">주급</th>
+                        <th></th>
+                        @foreach (var col in ShownCols)
+                        {
+                            <th class="sortable @col.Css @(sortKey == col.Key ? "sorted" : "")" title="@col.Tip"
+                                @onclick="() => SortBy(col)">
+                                @col.Head@if (sortKey == col.Key) {<span class="sort-arrow">@(sortDesc ? "▼" : "▲")</span>}
+                            </th>
+                        }
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var p in Rows(starters))
                     {
-                        var ca = GameWorld.Ca(p);
-                        var pa = PlayerDevelopment.Pa(p);
                         <tr class="clickable @(starters.Contains(p.id) ? "me" : "")"
                             @onclick="() => Open(p.id)">
                             <td class="center">
                                 @if (starters.Contains(p.id)) { <span class="badge good" title="선발">XI</span> }
                                 else if (p.IsInjured) { <span class="badge bad" title="@p.injury!.injuryType">부상</span> }
                             </td>
-                            <td class="nowrap"><Flag Of="p.nationality" /> @p.FullName <span class="tiny dim">@Ui.NationCode(p.nationality)</span></td>
-                            <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
-                            <td class="num">@w.Age(p)</td>
-                            <td class="num">@Math.Round(ca)</td>
-                            <td class="num dim">@Math.Round(pa)</td>
-                            <td style="min-width:72px">
-                                <div class="bar @Ui.ConditionClass(p.condition)"><i style="width:@((int)p.condition)%"></i></div>
-                            </td>
-                            <td style="min-width:72px">
-                                <div class="bar @Ui.BarClass(p.morale / 100f)"><i style="width:@((int)p.morale)%"></i></div>
-                            </td>
-                            <td class="num">@p.seasonStats.appearances</td>
-                            <td class="num">@p.seasonStats.goals</td>
-                            <td class="num">@p.seasonStats.assists</td>
-                            <td class="num">@(p.seasonStats.appearances > 0 ? p.seasonStats.averageRating.ToString("F2") : "—")</td>
-                            <td class="num">@Ui.Money(p.marketValue)</td>
-                            <td class="num">@Ui.Money(p.contract?.weeklyWage ?? 0)</td>
+                            @foreach (var col in ShownCols)
+                            {
+                                <td class="@col.Css">@col.Cell(p)</td>
+                            }
+                            <td class="right" @onclick:stopPropagation="true"><PlayerActions Player="p" Menu="true" /></td>
                         </tr>
                     }
                 </tbody>
@@ -133,30 +133,152 @@ else
 }
 
 @code {
+    [Inject] UiPrefs Prefs { get; set; } = default!;
+
     void Open(int playerId) => Nav.NavigateTo($"player/{playerId}");
 
-    string sort = "ca";
+    // ── 보기(View) ───────────────────────────────────────────────────────
+    //
+    // 열을 한 번 정의해 두고, 보기는 그중 몇 개를 고르는 이름일 뿐이다.
+    // 새 열을 만들면 어느 보기에든 키만 넣으면 된다.
+
+    record Col(string Key, string Head, string Css, Func<PlayerData, IComparable> Sort,
+               RenderFragment<PlayerData> Cell, string? Tip = null, bool AscFirst = false);
+
+    record View(string Label, string[] Cols);
+
+    static readonly Dictionary<string, View> Views = new()
+    {
+        ["general"]  = new("일반 정보", ["name", "pos", "age", "ca", "pa", "cond", "morale", "value", "wage", "expiry"]),
+        ["perf"]     = new("경기 기록", ["name", "pos", "apps", "mins", "goals", "assists", "xg", "xa", "rating", "cards", "clean"]),
+        ["contract"] = new("계약", ["name", "pos", "age", "wage", "demand", "expiry", "months", "value", "status"]),
+        ["growth"]   = new("성장", ["name", "pos", "age", "ca", "pa", "room", "prof", "homegrown", "apps"]),
+        ["fitness"]  = new("몸 상태", ["name", "pos", "cond", "morale", "injury", "prone", "recovery", "mins"]),
+    };
+
+    static readonly (string key, string label)[] PosChips =
+        [("", "전체"), ("gk", "GK"), ("def", "수비"), ("mid", "미드필드"), ("att", "공격")];
+
+    Dictionary<string, Col> cols = new();
+    string viewKey = "general";
+    string posFilter = "";
+    string sortKey = "ca";
+    bool sortDesc = true;
     bool startersOnly;
+
+    const string ViewPrefKey = "ft.ui.squadView";
+
+    string ViewKey
+    {
+        get => viewKey;
+        set
+        {
+            if (!Views.ContainsKey(value)) return;
+            viewKey = value;
+            // 새 보기에 없는 열로 정렬 중이었다면 기량 순으로 돌린다. 열이 안 보여도 줄 순서는 익숙한 그대로다.
+            if (!Views[value].Cols.Contains(sortKey)) { sortKey = "ca"; sortDesc = true; }
+            _ = Prefs.SetAsync(ViewPrefKey, value);
+        }
+    }
+
+    IEnumerable<Col> ShownCols => Views[viewKey].Cols.Where(cols.ContainsKey).Select(k => cols[k]);
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        cols = BuildCols().ToDictionary(c => c.Key);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var saved = await Prefs.GetAsync(ViewPrefKey);
+        if (saved is not null && Views.ContainsKey(saved)) viewKey = saved;
+    }
+
+    void SortBy(Col col)
+    {
+        if (sortKey == col.Key) sortDesc = !sortDesc;
+        else { sortKey = col.Key; sortDesc = !col.AscFirst; }
+    }
 
     IEnumerable<PlayerData> Rows(HashSet<int> starters)
     {
-        var w = Session.World!;
         var list = Session.Squad.AsEnumerable();
         if (startersOnly) list = list.Where(p => starters.Contains(p.id));
+        if (posFilter != "") list = list.Where(p => Ui.PosClassOf(p) == posFilter);
 
-        return sort switch
-        {
-            "pos" => list.OrderBy(p => PosOrder(p)).ThenByDescending(GameWorld.Ca),
-            "age" => list.OrderBy(p => w.Age(p)).ThenByDescending(GameWorld.Ca),
-            "value" => list.OrderByDescending(p => p.marketValue),
-            "goals" => list.OrderByDescending(p => p.seasonStats.goals).ThenByDescending(p => p.seasonStats.assists),
-            "rating" => list.OrderByDescending(p => p.seasonStats.appearances > 0 ? p.seasonStats.averageRating : 0),
-            _ => list.OrderByDescending(GameWorld.Ca),
-        };
+        if (!cols.TryGetValue(sortKey, out var col)) return list;
+        // 같은 값끼리는 기량 순으로 — 정렬을 바꿔도 줄이 들쭉날쭉하지 않게.
+        return sortDesc
+            ? list.OrderByDescending(col.Sort).ThenByDescending(GameWorld.Ca)
+            : list.OrderBy(col.Sort).ThenByDescending(GameWorld.Ca);
     }
 
     static int PosOrder(PlayerData p) => Ui.PosClassOf(p) switch
     {
         "gk" => 0, "def" => 1, "mid" => 2, _ => 3,
+    };
+
+    static string Dec(float v, string fmt = "F1") => v.ToString(fmt);
+
+    IEnumerable<Col> BuildCols()
+    {
+        var w = Session.World!;
+
+        yield return new("name", "이름", "nowrap", p => p.FullName, p =>
+            @<span>
+                <Flag Of="p.nationality" /> @p.FullName <span class="tiny dim">@Ui.NationCode(p.nationality)</span>
+                @if (p.transferStatus == TransferStatus.ListedForTransfer) { <span class="badge warn" title="이적 명단">이적</span> }
+            </span>, AscFirst: true);
+        yield return new("pos", "포지션", "", p => PosOrder(p), p =>
+            @<span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span>, AscFirst: true);
+        yield return new("age", "나이", "num", p => w.Age(p), p => @<span>@w.Age(p)</span>, AscFirst: true);
+        yield return new("ca", "CA", "num", p => GameWorld.Ca(p), p => @<span>@Math.Round(GameWorld.Ca(p))</span>, "현재 기량");
+        yield return new("pa", "PA", "num dim", p => PlayerDevelopment.Pa(p), p => @<span>@Math.Round(PlayerDevelopment.Pa(p))</span>, "잠재력");
+        yield return new("room", "여지", "num", p => PlayerDevelopment.Pa(p) - GameWorld.Ca(p),
+            p => @<span>@Math.Round(PlayerDevelopment.Pa(p) - GameWorld.Ca(p))</span>, "잠재력까지 남은 CA");
+        yield return new("cond", "컨디션", "", p => p.condition, p =>
+            @<div class="bar @Ui.ConditionClass(p.condition)" style="min-width:64px" title="@((int)p.condition)%"><i style="width:@((int)p.condition)%"></i></div>);
+        yield return new("morale", "사기", "", p => p.morale, p =>
+            @<div class="bar @Ui.BarClass(p.morale / 100f)" style="min-width:64px" title="@Ui.MoraleLabel(p.morale)"><i style="width:@((int)p.morale)%"></i></div>);
+        yield return new("value", "가치", "num", p => p.marketValue, p => @<span>@Ui.Money(p.marketValue)</span>);
+        yield return new("wage", "주급", "num", p => p.contract?.weeklyWage ?? 0, p => @<span>@Ui.Money(p.contract?.weeklyWage ?? 0)</span>);
+        yield return new("demand", "요구 주급", "num", p => ContractTalks.DemandedWage(w, p),
+            p => @<span>@Ui.Money(ContractTalks.DemandedWage(w, p))</span>, "재계약 때 요구할 주급");
+        yield return new("expiry", "만료", "num tiny dim", p => p.contract is { } k ? k.expiryDate.year * 10000 + k.expiryDate.month * 100 + k.expiryDate.day : int.MaxValue,
+            p => @<span>@(p.contract is null ? "—" : Ui.DateLabel(p.contract.expiryDate))</span>, AscFirst: true);
+        yield return new("months", "남은 기간", "num", p => Session.MonthsLeft(p), p =>
+        {
+            var m = Session.MonthsLeft(p);
+            return @<span class="badge @(m <= 6 ? "bad" : m <= 12 ? "warn" : "")">@(m)개월</span>;
+        }, AscFirst: true);
+        yield return new("status", "상태", "", p => (int)p.transferStatus, p =>
+            @<span class="tiny">@StatusLabel(p.transferStatus)</span>);
+        yield return new("apps", "경기", "num", p => p.seasonStats.appearances, p => @<span>@p.seasonStats.appearances</span>);
+        yield return new("mins", "출전 시간", "num", p => p.seasonStats.minutesPlayed, p => @<span>@((int)p.seasonStats.minutesPlayed)'</span>);
+        yield return new("goals", "골", "num", p => p.seasonStats.goals, p => @<span>@p.seasonStats.goals</span>);
+        yield return new("assists", "도움", "num", p => p.seasonStats.assists, p => @<span>@p.seasonStats.assists</span>);
+        yield return new("xg", "xG", "num dim", p => p.seasonStats.xG, p => @<span>@Dec(p.seasonStats.xG)</span>, "기대 득점");
+        yield return new("xa", "xA", "num dim", p => p.seasonStats.xA, p => @<span>@Dec(p.seasonStats.xA)</span>, "기대 도움");
+        yield return new("rating", "평점", "num", p => p.seasonStats.appearances > 0 ? p.seasonStats.averageRating : 0f, p =>
+            @<span>@(p.seasonStats.appearances > 0 ? p.seasonStats.averageRating.ToString("F2") : "—")</span>);
+        yield return new("cards", "경고·퇴장", "num", p => p.seasonStats.yellowCards + p.seasonStats.redCards * 3, p =>
+            @<span>@p.seasonStats.yellowCards · @p.seasonStats.redCards</span>);
+        yield return new("clean", "무실점", "num", p => p.seasonStats.cleanSheets, p => @<span>@p.seasonStats.cleanSheets</span>);
+        yield return new("prof", "프로의식", "num", p => p.hidden.professionalism, p => @<span>@p.hidden.professionalism</span>, "높을수록 빨리 큽니다 (1~20)");
+        yield return new("homegrown", "유스", "center", p => Session.IsAcademyProduct(p) ? 1 : 0, p =>
+            @<span>@if (Session.IsAcademyProduct(p)) { <span class="badge good">유스</span> }</span>, "홈그로운 규정에 드는 선수");
+        yield return new("injury", "부상", "nowrap tiny", p => p.IsInjured ? 1 : 0, p =>
+            @<span>@if (p.IsInjured) { <span style="color:var(--coral)">@p.injury!.injuryType · @Ui.DateLabel(p.injury.expectedReturnDate)</span> } else { <span class="dim">—</span> }</span>);
+        yield return new("prone", "부상 성향", "num", p => p.hidden.injuryProneness, p => @<span>@p.hidden.injuryProneness</span>, "높을수록 잘 다칩니다 (1~20)", AscFirst: true);
+        yield return new("recovery", "회복력", "num", p => p.hidden.recoveryRate, p => @<span>@p.hidden.recoveryRate</span>, "높을수록 컨디션이 빨리 돌아옵니다 (1~20)");
+    }
+
+    static string StatusLabel(TransferStatus s) => s switch
+    {
+        TransferStatus.ListedForTransfer => "이적 명단",
+        TransferStatus.ListedForLoan => "임대 명단",
+        TransferStatus.WantAway => "이적 요청",
+        _ => "—",
     };
 }

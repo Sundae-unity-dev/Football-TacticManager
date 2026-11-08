@@ -506,7 +506,7 @@ namespace FootballTactician.World
                 if (cup.winnerClubId > 0)
                     w.Post($"{cup.name} 우승",
                            $"{w.Club(cup.winnerClubId)?.name} 이 {cup.name} 을 들어올렸습니다.",
-                           InboxKind.News);
+                           InboxKind.News, clubId: cup.winnerClubId);
                 return;
             }
 

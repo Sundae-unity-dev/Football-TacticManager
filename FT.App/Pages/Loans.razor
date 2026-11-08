@@ -37,7 +37,7 @@ else
                         if (p is null) { continue; }
                         <tr>
                             <td class="nowrap"><a href="@($"player/{p.id}")">@p.FullName</a></td>
-                            <td class="nowrap tiny">@Session.ClubName(deal.hostClubId)</td>
+                            <td class="nowrap tiny"><ClubLink Id="deal.hostClubId" /></td>
                             <td class="num">@w.Age(p)</td>
                             <td class="num">@Math.Round(GameWorld.Ca(p))</td>
                             <td class="num">@p.seasonStats.appearances</td>
@@ -108,7 +108,7 @@ else
     {
         var suitors = Session.Suitors(target);
 
-        <div class="card" style="border-color:var(--emerald)">
+        <div class="card focus-anchor" style="border-color:var(--emerald)" tabindex="-1" @ref="selectedAnchor">
             <div class="card-head">
                 <h3>@target.FullName 임대처</h3>
                 <span class="spacer"></span>
@@ -131,7 +131,7 @@ else
                         {
                             var league = w.LeagueOf(c.id);
                             <tr>
-                                <td class="nowrap">@c.name</td>
+                                <td class="nowrap"><ClubLink Id="c.id" /></td>
                                 <td class="tiny nowrap">
                                     @league?.shortName
                                     <span class="badge">@((int)(league?.tier ?? LeagueTier.First))부</span>
@@ -171,10 +171,31 @@ else
     LoanMarket.Outcome? outcome;
     bool busy;
 
+    // 선수 화면·목록의 [임대 보내기]는 loans?player={id}로 온다. 그 선수의 임대처를 바로 연다.
+    [SupplyParameterFromQuery(Name = "player")] public int? PlayerId { get; set; }
+    int? openedFromQuery;
+    ElementReference selectedAnchor;
+    bool scrollToSelected;
+
+    protected override void OnParametersSet()
+    {
+        if (PlayerId is not { } id || id == openedFromQuery) return;
+        openedFromQuery = id;
+        if (Session.Loanable.FirstOrDefault(p => p.id == id) is { } p) Select(p);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!scrollToSelected || selected is null) return;
+        scrollToSelected = false;
+        await selectedAnchor.FocusAsync(preventScroll: false);
+    }
+
     void Select(PlayerData p)
     {
         selected = p;
         outcome = null;
+        scrollToSelected = true;
     }
 
     void Close()

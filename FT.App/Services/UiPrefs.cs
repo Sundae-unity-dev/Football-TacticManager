@@ -49,6 +49,23 @@ public sealed class UiPrefs(IJSRuntime js) : IAsyncDisposable
         catch { /* 저장만 실패한다. 이번 판에는 적용된 채로 둔다 */ }
     }
 
+    /// <summary>화면별 작은 설정(스쿼드 보기 등). 못 읽으면 null.</summary>
+    public async Task<string?> GetAsync(string key)
+    {
+        var m = await ModuleAsync();
+        if (m == null) return null;
+        try { return await m.InvokeAsync<string?>("getItem", key); }
+        catch { return null; }
+    }
+
+    public async Task SetAsync(string key, string value)
+    {
+        var m = await ModuleAsync();
+        if (m == null) return;
+        try { await m.InvokeVoidAsync("setItem", key, value); }
+        catch { /* 저장만 실패한다 */ }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_module == null) return;

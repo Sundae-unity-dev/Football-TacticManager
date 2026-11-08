@@ -102,7 +102,7 @@ else
                     <span class="tiny muted nowrap">
                         다음 @next.matchday 라운드 ·
                         @(next.homeClubId == club.id ? "홈" : "원정")
-                        @Session.ClubName(next.homeClubId == club.id ? next.awayClubId : next.homeClubId)
+                        <ClubLink Id="@(next.homeClubId == club.id ? next.awayClubId : next.homeClubId)" />
                     </span>
                 }
                 <span class="topbar-spacer"></span>

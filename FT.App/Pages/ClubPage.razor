@@ -1,0 +1,238 @@
+@page "/club/{Id:int}"
+@inherits SessionPage
+
+<PageTitle>@(Club?.name ?? "구단") · Football Tactician</PageTitle>
+
+@if (Session.World is not { } w)
+{
+    <Redirect />
+}
+else if (Club is not { } c)
+{
+    <div class="empty">구단을 찾을 수 없습니다. <a href="table">순위표로</a></div>
+}
+else
+{
+    var mine = c.id == w.ManagedClubId;
+    var league = w.LeagueOf(c.id);
+    var season = league?.currentSeason;
+    var standing = season?.standings.FirstOrDefault(s => s.clubId == c.id);
+    var squad = w.Squad(c.id).OrderByDescending(GameWorld.Ca).ToList();
+    var strength = w.Strength(c.id);
+    var strengthRank = league is null ? 0
+        : league.clubIds.Count(id => w.Strength(id) > strength) + 1;
+    var fixtures = season?.fixtures
+        .Where(f => f.homeClubId == c.id || f.awayClubId == c.id)
+        .OrderBy(f => f.matchday).ToList() ?? [];
+    var played = fixtures.Where(f => f.isPlayed && f.result != null).TakeLast(5).ToList();
+    var upcoming = fixtures.Where(f => !f.isPlayed).Take(3).ToList();
+
+    <h1>
+        <span class="kit-dot lg" style="background:@c.colors?.primaryHex"></span>
+        @c.name
+    </h1>
+    <p class="muted">
+        @if (league is not null)
+        {
+            <a href="@($"table?league={league.id}")">@league.name</a>
+            <span class="badge">@((int)league.tier)부</span>
+            <span>·</span>
+        }
+        <span class="mono" title="명성">@(new string('★', Math.Clamp(c.reputation, 0, 5)))</span>
+        @if (c.history?.founded > 0) { <span>· @(c.history.founded)년 창단</span> }
+        @if (c.stadium is { } st) { <span>· @st.name (@st.capacity.ToString("N0")석)</span> }
+        @if (mine) { <span class="badge good">내 구단</span> }
+    </p>
+
+    @if (mine)
+    {
+        <div class="btn-row act-bar">
+            <a class="btn btn-sm" href="squad">스쿼드</a>
+            <a class="btn btn-sm" href="tactics">전술</a>
+            <a class="btn btn-sm" href="finances">재정</a>
+            <a class="btn btn-sm" href="honours">기록실</a>
+        </div>
+    }
+
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="stat-label">리그 순위</div>
+            <div class="stat-value accent">@(standing is null ? "—" : $"{standing.position}위")</div>
+            <div class="stat-sub">
+                @if (standing is not null)
+                {
+                    <span>승점 @standing.points · @(standing.won)승 @(standing.drawn)무 @(standing.lost)패</span>
+                }
+            </div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">전력 (상위 11인 CA)</div>
+            <div class="stat-value">@Math.Round(strength)</div>
+            <div class="stat-sub">@(strengthRank > 0 ? $"리그 {strengthRank}번째" : "")</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">연 수입</div>
+            <div class="stat-value" style="font-size:1.25rem">@Ui.Money(c.finances?.annualRevenue ?? 0)</div>
+            <div class="stat-sub">주급 합계 @Ui.Money(c.finances?.currentWageSpend ?? 0)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">시설</div>
+            <div class="stat-value" style="font-size:1.1rem">
+                <span class="mono">@(new string('★', Math.Clamp(c.trainingFacilitiesRating, 0, 5)))</span>
+            </div>
+            <div class="stat-sub">훈련 시설 · 유스 @(new string('★', Math.Clamp(c.academyRating, 0, 5)))</div>
+        </div>
+    </div>
+
+    <div class="grid grid-2 mt1">
+        <div class="card">
+            <div class="card-head">
+                <h3>최근 경기</h3>
+                <span class="spacer"></span>
+                @if (league is not null && standing is not null)
+                {
+                    @foreach (var ch in Standings.RecentForm(league, c.id))
+                    {
+                        <span class="form-dot form-@ch">@ch</span>
+                    }
+                }
+            </div>
+            @if (played.Count == 0)
+            {
+                <div class="empty">아직 치른 경기가 없습니다.</div>
+            }
+            else
+            {
+                <table class="ft">
+                    <tbody>
+                        @foreach (var f in played.AsEnumerable().Reverse())
+                        {
+                            var home = f.homeClubId == c.id;
+                            var opp = home ? f.awayClubId : f.homeClubId;
+                            var us = home ? f.result!.homeGoals : f.result!.awayGoals;
+                            var them = home ? f.result.awayGoals : f.result.homeGoals;
+                            var mark = us > them ? 'W' : us == them ? 'D' : 'L';
+                            <tr>
+                                <td class="mono dim" style="width:2.5rem">R@(f.matchday)</td>
+                                <td class="nowrap"><ClubLink Id="opp" Kit="true" /></td>
+                                <td class="center"><span class="badge">@(home ? "홈" : "원정")</span></td>
+                                <td class="right nowrap">
+                                    <span class="form-dot form-@mark">@mark</span>
+                                    <span class="mono">@us-@them</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-head"><h3>다음 경기</h3></div>
+            @if (upcoming.Count == 0)
+            {
+                <div class="empty">남은 리그 경기가 없습니다.</div>
+            }
+            else
+            {
+                <table class="ft">
+                    <tbody>
+                        @foreach (var f in upcoming)
+                        {
+                            var home = f.homeClubId == c.id;
+                            var opp = home ? f.awayClubId : f.homeClubId;
+                            <tr class="@(opp == w.ManagedClubId ? "me" : "")">
+                                <td class="tiny dim" title="@(f.matchday) 라운드">@Ui.DateLabel(f.date)</td>
+                                <td class="nowrap"><ClubLink Id="opp" Kit="true" /></td>
+                                <td class="right nowrap"><span class="badge">@(home ? "홈" : "원정")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>선수단</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">@(squad.Count)명 · 평균 @(squad.Count == 0 ? 0 : (int)squad.Average(p => w.Age(p)))세</span>
+        </div>
+        <div style="overflow-x:auto">
+            <table class="ft">
+                <thead>
+                    <tr>
+                        <th>이름</th><th>포지션</th><th class="num">나이</th>
+                        <th class="num">CA</th><th class="num">PA</th>
+                        <th class="num">경기</th><th class="num">골</th>
+                        <th class="num">가치</th><th class="num">만료</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in squad)
+                    {
+                        <tr>
+                            <td class="nowrap">
+                                <Flag Of="p.nationality" />
+                                <a href="@($"player/{p.id}")">@p.FullName</a>
+                                @if (p.IsInjured) { <span class="badge bad" title="@p.injury!.injuryType">부상</span> }
+                                @if (p.transferStatus == TransferStatus.ListedForTransfer) { <span class="badge warn">이적</span> }
+                            </td>
+                            <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
+                            <td class="num">@w.Age(p)</td>
+                            <td class="num">@Math.Round(GameWorld.Ca(p))</td>
+                            <td class="num dim">@Math.Round(PlayerDevelopment.Pa(p))</td>
+                            <td class="num">@p.seasonStats.appearances</td>
+                            <td class="num">@p.seasonStats.goals</td>
+                            <td class="num">@Ui.Money(p.marketValue)</td>
+                            <td class="num tiny dim">@(p.contract is null ? "—" : Ui.DateLabel(p.contract.expiryDate))</td>
+                            <td class="right"><PlayerActions Player="p" Menu="true" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>역대 성적</h3>
+            <span class="spacer"></span>
+            <span class="tiny dim">
+                리그 우승 @(c.history?.leagueTitles ?? 0) · 컵 @(c.history?.cupTitles ?? 0)
+                · 대륙 @(c.history?.continentalTitles ?? 0)
+            </span>
+        </div>
+        @if (c.history?.recentSeasons is not { Count: > 0 } seasons)
+        {
+            <div class="empty">기록된 지난 시즌이 없습니다.</div>
+        }
+        else
+        {
+            <table class="ft">
+                <thead>
+                    <tr><th>시즌</th><th>리그</th><th class="num">순위</th><th class="num">승점</th><th class="num">득실</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in seasons.OrderByDescending(s => s.season))
+                    {
+                        <tr>
+                            <td class="mono">@s.season</td>
+                            <td class="tiny">@(int.TryParse(s.leagueId, out var lid) ? w.League(lid)?.name : s.leagueId)</td>
+                            <td class="num">@(s.finalPosition)위</td>
+                            <td class="num">@s.points</td>
+                            <td class="num">@s.goalsFor - @s.goalsAgainst</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    ClubData? Club => Session.Club(Id);
+}

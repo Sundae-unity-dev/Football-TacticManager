@@ -101,7 +101,7 @@ else
                                         <span class="badge warn">이적 목록</span>
                                     }
                                 </td>
-                                <td class="nowrap tiny">@Session.ClubName(p.clubId)</td>
+                                <td class="nowrap tiny"><ClubLink Id="p.clubId" /></td>
                                 <td><span class="badge pos @Ui.PosClassOf(p)">@Ui.PosLabelOf(p)</span></td>
                                 <td class="num">@w.Age(p)</td>
                                 <td class="num @(Session.KnowsFully(p) ? "" : "dim")">@Session.CaLabel(p)</td>
@@ -127,7 +127,7 @@ else
 
     @if (selected is { } target)
     {
-        <div class="card" style="border-color:var(--emerald)">
+        <div class="card focus-anchor" style="border-color:var(--emerald)" tabindex="-1" @ref="selectedAnchor">
             <div class="card-head">
                 <h3>@target.FullName 영입</h3>
                 <span class="spacer"></span>
@@ -141,7 +141,7 @@ else
                 <div>
                     <table class="ft">
                         <tbody>
-                            <tr><td>소속</td><td class="right">@Session.ClubName(target.clubId)</td></tr>
+                            <tr><td>소속</td><td class="right"><ClubLink Id="target.clubId" /></td></tr>
                             <tr><td>나이 · 포지션</td><td class="right">@(w.Age(target))세 · @Ui.PosLabelOf(target)</td></tr>
                             <tr><td>기량 · 잠재력</td><td class="right">@Math.Round(GameWorld.Ca(target)) · @Math.Round(PlayerDevelopment.Pa(target))</td></tr>
                             <tr><td>호가</td><td class="right"><strong>@Ui.Money(TransferMarket.AskingPrice(w, target))</strong></td></tr>
@@ -345,8 +345,30 @@ else
         Search();
     }
 
+    // 선수 화면·구단 화면의 [영입 제안]은 transfers?player={id}로 온다. 그 선수의 제안 카드를 바로 연다.
+    [SupplyParameterFromQuery(Name = "player")] public int? PlayerId { get; set; }
+    int? openedFromQuery;
+    ElementReference selectedAnchor;
+    bool scrollToSelected;
+
+    protected override void OnParametersSet()
+    {
+        if (PlayerId is not { } id || id == openedFromQuery) return;
+        openedFromQuery = id;
+        if (Session.World is { } w && Session.Player(id) is { } p && p.clubId != w.ManagedClubId)
+            Select(p);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!scrollToSelected || selected is null) return;
+        scrollToSelected = false;
+        await selectedAnchor.FocusAsync(preventScroll: false);
+    }
+
     void Select(PlayerData p)
     {
+        scrollToSelected = true;
         selected = p;
         ResetTalks();
         SetAsking(p);

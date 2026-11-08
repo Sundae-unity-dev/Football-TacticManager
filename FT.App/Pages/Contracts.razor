@@ -87,6 +87,7 @@ else
 
     @if (talks is { } t)
     {
+        <div @ref="talksAnchor" tabindex="-1" class="focus-anchor"></div>
         <ContractTable Talks="t"
                        Offer="offer"
                        Blocker="@Blocker"
@@ -127,6 +128,27 @@ else
     ContractNegotiation.Talks? talks;
     ContractNegotiation.Terms offer = new();
 
+    // 선수 화면·목록의 [재계약]은 contracts?player={id}로 온다. 그 선수의 탁자를 바로 연다.
+    [SupplyParameterFromQuery(Name = "player")] public int? PlayerId { get; set; }
+    int? openedFromQuery;
+    ElementReference talksAnchor;
+    bool scrollToTalks;
+
+    protected override void OnParametersSet()
+    {
+        if (PlayerId is not { } id || id == openedFromQuery) return;
+        openedFromQuery = id;
+        if (Session.World is { } w && Session.Player(id) is { } p && p.clubId == w.ManagedClubId)
+            Select(p);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!scrollToTalks || talks is null) return;
+        scrollToTalks = false;
+        await talksAnchor.FocusAsync(preventScroll: false);
+    }
+
     int MaxWage => Math.Max(20_000, (int)((Session.World?.MyClub?.finances.annualRevenue ?? 0) / 52 / 3));
 
     string? Blocker => talks is null || Session.World is not { } w
@@ -137,6 +159,7 @@ else
     {
         talks = Session.OpenRenewal(p);
         offer = talks is null ? new() : ContractNegotiation.Suggest(talks);
+        scrollToTalks = talks is not null;
     }
 
     void Fill()

@@ -112,7 +112,7 @@ namespace FootballTactician.World
                        $"아카데미에서 {produced.Count}명이 1군에 합류했습니다. " +
                        $"가장 기대되는 선수는 {best.FullName} ({w.Age(best)}세, " +
                        $"잠재력 {Math.Round(PlayerDevelopment.Pa(best))}) 입니다.{note}",
-                       InboxKind.News);
+                       InboxKind.News, playerId: best.id);
             }
         }
     }

@@ -200,7 +200,7 @@ namespace FootballTactician.World
 
                 if (club.id == w.ManagedClubId)
                     w.Post($"{p.FullName} 부상",
-                           $"{e.name}. 복귀까지 약 {weeks}주로 보입니다.", InboxKind.Injury);
+                           $"{e.name}. 복귀까지 약 {weeks}주로 보입니다.", InboxKind.Injury, playerId: p.id);
             }
         }
 
@@ -271,7 +271,7 @@ namespace FootballTactician.World
                            $"{notable.playerName} 이 {w.Club(notable.fromClubId)?.name} 에서 " +
                            $"{w.Club(notable.toClubId)?.name} 으로 이적했습니다. " +
                            $"이적료 {notable.fee / 1_000_000d:F1}M€.",
-                           InboxKind.Transfer);
+                           InboxKind.Transfer, playerId: notable.playerId, clubId: notable.toClubId);
             }
         }
     }

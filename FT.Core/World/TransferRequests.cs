@@ -89,7 +89,7 @@ namespace FootballTactician.World
 
             w.Post("이적 요청",
                 $"{p.FullName} 이 이적을 요청했습니다. \"{reason}\"",
-                InboxKind.Transfer);
+                InboxKind.Transfer, playerId: p.id);
         }
 
         /// <summary>가장 큰 불만 한 가지. 화면에 그대로 나간다.</summary>
@@ -134,7 +134,7 @@ namespace FootballTactician.World
 
             w.Post("이적 요청 수용",
                 $"{p.FullName} 을 이적 명단에 올렸습니다. 사기를 되찾았지만 호가는 내려갑니다.",
-                InboxKind.Transfer);
+                InboxKind.Transfer, playerId: p.id);
         }
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace FootballTactician.World
             w.Post("이적 요청 거절",
                 $"{p.FullName} 의 이적 요청을 거절했습니다. 사기가 떨어졌습니다" +
                 (req.rejections >= 2 ? " — 벌써 " + req.rejections + "번째입니다." : "."),
-                InboxKind.Transfer);
+                InboxKind.Transfer, playerId: p.id);
         }
 
         /// <summary>선수를 팔거나 내보내면 요청도 사라진다.</summary>

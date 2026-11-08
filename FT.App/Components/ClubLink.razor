@@ -1,0 +1,26 @@
+@*
+    구단 이름은 어디서 보이든 구단 화면으로 가는 링크다.
+    순위표·일정·대시보드가 각자 이름만 찍던 자리를 한 부품으로 모은다.
+*@
+@inject GameSession Session
+
+@if (Session.Club(Id) is { } c)
+{
+    <a class="club-link @Class" href="@($"club/{c.id}")">@if (Kit)
+        {<span class="kit-dot" style="background:@c.colors?.primaryHex"></span>}@(Short ? (c.shortName ?? c.name) : c.name)</a>
+}
+else
+{
+    <span class="dim">—</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public int Id { get; set; }
+
+    /// <summary>이름 앞에 구단 색 네모를 붙인다.</summary>
+    [Parameter] public bool Kit { get; set; }
+
+    [Parameter] public bool Short { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+}

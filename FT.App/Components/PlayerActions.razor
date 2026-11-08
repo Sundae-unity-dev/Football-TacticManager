@@ -1,0 +1,135 @@
+@*
+    선수 한 명에게 할 수 있는 일을 한곳에 모은다.
+
+    같은 행동이 선수 화면(막대)과 목록의 행(⋯ 메뉴) 양쪽에서 열려야
+    "계약 메뉴로 가서 표에서 다시 찾는" 길을 안 밟는다. 행동마다 실제로 처리하는
+    화면은 그대로 두고, 여기서는 그 화면을 그 선수로 맞춰 연다.
+*@
+@inject GameSession Session
+@inject NavigationManager Nav
+
+@if (Items() is { Count: > 0 } items)
+{
+    @if (Menu)
+    {
+        <span class="act-menu" @onclick:stopPropagation="true">
+            <button class="btn btn-sm btn-ghost act-trigger" title="선수 행동"
+                    aria-haspopup="menu" aria-expanded="@open"
+                    @onclick="Toggle">⋯</button>
+            @if (open)
+            {
+                <span class="act-backdrop" @onclick="() => open = false"></span>
+                <span class="act-list" role="menu" style="@listStyle">
+                    @foreach (var it in items)
+                    {
+                        <button class="act-item" role="menuitem" disabled="@busy" @onclick="() => Run(it)">
+                            @it.Label
+                            @if (it.Hint is { } hint) { <span class="tiny dim">@hint</span> }
+                        </button>
+                    }
+                </span>
+            }
+        </span>
+    }
+    else
+    {
+        <div class="btn-row act-bar">
+            @if (Player.clubId != Session.World?.ManagedClubId && Player.clubId != 0)
+            {
+                <a class="btn btn-sm" href="@($"club/{Player.clubId}")">구단 보기</a>
+            }
+            @foreach (var it in items.Where(i => i.Kind != Kind.Profile))
+            {
+                <button class="btn btn-sm @(it.Primary ? "btn-primary" : "")" disabled="@busy"
+                        title="@it.Hint" @onclick="() => Run(it)">
+                    @it.Label
+                </button>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public PlayerData Player { get; set; } = default!;
+
+    /// <summary>true면 행 끝의 ⋯ 메뉴, false면 선수 화면의 행동 막대.</summary>
+    [Parameter] public bool Menu { get; set; }
+
+    bool open;
+    bool busy;
+    string listStyle = "";
+
+    // 목록 표는 가로 스크롤 상자 안에 있어서 absolute 메뉴는 잘린다.
+    // 누른 자리를 기준으로 화면에 고정해 띄운다.
+    void Toggle(MouseEventArgs e)
+    {
+        open = !open;
+        if (!open) return;
+        var x = e.ClientX.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var y = (e.ClientY + 10).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        listStyle = $"top:min({y}px, calc(100vh - 15rem)); left:max(8px, calc({x}px - 12rem));";
+    }
+
+    enum Kind { Profile, Renew, TransferList, Loan, LoanView, Bid }
+
+    record Item(Kind Kind, string Label, string? Hint = null, bool Primary = false);
+
+    List<Item> Items()
+    {
+        var list = new List<Item>();
+        if (Session.World is not { } w) return list;
+
+        var p = Player;
+        if (Menu) list.Add(new(Kind.Profile, "프로필 보기"));
+
+        // 남의 선수에게 할 수 있는 일은 영입 제안 하나다. 이적 화면을 그 선수로 맞춰 연다.
+        if (p.clubId != w.ManagedClubId)
+        {
+            list.Add(new(Kind.Bid, "영입 제안", Session.WindowOpen ? null : "이적 시장 닫힘", Primary: true));
+            return list;
+        }
+
+        // 재계약: 만료가 가까우면 강조한다. 남은 기간이 길어도 협상 자체는 열 수 있다.
+        var months = Session.MonthsLeft(p);
+        list.Add(new(Kind.Renew, "재계약 협상", $"{months}개월 남음", Primary: months <= 12));
+
+        list.Add(p.transferStatus == TransferStatus.ListedForTransfer
+            ? new(Kind.TransferList, "이적 명단에서 내리기")
+            : new(Kind.TransferList, "이적 명단에 올리기"));
+
+        if (w.OnLoan(p.id) != null)
+            list.Add(new(Kind.LoanView, "임대 현황 보기"));
+        else if (Session.Loanable.Any(x => x.id == p.id))
+            list.Add(new(Kind.Loan, "임대 보내기"));
+
+        return list;
+    }
+
+    async Task Run(Item it)
+    {
+        open = false;
+        switch (it.Kind)
+        {
+            case Kind.Profile:
+                Nav.NavigateTo($"player/{Player.id}");
+                break;
+            case Kind.Renew:
+                Nav.NavigateTo($"contracts?player={Player.id}");
+                break;
+            case Kind.Bid:
+                Nav.NavigateTo($"transfers?player={Player.id}");
+                break;
+            case Kind.Loan:
+                Nav.NavigateTo($"loans?player={Player.id}");
+                break;
+            case Kind.LoanView:
+                Nav.NavigateTo("loans");
+                break;
+            case Kind.TransferList:
+                busy = true;
+                try { await Session.ToggleTransferListAsync(Player); }
+                finally { busy = false; }
+                break;
+        }
+    }
+}

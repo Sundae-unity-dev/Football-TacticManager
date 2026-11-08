@@ -39,7 +39,7 @@ else
         @cup.year 시즌 · @(cup.entrants.Count)팀 참가 ·
         @if (cup.Finished)
         {
-            <span>우승 <strong style="color:var(--emerald)">@Session.ClubName(cup.winnerClubId)</strong></span>
+            <span>우승 <strong style="color:var(--emerald)"><ClubLink Id="cup.winnerClubId" /></strong></span>
         }
         else
         {
@@ -109,7 +109,7 @@ else
                                 <tr class="@(id == club.id ? "me" : "")">
                                     <td class="num tiny @(through ? "accent" : "dim")">@(i + 1)</td>
                                     <td class="nowrap">
-                                        @Session.ClubName(id)
+                                        <ClubLink Id="id" />
                                         <span class="tiny dim">@Nation(w, id)</span>
                                     </td>
                                     <td class="num mono">@points</td>
@@ -155,7 +155,7 @@ else
                         <tr class="@(involved ? "me" : "")">
                             <td class="right nowrap" style="width:40%">
                                 <span class="@(tie.played && tie.WinnerClubId == tie.homeClubId ? "" : "dim")">
-                                    @Session.ClubName(tie.homeClubId)
+                                    <ClubLink Id="tie.homeClubId" />
                                 </span>
                                 @if (cup.continental)
                                 {
@@ -178,7 +178,7 @@ else
                             </td>
                             <td class="nowrap" style="width:40%">
                                 <span class="@(tie.played && tie.WinnerClubId == tie.awayClubId ? "" : "dim")">
-                                    @Session.ClubName(tie.awayClubId)
+                                    <ClubLink Id="tie.awayClubId" />
                                 </span>
                                 @if (cup.continental)
                                 {
@@ -190,7 +190,7 @@ else
                     @if (round.ByeClubId > 0)
                     {
                         <tr class="@(round.ByeClubId == club.id ? "me" : "")">
-                            <td class="right nowrap">@Session.ClubName(round.ByeClubId)</td>
+                            <td class="right nowrap"><ClubLink Id="round.ByeClubId" /></td>
                             <td class="center tiny dim">부전승</td>
                             <td></td>
                         </tr>
