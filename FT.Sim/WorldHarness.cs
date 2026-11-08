@@ -1816,6 +1816,84 @@ namespace FT.Sim
                 Console.WriteLine($"    [{m.title}] {m.body}");
         }
 
+        /// <summary>
+        /// ⑥ 챔피언 결정 플레이오프. 정규리그 1위와 실제 우승팀이 갈리는지를 본다.
+        ///
+        /// 한 시즌만 보면 1위가 그대로 우승할 수도 있어 규칙이 일하는지 알 수 없다.
+        /// 그래서 여러 시즌을 돌려 <b>몇 번이나 뒤집혔는지</b>를 센다.
+        /// </summary>
+        public static void Champions(int seasons)
+        {
+            var codes = new[] { "USA", "MEX", "AUS", "IND", "ENG" };
+            var w = WorldGenerator.Create(31337,
+                nations: codes.Select(NameForge.ByCode).ToList());
+
+            var club = w.Clubs.Values.First(c => c.reputation == 3);
+            ManagerCareer.TakeCharge(w, club.id, "하네스");
+
+            Console.WriteLine($"== 챔피언 결정전 ({seasons}시즌) ==");
+            Console.WriteLine();
+
+            var played = new Dictionary<int, int>();     // 리그 → 치른 횟수
+            var upsets = new Dictionary<int, int>();     // 리그 → 1위가 못 먹은 횟수
+            var sizes = new Dictionary<int, int>();      // 리그 → 참가 팀 수
+            var sample = new Dictionary<int, string>();  // 리그 → 한 줄 예시
+
+            for (int s = 0; s < seasons; s++)
+            {
+                int guard = 0;
+                while (!w.SeasonFinished && guard++ < 90) GameEngine.PlayNextRound(w);
+                SeasonRollover.FinishRemainingFixtures(w);
+
+                // StartNextSeason 안에서 치러지므로, 그 전에 순위표를 적어 둔다.
+                var topBefore = w.Leagues.Values.ToDictionary(
+                    l => l.id,
+                    l => l.currentSeason.standings.OrderBy(e => e.position).First().clubId);
+
+                SeasonRollover.StartNextSeason(w);
+
+                foreach (var l in w.Leagues.Values)
+                {
+                    // 지난 시즌 기록은 구단 쪽에 남는다. 우승 여부는 소식으로 되짚기
+                    // 어려우니, 넘어가기 직전에 읽어 둔 값과 비교한다.
+                    int entrants = ChampionPlayoff.EntrantsFor(w, l);
+                    if (entrants < 2) continue;
+
+                    sizes[l.id] = entrants;
+                    played[l.id] = played.GetValueOrDefault(l.id) + 1;
+
+                    int champ = l.lastChampionClubId;
+                    if (champ > 0 && champ != topBefore[l.id])
+                    {
+                        upsets[l.id] = upsets.GetValueOrDefault(l.id) + 1;
+                        sample[l.id] = $"{w.Club(champ)?.name} 이 "
+                            + $"{w.Club(topBefore[l.id])?.name}(정규 1위)를 제침";
+                    }
+                }
+            }
+
+            foreach (var l in w.Leagues.Values.OrderBy(x => x.name))
+            {
+                if (!played.TryGetValue(l.id, out int n))
+                {
+                    Console.WriteLine($"  {l.name,-18} 플레이오프 없음 — 정규리그 1위가 우승");
+                    continue;
+                }
+
+                int up = upsets.GetValueOrDefault(l.id);
+                Console.WriteLine($"  {l.name,-18} 상위 {sizes[l.id]}팀 · {n}시즌 중 "
+                    + $"{up}번 1위가 놓침");
+                if (sample.TryGetValue(l.id, out string? line))
+                    Console.WriteLine($"    예: {line}");
+            }
+
+            Console.WriteLine();
+            var inbox = w.Inbox.Where(m => m.title.Contains("챔피언 결정전")).ToList();
+            Console.WriteLine($"  소식에 남은 챔피언 결정전 알림 {inbox.Count}건");
+            foreach (var m in inbox.Take(1))
+                Console.WriteLine($"    [{m.title}]\n{m.body}");
+        }
+
         public static void Confederations()
         {
             var w = WorldGenerator.Create(31415, 2026, NameForge.All);

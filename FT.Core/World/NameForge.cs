@@ -89,6 +89,16 @@ namespace FootballTactician.World
         /// <summary>스플릿 때 승점을 절반(올림)으로 줄이는지. 오스트리아·스위스·루마니아·벨기에.</summary>
         public bool[] HalvePointsPerTier;
 
+        /// <summary>
+        /// 챔피언 결정 플레이오프에 나가는 팀 수. 0번이 1부, 1번이 2부다
+        /// (docs/리그-제도.md ⑥).
+        ///
+        /// <b>0 이면 정규리그 1위가 곧 우승팀이다</b> — 유럽 대부분이 그렇다. 미국·호주·
+        /// 인도·멕시코는 정규리그를 순위를 매기는 과정으로만 쓰고, 상위 팀들이 토너먼트로
+        /// 우승을 가린다. 정규리그 1위에게는 따로 상을 준다(서포터스 실드 같은 것).
+        /// </summary>
+        public int[] ChampionPlayoffPerTier;
+
         /// <summary>그 부의 상위 조 팀 수. 스플릿이 없으면 0.</summary>
         public int SplitTopSize(int tier)
         {
@@ -111,6 +121,14 @@ namespace FootballTactician.World
             if (PlayoffPerTier == null || PlayoffPerTier.Length == 0) return 0;
             int i = System.Math.Clamp(tier - 1, 0, PlayoffPerTier.Length - 1);
             return System.Math.Clamp(PlayoffPerTier[i], 0, 8);
+        }
+
+        /// <summary>그 부의 챔피언 결정 플레이오프 참가 팀 수. 없으면 0.</summary>
+        public int ChampionPlayoffTeams(int tier)
+        {
+            if (ChampionPlayoffPerTier == null || ChampionPlayoffPerTier.Length == 0) return 0;
+            int i = System.Math.Clamp(tier - 1, 0, ChampionPlayoffPerTier.Length - 1);
+            return System.Math.Clamp(ChampionPlayoffPerTier[i], 0, 16);
         }
 
         /// <summary>그 경계에서 승강 플레이오프를 치르는지.</summary>
