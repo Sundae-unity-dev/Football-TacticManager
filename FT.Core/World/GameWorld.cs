@@ -55,6 +55,15 @@ namespace FootballTactician.World
         /// <summary>다음 시즌 일정에 쓸 id. 시즌을 넘길 때마다 이어서 매긴다.</summary>
         public int NextFixtureId = 100000;
 
+        /// <summary>
+        /// 일정에 없는데 <b>내가 치러야 할</b> 경기 한 판. 없으면 null.
+        ///
+        /// 컵처럼 리그 일정 밖에서 벌어지는 경기를 감독이 직접 뛸 수 있게 하는 자리다.
+        /// 이것이 있는 동안에는 세계가 더 나아가지 않는다 — 그 경기가 끝나야 대진이
+        /// 이어지고 한 주가 넘어간다.
+        /// </summary>
+        public PendingMatch pendingMatch;
+
         /// <summary>새로 만들 구단과 선수의 id. 유스 승격과 자유계약 생성에 쓴다.</summary>
         public int NextClubId = 1;
         public int NextPlayerId = 1;
