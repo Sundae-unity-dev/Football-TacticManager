@@ -441,6 +441,10 @@ namespace FootballTactician.World
             // 남은 경기를 먼저 치른다. 미완성 순위표로 올리고 내리면 안 된다.
             FinishRemainingFixtures(w);
 
+            // 우승팀을 토너먼트로 가리는 나라가 있다(docs/리그-제도.md ⑥).
+            // 시상보다 먼저 치러야 한다 — 누가 우승인지 정해져야 기록이 맞는다.
+            RunChampionPlayoffs(w);
+
             // 시상과 명예는 순위표·기록을 비우기 전에, 그리고 승강으로 리그가 바뀌기 전에 끝낸다.
             // 뒤로 밀면 우승팀이 다른 리그 소속으로 기록된다.
             SeasonAwards.RunAll(w, w.SeasonYear);
@@ -555,6 +559,35 @@ namespace FootballTactician.World
         }
 
         /// <summary>
+        /// 우승팀을 토너먼트로 가리는 나라들의 챔피언 결정전 (docs/리그-제도.md ⑥).
+        ///
+        /// 미국·호주·멕시코·인도·인도네시아는 정규리그를 순위를 매기는 과정으로만 쓴다.
+        /// 순위표가 완성된 뒤, 시상보다는 앞서 치러야 한다.
+        /// </summary>
+        static void RunChampionPlayoffs(GameWorld w)
+        {
+            foreach (var nation in w.Nations)
+            {
+                var log = new List<string>();
+
+                foreach (int id in nation.LeagueIds)
+                {
+                    var league = w.League(id);
+                    if (league?.currentSeason == null) continue;
+                    ChampionPlayoff.Resolve(w, league, log);
+                }
+
+                // 순위만 보면 왜 저 팀이 우승인지 알 수 없다 — 대진을 그대로 붙여 준다.
+                if (log.Count > 0 && w.ManagedClubId > 0
+                    && nation.LeagueIds.Contains(w.LeagueOf(w.ManagedClubId)?.id ?? -1))
+                {
+                    w.Post($"{nation.Country} 챔피언 결정전",
+                           string.Join("\n", log), InboxKind.News);
+                }
+            }
+        }
+
+        /// <summary>
         /// 이번 시즌의 우승을 구단 기록에 새긴다.
         ///
         /// 지금까지 우승해도 아무 일이 없었다 — 명예는 세계를 만들 때 정해진 숫자 그대로였다.
@@ -569,16 +602,29 @@ namespace FootballTactician.World
                 var table = league.currentSeason?.standings;
                 if (table is not { Count: > 0 }) continue;
 
+                // 시즌이 넘어가면 순위표가 새것이 된다. 부를 가리지 않고 남겨 둔다 —
+                // 2·3부 우승도 화면에 적을 거리다.
+                league.lastChampionClubId = ChampionPlayoff.ChampionOf(league.currentSeason);
+                league.lastChampionYear = league.currentSeason.year;
+
                 // 1부만 우승으로 센다. 2·3부 1위는 승격이지 우승이 아니다.
                 if (league.tier != LeagueTier.First) continue;
 
-                var champ = table.OrderBy(e => e.position).First();
+                // 우승팀은 순위표 1위가 아닐 수 있다 — 플레이오프로 가리는 나라가 있다(⑥).
+                int championId = ChampionPlayoff.ChampionOf(league.currentSeason);
+                var champ = table.FirstOrDefault(e => e.clubId == championId)
+                            ?? table.OrderBy(e => e.position).First();
+
                 winners.Add((champ.clubId, SeasonAwards.Honour.League));
                 ContractBonuses.PayTitle(w, champ.clubId);   // 계약서에 적은 우승 보너스
 
                 if (champ.clubId == w.ManagedClubId)
                     w.Post($"{league.name} 우승",
-                           $"승점 {champ.points}. 구단 역사에 새겨집니다.", InboxKind.Board);
+                           ChampionPlayoff.WonFromBehind(league.currentSeason)
+                               ? $"정규리그 {champ.position}위에서 챔피언 결정전을 뚫었습니다. "
+                                 + "구단 역사에 새겨집니다."
+                               : $"승점 {champ.points}. 구단 역사에 새겨집니다.",
+                           InboxKind.Board);
             }
 
             foreach (var cup in w.Cups.Values)

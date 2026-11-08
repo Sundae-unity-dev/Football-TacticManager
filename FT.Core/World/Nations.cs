@@ -383,6 +383,22 @@ namespace FootballTactician.World
             ["BEL"] = new[] { true, true },
         };
 
+        /// <summary>
+        /// 챔피언 결정 플레이오프에 나가는 팀 수 (docs/리그-제도.md ⑥).
+        ///
+        /// 정규리그는 순위를 매기는 과정일 뿐이고, 상위 팀들이 토너먼트로 우승을 가린다.
+        /// 미국 MLS 컵, 호주 파이널 시리즈, 멕시코 리기야, 인도·인도네시아의 챔피언십이
+        /// 그렇다. 적어 두지 않은 나라는 정규리그 1위가 곧 우승팀이다.
+        /// </summary>
+        static readonly Dictionary<string, int[]> ChampionPlayoffs = new()
+        {
+            ["USA"] = new[] { 8, 8, 4 },
+            ["MEX"] = new[] { 8, 8 },
+            ["AUS"] = new[] { 6 },
+            ["IND"] = new[] { 4, 0 },
+            ["IDN"] = new[] { 4, 0 },
+        };
+
         static Nations()
         {
             foreach (var n in All)
@@ -393,6 +409,7 @@ namespace FootballTactician.World
                 if (SurvivalPlayoffs.TryGetValue(n.Code, out var sp)) n.SurvivalPlayoffPerTier = sp;
                 if (SplitSizes.TryGetValue(n.Code, out var sz)) n.SplitPerTier = sz;
                 if (HalvePoints.TryGetValue(n.Code, out var hp)) n.HalvePointsPerTier = hp;
+                if (ChampionPlayoffs.TryGetValue(n.Code, out var cp)) n.ChampionPlayoffPerTier = cp;
             }
         }
 

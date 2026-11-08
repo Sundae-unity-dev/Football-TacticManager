@@ -24,6 +24,18 @@ namespace FootballTactician.Data
         public int?      promotionLeagueId;
         public int?      relegationLeagueId;
 
+        /// <summary>
+        /// 지난 시즌 우승 구단. 0 이면 아직 한 시즌도 끝나지 않았다.
+        ///
+        /// 시즌이 넘어가면 <see cref="LeagueSeason"/> 은 통째로 새것이 된다. 챔피언 결정전은
+        /// 그 경계에서 치러지므로(⑥), 결과를 리그 쪽에 남겨 두지 않으면 화면이 "누가
+        /// 우승했는지"를 영영 물어볼 수 없다.
+        /// </summary>
+        public int lastChampionClubId;
+
+        /// <summary>그 우승이 몇 년도 시즌이었는지. 0 이면 없음.</summary>
+        public int lastChampionYear;
+
         public LeagueSeason       currentSeason;
         public TransferWindowData transferWindow;
         public LeagueRules        rules;
@@ -57,6 +69,14 @@ namespace FootballTactician.Data
         /// 순위표는 매번 경기에서 다시 세므로, 줄인 승점을 따로 적어 두어야 남는다.
         /// </summary>
         public Dictionary<int, int> pointsCarry;
+
+        /// <summary>
+        /// 플레이오프로 가린 우승팀. <b>0 이면 정규리그 1위가 곧 우승팀</b>이다
+        /// (docs/리그-제도.md ⑥).
+        ///
+        /// 0 은 저장하지 않으므로 예전 세이브도 그대로 읽힌다.
+        /// </summary>
+        public int championClubId;
 
         /// <summary>일정을 다 치렀는지. "시즌이 끝났다" 의 뜻은 여기 한 곳에만 둔다.</summary>
         [JsonIgnore] public bool Finished => fixtures.All(f => f.isPlayed);
