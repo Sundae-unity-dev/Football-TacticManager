@@ -50,12 +50,12 @@ namespace FT.Core.Tests
 
         /// <summary>
         /// A매치 소집 소식만 대상 id 를 달지 않고 있었다 — 본문이 내 선수 이름을 대 놓고
-        /// 가리키는데도 눌리지 않았다. 한 명만 불려 갔으면 그 선수로 이어져야 한다.
+        /// 가리키는데도 눌리지 않았다. 한 명이면 그 선수로, 여럿이면 내 구단으로 이어진다.
         /// </summary>
         [Fact]
-        public void 한_명만_소집되면_그_선수로_이어진다()
+        public void 소집_소식은_언제나_어딘가로_이어진다()
         {
-            bool sawSingle = false;
+            bool sawSingle = false, sawSeveral = false;
 
             foreach (int seed in new[] { 13579, 2468, 31337, 909, 4242, 515, 24680 })
             {
@@ -68,6 +68,11 @@ namespace FT.Core.Tests
                 var call = w.Inbox.FirstOrDefault(i => i.title == "A매치 소집");
                 if (call == null) continue;
 
+                // 어느 쪽이든 갈 곳이 있어야 한다 — 이게 이 소식에만 없었다.
+                Assert.True(call.playerId > 0 || call.clubId > 0,
+                            $"가리키는 곳이 없다: {call.body}");
+                Assert.Equal(club.id, call.clubId);
+
                 if (call.body.StartsWith("1명이"))
                 {
                     sawSingle = true;
@@ -76,12 +81,13 @@ namespace FT.Core.Tests
                 }
                 else
                 {
-                    // 여럿이면 가리킬 한 곳이 없다.
-                    Assert.Equal(0, call.playerId);
+                    sawSeveral = true;
+                    Assert.Equal(0, call.playerId);   // 하나로 정해지지 않으니 구단으로 간다
                 }
             }
 
             Assert.True(sawSingle, "한 명만 소집된 경우가 없어 규칙이 일하는지 알 수 없다");
+            Assert.True(sawSeveral, "여럿 소집된 경우가 없어 규칙이 일하는지 알 수 없다");
         }
 
         static string Unzip(byte[] packed)
