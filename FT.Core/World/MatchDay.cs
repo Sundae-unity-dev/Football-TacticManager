@@ -164,9 +164,22 @@ namespace FootballTactician.World
         public static (int home, int away) SimulateOneOff(
             GameWorld w, int homeClubId, int awayClubId, int fixtureId, int seed)
         {
+            var r = SimulateOneOffFull(w, homeClubId, awayClubId, fixtureId, seed);
+            return r == null ? (0, 0) : (r.homeGoals, r.awayGoals);
+        }
+
+        /// <summary>
+        /// 위와 같은 경기지만 <b>결과를 통째로</b> 돌려준다. 못 치르면 null.
+        ///
+        /// 대진은 골 수만 있으면 되지만, 화면은 점유율과 슈팅까지 그린다. 골 수만 담은
+        /// 결과를 넘기면 경기 기록 칸에서 터진다.
+        /// </summary>
+        public static MatchResultData SimulateOneOffFull(
+            GameWorld w, int homeClubId, int awayClubId, int fixtureId, int seed)
+        {
             var home = BuildLineup(w, homeClubId);
             var away = BuildLineup(w, awayClubId);
-            if (home == null || away == null) return (0, 0);
+            if (home == null || away == null) return null;
 
             var ctx = new MatchSimContext
             {
@@ -181,7 +194,7 @@ namespace FootballTactician.World
             MatchEngine.ApplyResult(result, ctx, w.Lookup);
             ApplyMatchFatigue(w, ctx, result);
 
-            return (result.homeGoals, result.awayGoals);
+            return result;
         }
     }
 }

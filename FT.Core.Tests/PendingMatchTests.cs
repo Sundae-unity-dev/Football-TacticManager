@@ -110,6 +110,41 @@ namespace FT.Core.Tests
             Assert.True(tie.WinnerClubId > 0);
         }
 
+        /// <summary>
+        /// 결과에 경기 기록이 들어 있어야 한다.
+        ///
+        /// 골 수만 채워 넘겼더니 경기 화면이 점유율을 그리다 터졌다(Match.razor). 대진은
+        /// 골 수만 있으면 되지만 화면은 아니다 — 화면이 읽는 칸은 비워 두면 안 된다.
+        /// </summary>
+        [Fact]
+        public void 바로_본_결과에도_경기_기록이_있다()
+        {
+            var w = Start(31337);
+            Assert.True(PlayUntilPending(w));
+
+            var result = GameEngine.SimulatePending(w);
+
+            Assert.NotNull(result);
+            Assert.NotNull(result!.homeStats);
+            Assert.NotNull(result.awayStats);
+            Assert.True(result.homeStats.possession + result.awayStats.possession > 0,
+                        "점유율이 둘 다 0 이면 기록이 비어 있는 것이다");
+        }
+
+        [Fact]
+        public void 직접_치른_결과에도_경기_기록이_있다()
+        {
+            var w = Start(4242);
+            Assert.True(PlayUntilPending(w));
+
+            var session = GameEngine.BeginPendingMatch(w)!;
+            while (!session.Finished) session.AdvanceBlock();
+            var result = GameEngine.CompletePendingMatch(w, session);
+
+            Assert.NotNull(result!.homeStats);
+            Assert.NotNull(result.awayStats);
+        }
+
         [Fact]
         public void 미뤄_둔_경기는_세이브를_왕복한다()
         {

@@ -247,7 +247,7 @@ else
         <p class="center mt1" style="font-family:var(--font-display); font-size:1.1rem;
              color:@(us > them ? "var(--emerald)" : us == them ? "var(--text-dim)" : "var(--coral)")">
             @(us > them ? "승리" : us == them ? "무승부" : "패배")
-            <span class="tiny dim">· @fixture.matchday 라운드 · @Ui.DateLabel(fixture.date)</span>
+            <span class="tiny dim">· @(Session.LastLabel ?? $"{fixture.matchday} 라운드") · @Ui.DateLabel(fixture.date)</span>
         </p>
 
         <div class="grid grid-2 mt1">

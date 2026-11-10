@@ -435,13 +435,18 @@ namespace FootballTactician.World
 
             var f = pending.fixture;
             int seed = SeedMix.Of(w.Seed, f.id, seedSalt);
-            var (home, away) = MatchDay.SimulateOneOff(w, f.homeClubId, f.awayClubId, f.id, seed);
 
-            f.result = new MatchResultData { homeGoals = home, awayGoals = away };
+            // 통째로 받아 둔다 — 화면이 점유율과 슈팅까지 그린다.
+            var result = MatchDay.SimulateOneOffFull(w, f.homeClubId, f.awayClubId, f.id, seed);
+            if (result == null) return null;
+
+            f.result = result;
             f.isPlayed = true;
 
-            ResumeAfterPending(w, home, away);
-            return f.result;
+            MatchDay.ApplyMatchMorale(w, f, result);
+
+            ResumeAfterPending(w, result.homeGoals, result.awayGoals);
+            return result;
         }
 
         /// <summary>미뤄 둔 경기를 블록 단위로 연다.</summary>

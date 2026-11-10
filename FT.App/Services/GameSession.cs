@@ -121,6 +121,13 @@ public sealed class GameSession(SaveStore store)
     /// <summary>미뤄 둔 컵 경기가 있으면 그 이름("FA컵 8강"). 없으면 null.</summary>
     public string? PendingLabel => World?.pendingMatch?.label;
 
+    /// <summary>
+    /// 방금 치른 경기가 컵이었으면 그 이름. 리그 경기면 null.
+    ///
+    /// 결과 줄에 "26 라운드" 라고 적히면 컵 경기가 리그 경기처럼 보인다.
+    /// </summary>
+    public string? LastLabel { get; private set; }
+
     /// <summary>다음 라운드를 치른다. 결과는 LastResult 에 담긴다.</summary>
     public void PlayNextRound()
     {
@@ -130,6 +137,7 @@ public sealed class GameSession(SaveStore store)
         if (World.pendingMatch is { } pending)
         {
             LastFixture = pending.fixture;
+            LastLabel = pending.label;
             LastResult = GameEngine.SimulatePending(World);
             NotifyChanged();
             return;
@@ -150,6 +158,7 @@ public sealed class GameSession(SaveStore store)
             if (result != null)
             {
                 LastFixture = fixture;
+                LastLabel = null;
                 LastResult = result;
                 break;
             }
@@ -225,6 +234,7 @@ public sealed class GameSession(SaveStore store)
         if (World is not { } w || Live == null || LiveFixture == null) return;
 
         LastFixture = LiveFixture;
+        LastLabel = w.pendingMatch?.label;
         LastResult = w.pendingMatch != null
             ? GameEngine.CompletePendingMatch(w, Live)
             : GameEngine.CompleteUserMatch(w, LiveFixture, Live, deferMyCupTie: true);
