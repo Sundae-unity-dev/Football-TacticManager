@@ -109,12 +109,39 @@ public sealed class GameSession(SaveStore store)
 
     // ── 진행 ──────────────────────────────────────────────────────────────
 
-    public FixtureData? NextFixture => World == null ? null : GameEngine.NextUserFixture(World);
+    /// <summary>
+    /// 지금 치를 경기. 미뤄 둔 컵 경기가 있으면 그쪽이 먼저다.
+    ///
+    /// 경기 화면은 FixtureData 하나로 돌아가므로, 컵 경기도 같은 모양으로 싸 두면
+    /// 화면을 한 줄도 고치지 않고 그대로 쓴다.
+    /// </summary>
+    public FixtureData? NextFixture => World?.pendingMatch?.fixture
+                                       ?? (World == null ? null : GameEngine.NextUserFixture(World));
+
+    /// <summary>미뤄 둔 컵 경기가 있으면 그 이름("FA컵 8강"). 없으면 null.</summary>
+    public string? PendingLabel => World?.pendingMatch?.label;
+
+    /// <summary>
+    /// 방금 치른 경기가 컵이었으면 그 이름. 리그 경기면 null.
+    ///
+    /// 결과 줄에 "26 라운드" 라고 적히면 컵 경기가 리그 경기처럼 보인다.
+    /// </summary>
+    public string? LastLabel { get; private set; }
 
     /// <summary>다음 라운드를 치른다. 결과는 LastResult 에 담긴다.</summary>
     public void PlayNextRound()
     {
         if (World == null || World.Sacked) return;
+
+        // 미뤄 둔 컵 경기가 있으면 그것부터. 세계는 그 경기 앞에서 멈춰 있다.
+        if (World.pendingMatch is { } pending)
+        {
+            LastFixture = pending.fixture;
+            LastLabel = pending.label;
+            LastResult = GameEngine.SimulatePending(World);
+            NotifyChanged();
+            return;
+        }
 
         // 홀수 팀 리그에서는 내가 쉬는 주가 있다(미국 29팀 · 튀르키예 19팀).
         // 그 주에도 세계는 돌아야 하므로, 내 경기가 나올 때까지 라운드를 넘긴다.
@@ -123,10 +150,15 @@ public sealed class GameSession(SaveStore store)
             var fixture = GameEngine.NextUserFixture(World);
             if (!GameEngine.RoundPending(World)) break;
 
-            var result = GameEngine.PlayNextRound(World);
+            var result = GameEngine.PlayNextRound(World, deferMyCupTie: true);
+
+            // 내 컵 경기가 걸려 멈췄으면 여기서 돌아간다 — 화면이 그 경기를 띄운다.
+            if (World.pendingMatch != null) break;
+
             if (result != null)
             {
                 LastFixture = fixture;
+                LastLabel = null;
                 LastResult = result;
                 break;
             }
@@ -167,10 +199,12 @@ public sealed class GameSession(SaveStore store)
     {
         if (World is not { } w || w.Sacked) return;
 
-        var fixture = GameEngine.NextUserFixture(w);
+        var fixture = w.pendingMatch?.fixture ?? GameEngine.NextUserFixture(w);
         if (fixture == null) return;
 
-        Live = GameEngine.BeginUserMatch(w, fixture);
+        Live = w.pendingMatch != null
+            ? GameEngine.BeginPendingMatch(w)
+            : GameEngine.BeginUserMatch(w, fixture);
         LiveFixture = fixture;
         if (Live != null)
         {
@@ -200,7 +234,10 @@ public sealed class GameSession(SaveStore store)
         if (World is not { } w || Live == null || LiveFixture == null) return;
 
         LastFixture = LiveFixture;
-        LastResult = GameEngine.CompleteUserMatch(w, LiveFixture, Live);
+        LastLabel = w.pendingMatch?.label;
+        LastResult = w.pendingMatch != null
+            ? GameEngine.CompletePendingMatch(w, Live)
+            : GameEngine.CompleteUserMatch(w, LiveFixture, Live, deferMyCupTie: true);
         Live = null;
         LiveFixture = null;
 

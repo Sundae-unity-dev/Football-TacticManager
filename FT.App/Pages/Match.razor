@@ -247,7 +247,7 @@ else
         <p class="center mt1" style="font-family:var(--font-display); font-size:1.1rem;
              color:@(us > them ? "var(--emerald)" : us == them ? "var(--text-dim)" : "var(--coral)")">
             @(us > them ? "승리" : us == them ? "무승부" : "패배")
-            <span class="tiny dim">· @fixture.matchday 라운드 · @Ui.DateLabel(fixture.date)</span>
+            <span class="tiny dim">· @(Session.LastLabel ?? $"{fixture.matchday} 라운드") · @Ui.DateLabel(fixture.date)</span>
         </p>
 
         <div class="grid grid-2 mt1">
@@ -331,10 +331,15 @@ else
             var oppId = home ? next.awayClubId : next.homeClubId;
             var opp = w.Club(oppId)!;
             var league = w.MyLeague!;
-            var oppEntry = Standings.EntryOf(league, oppId)!;
-            var myEntry = Standings.EntryOf(league, club.id)!;
 
-            <div class="card-head"><h3>다음 경기 — @next.matchday 라운드</h3></div>
+            // 컵 상대는 내 리그 사람이 아니다 — 순위표에 없을 수 있다.
+            var oppEntry = Standings.EntryOf(league, oppId);
+            var myEntry = Standings.EntryOf(league, club.id);
+            var cupTie = Session.PendingLabel;
+
+            <div class="card-head">
+                <h3>@(cupTie ?? $"다음 경기 — {next.matchday} 라운드")</h3>
+            </div>
 
             <div class="grid grid-2">
                 <div>
@@ -343,12 +348,19 @@ else
                             <tr><td>상대</td><td class="right"><strong>@opp.name</strong></td></tr>
                             <tr><td>장소</td><td class="right">@(home ? $"홈 · {club.stadium.name}" : $"원정 · {opp.stadium.name}")</td></tr>
                             <tr><td>날짜</td><td class="right">@Ui.DateLabel(next.date)</td></tr>
-                            <tr><td>순위</td><td class="right">우리 @(myEntry.position)위 / 상대 @(oppEntry.position)위</td></tr>
+                            @if (myEntry is not null && oppEntry is not null)
+                            {
+                                <tr><td>순위</td><td class="right">우리 @(myEntry.position)위 / 상대 @(oppEntry.position)위</td></tr>
+                            }
+                            else if (w.LeagueOf(oppId) is { } oppLeague)
+                            {
+                                <tr><td>상대 리그</td><td class="right">@oppLeague.name</td></tr>
+                            }
                             <tr><td>전력</td><td class="right">@Math.Round(w.Strength(club.id)) vs @Math.Round(w.Strength(oppId))</td></tr>
                             <tr>
                                 <td>상대 최근</td>
                                 <td class="right">
-                                    @foreach (var c in Standings.RecentForm(league, oppId))
+                                    @foreach (var c in Standings.RecentForm(w.LeagueOf(oppId) ?? league, oppId))
                                     {
                                         <span class="form-dot form-@c">@c</span>
                                     }

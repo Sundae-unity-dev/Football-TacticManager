@@ -71,8 +71,17 @@ namespace FootballTactician.World
         /// 플레이어 경기를 치르고, 같은 날 나머지 리그도 함께 돌린 뒤 한 주를 넘긴다.
         /// 반환값은 플레이어 경기 결과.
         /// </summary>
-        public static MatchResultData PlayNextRound(GameWorld w, int seedSalt = 0)
+        /// <param name="deferMyCupTie">
+        /// true 면 내 컵 경기를 치르지 않고 <see cref="GameWorld.pendingMatch"/> 에 얹어 두고
+        /// 멈춘다 — 감독이 직접 뛸 수 있게. 화면만 켠다. 테스트와 하네스는 끄고 쓰므로
+        /// 지금까지의 진행과 한 글자도 달라지지 않는다.
+        /// </param>
+        public static MatchResultData PlayNextRound(GameWorld w, int seedSalt = 0,
+                                                    bool deferMyCupTie = false)
         {
+            // 치러야 할 내 경기가 남아 있으면 세계는 더 나아가지 않는다.
+            if (w.pendingMatch != null) return null;
+
             var round = NextWorldFixture(w);
             if (round == null) return null;
 
@@ -111,8 +120,28 @@ namespace FootballTactician.World
             }
 
             using (SimProfile.Measure("컵"))
-                RunCupRound(w, matchday, new Random(SeedMix.Of(w.Seed, matchday * 101, 7331)), skipUserTie: false);
+                RunCupRound(w, matchday, CupRng(w, matchday), deferMyCupTie);
 
+            // 내 컵 경기를 미뤄 두었으면 여기서 멈춘다. 그 경기가 끝나야 대진이 이어지고
+            // 한 주가 넘어간다(ResumeAfterPending).
+            if (w.pendingMatch != null) return mine;
+
+            FinishMatchday(w, matchday, round.date);
+            return mine;
+        }
+
+        /// <summary>컵 추첨·승부차기에 쓰는 난수. 라운드마다 같은 자리에서 시작한다.</summary>
+        static Random CupRng(GameWorld w, int matchday)
+            => new Random(SeedMix.Of(w.Seed, matchday * 101, 7331));
+
+        /// <summary>
+        /// 한 라운드의 남은 일 — A매치 · 2군 · 경기 뒷처리 · 한 주 넘기기.
+        ///
+        /// 내 컵 경기를 직접 뛰면 이 대목이 그 경기 뒤로 밀린다. 순서는 그대로여야 하므로
+        /// 한 곳에만 둔다 — 두 벌로 두면 자동 진행과 직접 진행의 세계가 어긋난다.
+        /// </summary>
+        static void FinishMatchday(GameWorld w, int matchday, GameDate date)
+        {
             // A매치 주간. 용도별로 난수를 따로 쓴다 — 같은 rng 를 쓰면 컵 추첨이 밀린다.
             if (NationalTeam.IsBreak(matchday))
                 using (SimProfile.Measure("A매치"))
@@ -123,12 +152,15 @@ namespace FootballTactician.World
                     ReserveLeague.RunMatchday(w, new Random(SeedMix.Of(w.Seed, matchday * 307, 1511)));
 
             // 내가 쉬는 주에는 경기 뒷처리가 없다. 그래도 한 주는 지나간다.
-            if (fixture != null)
-                using (SimProfile.Measure("경기 뒷처리"))
-                    AfterUserMatch(w, fixture, mine);
+            var fixture = w.MyLeague?.currentSeason?.fixtures.FirstOrDefault(
+                f => f.matchday == matchday && f.isPlayed
+                     && (f.homeClubId == w.ManagedClubId || f.awayClubId == w.ManagedClubId));
 
-            WeekCycle.Advance(w, round.date.AddDays(7));
-            return mine;
+            if (fixture?.result != null)
+                using (SimProfile.Measure("경기 뒷처리"))
+                    AfterUserMatch(w, fixture, fixture.result);
+
+            WeekCycle.Advance(w, date.AddDays(7));
         }
 
         /// <summary>
@@ -187,7 +219,8 @@ namespace FootballTactician.World
         /// 자동 진행(PlayNextRound) 과 뒷처리가 같아야 한다.
         /// </summary>
         public static MatchResultData CompleteUserMatch(
-            GameWorld w, FixtureData fixture, MatchSession session, int seedSalt = 0)
+            GameWorld w, FixtureData fixture, MatchSession session, int seedSalt = 0,
+            bool deferMyCupTie = false)
         {
             if (fixture.isPlayed) return fixture.result;
 
@@ -218,17 +251,12 @@ namespace FootballTactician.World
                 Standings.Recalculate(league);
             }
 
-            RunCupRound(w, matchday, new Random(SeedMix.Of(w.Seed, matchday * 101, 7331)), skipUserTie: false);
+            RunCupRound(w, matchday, CupRng(w, matchday), deferMyCupTie);
 
-            // A매치 주간. 용도별로 난수를 따로 쓴다 — 같은 rng 를 쓰면 컵 추첨이 밀린다.
-            if (NationalTeam.IsBreak(matchday))
-                NationalTeam.RunBreak(w, new Random(SeedMix.Of(w.Seed, matchday * 211, 5501)));
+            // 내 컵 경기를 미뤄 두었으면 여기서 멈춘다.
+            if (w.pendingMatch != null) return result;
 
-            if (ReserveLeague.IsMatchday(matchday))
-                ReserveLeague.RunMatchday(w, new Random(SeedMix.Of(w.Seed, matchday * 307, 1511)));
-
-            AfterUserMatch(w, fixture, result);
-            WeekCycle.Advance(w, fixture.date.AddDays(7));
+            FinishMatchday(w, matchday, fixture.date);
             return result;
         }
 
@@ -298,25 +326,151 @@ namespace FootballTactician.World
 
         // ── 컵 ────────────────────────────────────────────────────────────
 
-        /// <summary>이번 리그 라운드에 걸린 컵 라운드를 치른다.</summary>
-        static void RunCupRound(GameWorld w, int matchday, Random rng, bool skipUserTie)
+        /// <summary>
+        /// 이번 리그 라운드에 걸린 컵 라운드를 치른다.
+        ///
+        /// <paramref name="deferUserTie"/> 가 true 면 <b>내 토너먼트 경기 하나</b>를 치르지 않고
+        /// <see cref="GameWorld.pendingMatch"/> 에 얹어 두고 돌아온다. 그 대회의 대진은
+        /// 모든 경기가 끝나야 넘어가므로(<c>CupCompetition.PlayRound</c>), 미뤄 둔 채로도
+        /// 어긋나지 않는다. 조별리그는 미루지 않는다 — 한 라운드에 여러 경기가 얽힌다.
+        /// </summary>
+        static void RunCupRound(GameWorld w, int matchday, Random rng, bool deferUserTie)
         {
             foreach (var cup in w.Cups.Values.ToList())
             {
                 if (!CupCompetition.HasRound(cup, matchday)) continue;
 
-                int skip = skipUserTie ? w.ManagedClubId : -1;
-
                 // 조별리그가 남아 있으면 그쪽을, 아니면 토너먼트를 치른다.
                 if (CupCompetition.HasGroupMatches(cup, matchday))
-                    CupCompetition.PlayGroupMatchday(w, cup, matchday, rng, skip);
+                {
+                    CupCompetition.PlayGroupMatchday(w, cup, matchday, rng, -1);
+                }
                 else
+                {
+                    int skip = deferUserTie ? w.ManagedClubId : -1;
                     CupCompetition.PlayRound(w, cup, rng, skip);
+
+                    if (deferUserTie && DeferMyTie(w, cup, matchday)) return;
+                }
 
                 // 내가 참가한 대회만 알린다. 대륙 대회는 나라가 비어 있으므로 참가 명단으로 본다.
                 if (w.ManagedClubId > 0 && cup.entrants.Contains(w.ManagedClubId))
                     ReportCupRound(w, cup);
             }
+        }
+
+        /// <summary>
+        /// 이 대회의 지금 라운드에 내 경기가 남아 있으면 치를 자리에 얹어 둔다. 얹었으면 true.
+        ///
+        /// 일정에는 넣지 않는다 — 넣으면 순위표가 센다. 경기 화면이 읽을 수 있게
+        /// <see cref="FixtureData"/> 모양으로만 싸 둔다.
+        /// </summary>
+        static bool DeferMyTie(GameWorld w, CupState cup, int matchday)
+        {
+            if (w.ManagedClubId <= 0) return false;
+
+            var tie = cup.Current?.ties.FirstOrDefault(
+                t => !t.played
+                     && (t.homeClubId == w.ManagedClubId || t.awayClubId == w.ManagedClubId));
+            if (tie == null) return false;
+
+            w.pendingMatch = new PendingMatch
+            {
+                cupId = cup.id,
+                matchday = matchday,
+                label = $"{cup.name} {cup.Current.name}",
+                fixture = new FixtureData
+                {
+                    id = w.NextFixtureId++,
+                    homeClubId = tie.homeClubId,
+                    awayClubId = tie.awayClubId,
+                    date = w.Date,
+                    matchday = matchday,
+                    isPlayed = false,
+                },
+            };
+            return true;
+        }
+
+        /// <summary>
+        /// 미뤄 둔 내 경기의 결과를 대진에 넣고, 그 주의 남은 일을 마저 치른다.
+        ///
+        /// 같은 주에 다른 대회의 내 경기가 또 있으면 그것을 다시 얹어 두고 멈춘다.
+        /// </summary>
+        public static void ResumeAfterPending(GameWorld w, int homeGoals, int awayGoals)
+        {
+            if (w.pendingMatch is not { } pending) return;
+
+            int matchday = pending.matchday;
+            var date = pending.fixture.date;
+            var rng = CupRng(w, matchday);
+
+            var cup = w.Cups.Values.FirstOrDefault(c => c.id == pending.cupId);
+            var tie = cup?.Current?.ties.FirstOrDefault(
+                t => !t.played
+                     && (t.homeClubId == w.ManagedClubId || t.awayClubId == w.ManagedClubId));
+
+            w.pendingMatch = null;
+
+            if (cup != null && tie != null)
+            {
+                CupCompetition.ApplyTie(cup, tie, homeGoals, awayGoals, rng);
+
+                // 이제 전 경기가 끝났으니 대진이 넘어간다.
+                CupCompetition.PlayRound(w, cup, rng);
+                if (cup.entrants.Contains(w.ManagedClubId)) ReportCupRound(w, cup);
+            }
+
+            // 같은 주에 다른 대회가 남아 있을 수 있다.
+            RunCupRound(w, matchday, CupRng(w, matchday), deferUserTie: true);
+            if (w.pendingMatch != null) return;
+
+            FinishMatchday(w, matchday, date);
+        }
+
+        /// <summary>미뤄 둔 경기를 감독 대신 돌려 버린다 — "바로 결과 보기".</summary>
+        public static MatchResultData SimulatePending(GameWorld w, int seedSalt = 0)
+        {
+            if (w.pendingMatch is not { } pending) return null;
+
+            var f = pending.fixture;
+            int seed = SeedMix.Of(w.Seed, f.id, seedSalt);
+
+            // 통째로 받아 둔다 — 화면이 점유율과 슈팅까지 그린다.
+            var result = MatchDay.SimulateOneOffFull(w, f.homeClubId, f.awayClubId, f.id, seed);
+            if (result == null) return null;
+
+            f.result = result;
+            f.isPlayed = true;
+
+            MatchDay.ApplyMatchMorale(w, f, result);
+
+            ResumeAfterPending(w, result.homeGoals, result.awayGoals);
+            return result;
+        }
+
+        /// <summary>미뤄 둔 경기를 블록 단위로 연다.</summary>
+        public static MatchSession BeginPendingMatch(GameWorld w, int seedSalt = 0)
+            => w.pendingMatch is { } p ? BeginUserMatch(w, p.fixture, seedSalt) : null;
+
+        /// <summary>직접 치른 미뤄 둔 경기를 마무리한다.</summary>
+        public static MatchResultData CompletePendingMatch(
+            GameWorld w, MatchSession session, int seedSalt = 0)
+        {
+            if (w.pendingMatch is not { } pending || session == null) return null;
+
+            var f = pending.fixture;
+            var result = session.Finish();
+
+            MatchEngine.ApplyResult(result, session.Context, w.Lookup);
+            f.result = result;
+            f.isPlayed = true;
+
+            MatchDay.ApplyMatchFatigue(w, session.Context, result);
+            MatchDay.ApplyMatchMorale(w, f, result);
+
+            ResumeAfterPending(w, result.homeGoals, result.awayGoals);
+            return result;
         }
 
         static void ReportCupRound(GameWorld w, CupState cup)
