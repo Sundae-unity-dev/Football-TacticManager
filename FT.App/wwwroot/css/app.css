@@ -180,7 +180,9 @@ a:hover { text-decoration: underline; }
 }
 .topbar-spacer { flex: 1; }
 
-.content { padding: 1.4rem; max-width: 1240px; width: 100%; }
+/* 넓은 화면에서 오른쪽이 통째로 비지 않게 폭을 넓히고 가운데에 둔다.
+   1240px 로 묶여 있어 1,568px 화면에서 330px 가 빈 채로 남았다. */
+.content { padding: 1.4rem 1.6rem; max-width: 1520px; width: 100%; margin: 0 auto; }
 
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
@@ -244,8 +246,8 @@ a:hover { text-decoration: underline; }
   padding: .8rem .9rem;
 }
 .stat-label {
-  font-size: .74rem; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--text-mute);
+  font-size: .8rem; letter-spacing: .03em;
+  color: var(--text-dim);
 }
 .stat-value {
   font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2;
@@ -272,11 +274,25 @@ table.ft tbody tr:hover { background: rgba(61,220,163,.05); }
 table.ft tr.me { background: rgba(61,220,163,.10); }
 table.ft tr.me td { border-bottom-color: rgba(61,220,163,.22); }
 table.ft .num { text-align: right; font-family: var(--font-mono); font-size: .88rem; }
+table.ft th.num { font-family: var(--font-body); font-size: .78rem; }
+table.ft th.center { text-align: center; }
 table.ft .clickable { cursor: pointer; }
 
-.zone-champ { box-shadow: inset 3px 0 0 var(--emerald); }
-.zone-euro  { box-shadow: inset 3px 0 0 var(--sky); }
-.zone-releg { box-shadow: inset 3px 0 0 var(--coral); }
+.zone-champ { box-shadow: inset 4px 0 0 var(--emerald); }
+.zone-euro  { box-shadow: inset 4px 0 0 var(--sky); }
+.zone-po    { box-shadow: inset 4px 0 0 var(--violet); }
+.zone-safe  { box-shadow: inset 4px 0 0 var(--amber); }
+.zone-releg { box-shadow: inset 4px 0 0 var(--coral); }
+
+/* 범례 — 그 리그에 실제로 있는 구간만 그린다. */
+.legend { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: .8rem; color: var(--text-dim); margin-top: .7rem; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: .35rem; vertical-align: -1px; }
+.legend .zone-champ, .legend .zone-euro, .legend .zone-po, .legend .zone-safe, .legend .zone-releg { box-shadow: none; }
+.legend .zone-champ { background: var(--emerald); }
+.legend .zone-euro  { background: var(--sky); }
+.legend .zone-po    { background: var(--violet); }
+.legend .zone-safe  { background: var(--amber); }
+.legend .zone-releg { background: var(--coral); }
 
 /* ── 배지와 칩 ──────────────────────────────────────────────────── */
 
@@ -297,8 +313,8 @@ table.ft .clickable { cursor: pointer; }
 
 .form-dot {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; border-radius: 4px; margin-right: 2px;
-  font-size: .72rem; font-weight: 700; color: #06131f;
+  width: 22px; height: 22px; border-radius: 6px; margin-right: 3px;
+  font-size: .74rem; font-weight: 700; color: #06131f;
 }
 .form-W { background: var(--emerald); }
 .form-D { background: var(--text-mute); color: #fff; }
@@ -400,19 +416,26 @@ label.field > span {
 
 .shirt {
   box-sizing: border-box;
-  width: 34px; height: 34px; margin: 0 auto;
-  border-radius: 8px;
+  width: 36px; height: 36px; margin: 0 auto;
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display); font-size: .8rem;
   border: 1px solid rgba(255,255,255,.3);
   box-shadow: 0 3px 8px rgba(0,0,0,.4);
 }
 .pitch-name {
-  font-size: .62rem; margin-top: .15rem; color: #fff;
+  font-size: .7rem; margin-top: .2rem; color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,.9);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; font-weight: 600;
 }
-.pitch-role { font-size: .56rem; color: rgba(255,255,255,.75); }
+/* 능력치는 셔츠 오른쪽 위의 작은 배지로 — 이름과 붙지 않게. */
+.pitch-role {
+  position: absolute; top: -6px; left: calc(50% + 10px);
+  font-family: var(--font-mono); font-size: .62rem; font-weight: 700;
+  padding: 0 .3rem; border-radius: 999px; line-height: 1.35;
+  background: var(--navy-900); color: var(--text); border: 1px solid rgba(255,255,255,.25);
+}
 
 /* ── 스코어보드 ─────────────────────────────────────────────────── */
 
@@ -433,6 +456,22 @@ label.field > span {
 }
 .scorebug .club { font-weight: 600; }
 .scorebug .meta { font-size: .72rem; color: var(--text-mute); }
+
+/* 점수 아래 득점자 · 점유율 막대 */
+.scoreboard .scorers {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: .8rem; align-items: start;
+  padding: .55rem 1rem .2rem; font-size: .84rem; color: var(--text-dim);
+}
+.scoreboard .scorers .right { text-align: right; }
+.poss { display: flex; align-items: center; gap: .6rem; padding: .6rem .2rem 0; font-size: .82rem; }
+.poss-bar { flex: 1; display: flex; gap: 3px; height: 8px; }
+.poss-bar i { display: block; height: 100%; border-radius: 999px; min-width: 6px; }
+
+/* 더 나은 쪽 숫자 */
+.stat-win {
+  display: inline-block; padding: 0 .45rem; border-radius: 999px;
+  background: rgba(61,220,163,.18); color: var(--emerald); font-weight: 700;
+}
 
 /* ── 타임라인 ───────────────────────────────────────────────────── */
 
@@ -556,6 +595,42 @@ table.ft tr.dim-row td { opacity: .45; }
 
 /* 나라 고르기와 구단 고르기는 표가 넓다. 560px 에 밀어 넣으면 머리글이 세로로 꺾인다. */
 .splash-card.wide { max-width: 1000px; }
+
+/* 시작 화면 — 저장된 판 */
+.save-card {
+  display: flex; align-items: center; gap: 1rem; justify-content: space-between;
+  margin-top: 1rem; padding: .9rem 1rem; border-radius: var(--radius);
+  background: rgba(61,220,163,.07); border: 1px solid rgba(61,220,163,.35);
+}
+.save-card-name { font-weight: 600; font-size: .95rem; }
+.divider-label {
+  display: flex; align-items: center; gap: .7rem; margin: 1.2rem 0 .4rem;
+  font-size: .78rem; color: var(--text-mute);
+}
+.divider-label::before, .divider-label::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.notice-bad {
+  margin: .7rem 0 0; padding: .6rem .8rem; border-radius: 8px; font-size: .86rem;
+  background: rgba(228,87,61,.10); border: 1px solid rgba(228,87,61,.35); color: #F3B4A7;
+}
+
+/* 화면 아래에 붙는 막대 — 긴 목록 끝까지 내려가지 않아도 단추가 보이게 */
+.sticky-bar {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; align-items: center; gap: 1rem;
+  margin: 1rem -1.2rem -1.1rem; padding: .8rem 1.2rem;
+  background: rgba(15,26,46,.96); backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.sticky-bar .stat { flex: 1; margin: 0; }
+
+/* 단추 글자는 꺾지 않는다 — 저장 카드의 '이어하기'가 '이어하/기' 로 갈라졌다. */
+.btn { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .save-card { flex-direction: column; align-items: stretch; }
+  .sticky-bar { flex-direction: column; align-items: stretch; gap: .6rem; }
+  .scoreboard .scorers { font-size: .78rem; }
+}
 .splash h1 {
   font-size: 2.3rem; letter-spacing: .04em; text-transform: uppercase; margin-bottom: .2rem;
 }
@@ -775,3 +850,11 @@ table.ft th.sorted { color: var(--emerald); }
 }
 .inbox-go { font-size: .78rem; color: var(--emerald); margin-top: .15rem; }
 .inbox-item.linked:not(:hover) .inbox-go { opacity: .7; }
+
+/* ── 스크롤바 ───────────────────────────────────────────────────────
+   어두운 화면에 브라우저 기본(흰) 스크롤바가 튀었다. 사이드바·표·구단 고르기 모두. */
+* { scrollbar-width: thin; scrollbar-color: var(--navy-500) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--navy-500); border-radius: 999px; border: 2px solid var(--navy-900); }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }

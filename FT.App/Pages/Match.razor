@@ -16,7 +16,7 @@ else if (Session.Live is { } live && Session.LiveFixture is { } lf)
 
     <h1>@(live.Finished ? "경기 종료" : $"{live.Minute}분 진행 중")</h1>
 
-    @Scorebug(homeClub, awayClub, live.HomeGoals, live.AwayGoals, live.HomePossession, 100 - live.HomePossession)
+    @Scorebug(w, homeClub, awayClub, live.HomeGoals, live.AwayGoals, live.HomePossession, 100 - live.HomePossession, live.Events)
 
     <div class="clock">
         <div class="clock-bar"><i style="width:@(live.Minute * 100 / 100)%"></i></div>
@@ -164,7 +164,7 @@ else if (Session.Live is { } live && Session.LiveFixture is { } lf)
                     <tbody>
                         @StatRow("슈팅", live.HomeStats.shots, live.AwayStats.shots)
                         @StatRow("유효 슈팅", live.HomeStats.shotsOnTarget, live.AwayStats.shotsOnTarget)
-                        @StatRow("기대 득점", live.HomeStats.xG.ToString("F2"), live.AwayStats.xG.ToString("F2"))
+                        @StatRow("기대 득점", live.HomeStats.xG, live.AwayStats.xG, "F2")
                         @StatRow("빅찬스", live.HomeStats.bigChances, live.AwayStats.bigChances)
                     </tbody>
                 </table>
@@ -185,8 +185,8 @@ else
         var us = weHome ? result.homeGoals : result.awayGoals;
         var them = weHome ? result.awayGoals : result.homeGoals;
 
-        @Scorebug(homeClub, awayClub, result.homeGoals, result.awayGoals,
-                  result.homeStats.possession, result.awayStats.possession)
+        @Scorebug(w, homeClub, awayClub, result.homeGoals, result.awayGoals,
+                  result.homeStats.possession, result.awayStats.possession, result.events)
 
         <p class="center mt1" style="font-family:var(--font-display); font-size:1.1rem;
              color:@(us > them ? "var(--emerald)" : us == them ? "var(--text-dim)" : "var(--coral)")">
@@ -202,18 +202,17 @@ else
                         <tr><th class="num">@homeClub.shortName</th><th class="center">항목</th><th class="num">@awayClub.shortName</th></tr>
                     </thead>
                     <tbody>
-                        @StatRow("점유율", $"{result.homeStats.possession}%", $"{result.awayStats.possession}%")
                         @StatRow("슈팅", result.homeStats.shots, result.awayStats.shots)
                         @StatRow("유효 슈팅", result.homeStats.shotsOnTarget, result.awayStats.shotsOnTarget)
-                        @StatRow("기대 득점", result.homeStats.xG.ToString("F2"), result.awayStats.xG.ToString("F2"))
+                        @StatRow("기대 득점", result.homeStats.xG, result.awayStats.xG, "F2")
                         @StatRow("빅찬스", result.homeStats.bigChances, result.awayStats.bigChances)
-                        @StatRow("빅찬스 실패", result.homeStats.bigChancesMissed, result.awayStats.bigChancesMissed)
+                        @StatRow("빅찬스 실패", result.homeStats.bigChancesMissed, result.awayStats.bigChancesMissed, lowerBetter: true)
                         @StatRow("패스", result.homeStats.passes, result.awayStats.passes)
                         @StatRow("태클", result.homeStats.tackles, result.awayStats.tackles)
                         @StatRow("코너", result.homeStats.corners, result.awayStats.corners)
-                        @StatRow("파울", result.homeStats.fouls, result.awayStats.fouls)
-                        @StatRow("경고", result.homeStats.yellowCards, result.awayStats.yellowCards)
-                        @StatRow("퇴장", result.homeStats.redCards, result.awayStats.redCards)
+                        @StatRow("파울", result.homeStats.fouls, result.awayStats.fouls, lowerBetter: true)
+                        @StatRow("경고", result.homeStats.yellowCards, result.awayStats.yellowCards, lowerBetter: true)
+                        @StatRow("퇴장", result.homeStats.redCards, result.awayStats.redCards, lowerBetter: true)
                     </tbody>
                 </table>
             </div>
@@ -287,7 +286,7 @@ else
                                 <td class="right">
                                     @foreach (var c in Standings.RecentForm(w.LeagueOf(oppId) ?? league, oppId))
                                     {
-                                        <span class="form-dot form-@c">@c</span>
+                                        <span class="form-dot form-@c">@Ui.FormLabel(c)</span>
                                     }
                                 </td>
                             </tr>
@@ -429,28 +428,87 @@ else
         _ => "muted",
     };
 
-    /// <summary>점수판. 진행 중인 경기와 끝난 경기가 같은 모양을 쓴다.</summary>
-    static RenderFragment Scorebug(ClubData home, ClubData away, int homeGoals, int awayGoals,
-                                   int homePossession, int awayPossession) =>
-        @<div class="scorebug">
-            <div class="side">
-                <span class="kit" style="background:@home.colors.primaryHex"></span>
-                <div>
-                    <div class="club">@home.name</div>
-                    <div class="meta">홈 · 점유 @homePossession%</div>
+    /// <summary>
+    /// 점수판. 진행 중인 경기와 끝난 경기가 같은 모양을 쓴다.
+    ///
+    /// 점수 아래에 양쪽 득점자와 시간을, 그 아래에 점유율을 두 팀 색 막대로 붙인다(FotMob 식).
+    /// 점수만 있으면 "누가 넣었나"를 타임라인까지 내려가 찾아야 했다.
+    /// </summary>
+    static RenderFragment Scorebug(GameWorld w, ClubData home, ClubData away, int homeGoals, int awayGoals,
+                                   int homePossession, int awayPossession, IEnumerable<MatchEvent>? events)
+    {
+        var goals = (events ?? Enumerable.Empty<MatchEvent>()).Where(e => IsGoal(e.eventType)).OrderBy(e => e.minute).ToList();
+        var homeColor = home.colors.primaryHex;
+        // 두 팀 색이 같으면 막대가 한 덩어리로 보인다 — 원정 쪽은 보조색으로.
+        var awayColor = string.Equals(away.colors.primaryHex, homeColor, StringComparison.OrdinalIgnoreCase)
+            ? away.colors.secondaryHex : away.colors.primaryHex;
+
+        return @<div class="scoreboard">
+            <div class="scorebug">
+                <div class="side">
+                    <span class="kit" style="background:@home.colors.primaryHex"></span>
+                    <div>
+                        <div class="club">@home.name</div>
+                        <div class="meta">홈</div>
+                    </div>
+                </div>
+                <div class="score">
+                    <span>@homeGoals</span><span class="dim">:</span><span>@awayGoals</span>
+                </div>
+                <div class="side away">
+                    <span class="kit" style="background:@away.colors.primaryHex"></span>
+                    <div>
+                        <div class="club">@away.name</div>
+                        <div class="meta">원정</div>
+                    </div>
                 </div>
             </div>
-            <div class="score">
-                <span>@homeGoals</span><span class="dim">:</span><span>@awayGoals</span>
-            </div>
-            <div class="side away">
-                <span class="kit" style="background:@away.colors.primaryHex"></span>
-                <div>
-                    <div class="club">@away.name</div>
-                    <div class="meta">원정 · 점유 @awayPossession%</div>
+
+            @if (goals.Count > 0)
+            {
+                <div class="scorers">
+                    <div>
+                        @foreach (var g in goals.Where(g => g.clubId == home.id))
+                        {
+                            <div>@Scorer(w, g)</div>
+                        }
+                    </div>
+                    <span></span>
+                    <div class="right">
+                        @foreach (var g in goals.Where(g => g.clubId != home.id))
+                        {
+                            <div>@Scorer(w, g)</div>
+                        }
+                    </div>
                 </div>
+            }
+
+            <div class="poss">
+                <span class="mono">@homePossession%</span>
+                <div class="poss-bar">
+                    <i style="width:@homePossession%; background:@homeColor"></i>
+                    <i style="width:@awayPossession%; background:@awayColor"></i>
+                </div>
+                <span class="mono">@awayPossession%</span>
             </div>
+            <div class="center tiny dim">점유율</div>
         </div>;
+    }
+
+    static bool IsGoal(MatchEventType t) => t is MatchEventType.Goal or MatchEventType.CornerKickGoal
+        or MatchEventType.FreeKickGoal or MatchEventType.PenaltyScored or MatchEventType.OwnGoal;
+
+    static string Scorer(GameWorld w, MatchEvent g)
+    {
+        var name = w.Player(g.playerId)?.ShortName ?? "?";
+        var tag = g.eventType switch
+        {
+            MatchEventType.PenaltyScored => " (PK)",
+            MatchEventType.OwnGoal => " (자책)",
+            _ => "",
+        };
+        return $"{name}{tag} {g.minute}'";
+    }
 
     /// <summary>
     /// 장면 목록. 교체는 <c>playerId</c> 가 나간 선수, <c>assistPlayerId</c> 가 들어온 선수다.
@@ -479,9 +537,17 @@ else
             }
         </div>;
 
-    RenderFragment StatRow(string label, object home, object away) => @<tr>
-        <td class="num">@home</td>
-        <td class="center dim tiny">@label</td>
-        <td class="num">@away</td>
-    </tr>;
+    /// <summary>
+    /// 통계 한 줄. 더 나은 쪽 숫자를 색 알약으로 강조한다(FotMob 식) — 숫자 둘을 견주어
+    /// 읽는 수고를 던다. 파울·경고처럼 적을수록 좋은 항목은 <paramref name="lowerBetter"/>.
+    /// </summary>
+    static RenderFragment StatRow(string label, double home, double away, string format = "0", bool lowerBetter = false)
+    {
+        int better = home == away ? 0 : (home > away) != lowerBetter ? -1 : 1;
+        return @<tr>
+            <td class="num"><span class="@(better < 0 ? "stat-win" : "")">@home.ToString(format)</span></td>
+            <td class="center dim tiny">@label</td>
+            <td class="num"><span class="@(better > 0 ? "stat-win" : "")">@away.ToString(format)</span></td>
+        </tr>;
+    }
 }

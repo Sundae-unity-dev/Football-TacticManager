@@ -5,12 +5,15 @@
   (KOR · ENG · BRA …). 49개를 다 합쳐 57KB 라 내려받기에 얹는 짐이 거의 없다.
 
   폭을 em 으로 둔다 — 설정에서 글씨를 키우면 국기도 같이 커진다.
+
+  파일이 없으면(예전 가상 나라 세이브의 NOR 같은 코드) 그림을 숨긴다. 숨기지 않으면
+  깨진 그림 표시와 대체 글자가 리그 이름 앞에 그대로 찍혔다.
 *@
 
 @if (Which is { Length: > 0 } iso)
 {
     <img class="flag @Extra" src="@($"flags/{iso}.png")" alt="@iso" title="@(Title ?? iso)"
-         loading="lazy" />
+         loading="lazy" onerror="this.style.display='none'" />
 }
 
 @code {

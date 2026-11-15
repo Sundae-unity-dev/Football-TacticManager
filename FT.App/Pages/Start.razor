@@ -29,6 +29,25 @@ else
                     <span class="tiny dim">@Ui.Version</span>
                 </p>
 
+                @* 세이브가 있으면 대개 이어서 하러 온 사람이다 — 이어하기를 맨 위, 가장 큰 단추로. *@
+                @if (hasSave)
+                {
+                    <div class="save-card">
+                        <div>
+                            <div class="stat-label">저장된 판</div>
+                            <div class="save-card-name">@(saveMeta ?? "이름 없는 판")</div>
+                        </div>
+                        <button class="btn btn-primary btn-lg" @onclick="LoadAsync" disabled="@(busy || oldSave)">
+                            @(busy ? "불러오는 중…" : "이어하기")
+                        </button>
+                    </div>
+                    @if (error is not null)
+                    {
+                        <p class="notice-bad">@error</p>
+                    }
+                    <div class="divider-label">또는 새 게임</div>
+                }
+
                 <label class="field mt1">
                     <span>감독 이름</span>
                     <input type="text" @bind="managerName" placeholder="이름을 입력하세요" style="width:100%" />
@@ -43,22 +62,14 @@ else
                 </label>
 
                 <div class="btn-row mt1">
-                    <button class="btn btn-primary btn-lg" @onclick="() => step = Step.PickCountries">
+                    <button class="btn btn-lg @(hasSave ? "" : "btn-primary")" @onclick="GoPickCountries">
                         새 게임 시작
                     </button>
-                    @if (hasSave)
-                    {
-                        <button class="btn btn-lg" @onclick="LoadAsync" disabled="@busy">이어하기</button>
-                    }
                 </div>
 
-                @if (hasSave && saveMeta is not null)
+                @if (!hasSave && error is not null)
                 {
-                    <p class="tiny dim mt1 mb0">저장된 판: @saveMeta</p>
-                }
-                @if (error is not null)
-                {
-                    <p class="tiny mt1 mb0" style="color:var(--coral)">@error</p>
+                    <p class="notice-bad">@error</p>
                 }
             </div>
 
@@ -83,7 +94,7 @@ else
                 <div class="btn-row">
                     <button class="btn btn-sm" @onclick='() => Preset("기본")'>기본 4개국</button>
                     <button class="btn btn-sm" @onclick='() => Preset("유럽")'>유럽 전부</button>
-                    <button class="btn btn-sm" @onclick='() => Preset("전부")'>49개국 전부</button>
+                    <button class="btn btn-sm" @onclick='() => Preset("전부")'>@(Nations.All.Count)개국 전부</button>
                     <button class="btn btn-sm btn-ghost" @onclick="() => chosen.Clear()">모두 지우기</button>
                 </div>
 
@@ -102,7 +113,9 @@ else
                     </div>
                 }
 
-                <div class="stat mt1">
+                @* 나라가 175개라 단추가 3,000px 아래 끝에 있었다. 아래에 붙여 늘 보이게 한다. *@
+                <div class="sticky-bar">
+                <div class="stat">
                     <div class="stat-label">고른 세계</div>
                     <div class="tiny">
                         나라 @chosen.Count · 리그 @PickedTiers · 구단 @(PickedTiers * 20) ·
@@ -129,11 +142,10 @@ else
                     <p class="tiny mb0" style="color:var(--coral)">@error</p>
                 }
 
-                <div class="btn-row mt1">
-                    <button class="btn btn-primary btn-lg" @onclick="CreateWorld"
-                            disabled="@(busy || chosen.Count == 0)">
-                        @(busy ? "세계를 만드는 중…" : "세계 만들기")
-                    </button>
+                <button class="btn btn-primary btn-lg" @onclick="CreateWorld"
+                        disabled="@(busy || chosen.Count == 0)">
+                    @(busy ? "세계를 만드는 중…" : "세계 만들기")
+                </button>
                 </div>
             </div>
         }
@@ -154,9 +166,7 @@ else
                             var league = Session.World.League(lid)!;
                             <button class="stat" style="text-align:left; cursor:pointer; border-color:var(--line)"
                                     @onclick="() => PickNation(lid)">
-                                <div class="stat-label">
-                                    <Flag Code="@n.Code" /> @n.Country · @((int)league.tier)부
-                                </div>
+                                <div class="stat-label"><Flag Code="@n.Code" /> @n.Country</div>
                                 <div class="stat-value" style="font-size:1.05rem">@league.name</div>
                                 <div class="stat-sub">
                                     @(league.clubIds.Count)개 구단 ·
@@ -243,6 +253,16 @@ else
 
     void RollSeed() => seed = Random.Shared.Next(1, 1_000_000);
 
+    /// <summary>새 게임으로 넘어간다. 첫 화면의 오류 문구가 나라 고르기까지 따라오지 않게 비운다.</summary>
+    void GoPickCountries()
+    {
+        error = null;
+        step = Step.PickCountries;
+    }
+
+    /// <summary>지금 버전으로는 읽을 수 없는 예전 세이브. 이어하기 단추를 막는다.</summary>
+    bool oldSave;
+
     /// <summary>
     /// 진행 중인 판을 내려놓고 처음 화면으로 돌아간다.
     ///
@@ -315,7 +335,14 @@ else
             if (await Session.LoadAsync()) Nav.NavigateTo("dashboard");
             else error = "저장된 판을 찾지 못했습니다.";
         }
-        catch (Exception ex) { error = $"세이브를 읽지 못했습니다: {ex.Message}"; }
+        catch (InvalidDataException ex) when (ex.Message.Contains("포맷"))
+        {
+            // "세이브 포맷이 맞지 않습니다 (파일 4, 현재 5)" 만 보여 주면 무엇을 하라는 건지 모른다.
+            oldSave = true;
+            error = "이 세이브는 예전 버전에서 만든 거라 지금 버전으로는 이어 할 수 없어요. " +
+                    "새 게임을 시작해 주세요 — 새 판을 저장하기 전까지 예전 세이브는 그대로 남아 있어요.";
+        }
+        catch (Exception ex) { error = $"세이브를 읽지 못했어요: {ex.Message}"; }
         finally { busy = false; }
     }
 }
