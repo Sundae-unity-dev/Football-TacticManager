@@ -1,7 +1,18 @@
 @page "/inbox"
 @inherits SessionPage
+@inject NavigationManager Nav
 
 <PageTitle>받은 소식 · Football Tactician</PageTitle>
+
+@*
+    받은 소식 — 왼쪽 목록, 오른쪽 본문.
+
+    예전에는 카드 한 장을 누르면 곧바로 선수·구단 화면으로 넘어갔다. 그래서 내용을 끝까지
+    읽고 갈지 말지를 고를 수 없었고, 돌아오면 어디까지 봤는지 잃었다. 이제 누르면 본문이 열리고,
+    갈 곳은 본문 아래 단추로 따로 둔다(메일·FotMob 의 목록-본문 모양).
+
+    폰 너비에서는 한 번에 한쪽만 보여 준다 — 목록에서 고르면 본문, '목록으로' 를 누르면 목록.
+*@
 
 @if (Session.World is not { } w)
 {
@@ -9,55 +20,151 @@
 }
 else
 {
+    var items = Items.ToList();
+    var current = Selected(items);
+
     <h1>받은 소식</h1>
 
-    <div class="card">
-        <div class="card-head">
-            <h3>@(w.Inbox.Count)건</h3>
-            <span class="spacer"></span>
-            <select @bind="filter" @bind:after="StateHasChanged">
-                <option value="">전체</option>
-                <option value="Board">이사회</option>
-                <option value="Match">경기</option>
-                <option value="Injury">부상</option>
-                <option value="Transfer">이적</option>
-                <option value="Staff">스태프</option>
-                <option value="News">소식</option>
-            </select>
-            <button class="btn btn-sm" @onclick="MarkAllRead">모두 읽음</button>
-        </div>
-
-        @if (!Items.Any())
+    <div class="chip-row">
+        @foreach (var (key, label) in Filters)
         {
-            <div class="empty">표시할 소식이 없습니다.</div>
+            int n = Count(key);
+            if (n == 0 && key is not ("" or "unread")) continue;
+            <button class="chip @(filter == key ? "on" : "")" @onclick="() => SetFilter(key)">
+                @label <span class="dim">@n</span>
+            </button>
         }
-        else
-        {
-            @foreach (var item in Items)
-            {
-                <InboxEntry Item="item" ShowKind="true" />
-            }
-        }
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn btn-sm btn-ghost" @onclick="MarkAllRead" disabled="@(Count("unread") == 0)">모두 읽음</button>
     </div>
+
+    @if (items.Count == 0)
+    {
+        <div class="card"><div class="empty">@(filter == "unread" ? "안 읽은 소식이 없어요." : "표시할 소식이 없어요.")</div></div>
+    }
+    else
+    {
+        <div class="mail @(showDetail ? "show-detail" : "")">
+            <div class="mail-list card" role="listbox" aria-label="받은 소식 목록" tabindex="0" @onkeydown="ListKey">
+                @foreach (var item in items)
+                {
+                    var on = ReferenceEquals(item, current);
+                    <button type="button" role="option" aria-selected="@on"
+                            class="mail-row kind-@item.kind @(item.read ? "" : "unread") @(on ? "on" : "")"
+                            @onclick="() => Open(item)">
+                        <div class="mail-row-top">
+                            <span class="mail-row-title">@item.title</span>
+                            @if (!item.read) { <span class="unread-dot" title="읽지 않음"></span> }
+                        </div>
+                        <div class="mail-row-meta">@Ui.DateLabel(item.date) · @InboxEntry.KindLabel(item.kind)</div>
+                        <div class="mail-row-preview">@Preview(item.body)</div>
+                    </button>
+                }
+            </div>
+
+            <div class="mail-detail card">
+                @if (current is null)
+                {
+                    <div class="empty">왼쪽에서 소식을 고르세요.</div>
+                }
+                else
+                {
+                    var (href, label) = InboxEntry.TargetOf(w, current);
+                    <button class="btn btn-sm btn-ghost mail-back" @onclick="() => showDetail = false">← 목록으로</button>
+                    <div class="mail-detail-meta">
+                        <span class="badge mail-kind kind-@current.kind">@InboxEntry.KindLabel(current.kind)</span>
+                        <span class="dim tiny mono">@Ui.DateLabel(current.date)</span>
+                    </div>
+                    <h2 class="mail-detail-title">@current.title</h2>
+                    @* 플레이오프 대진처럼 여러 줄로 쓴 소식이 있다 — 줄바꿈을 살린다. *@
+                    <div class="mail-detail-body">@current.body</div>
+                    @if (href is not null)
+                    {
+                        <div class="btn-row mt1">
+                            <button class="btn btn-primary" @onclick="() => Nav.NavigateTo(href)">@label 보기 →</button>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
 }
 
 @code {
     string filter = "";
 
-    IEnumerable<InboxItem> Items
+    /// <summary>고른 소식. 없으면 안 읽은 것 중 맨 위, 그것도 없으면 맨 위를 보여 준다(읽음 표시는 하지 않는다).</summary>
+    InboxItem? selected;
+
+    /// <summary>폰 너비에서 본문 쪽을 보고 있는지.</summary>
+    bool showDetail;
+
+    static readonly (string key, string label)[] Filters =
     {
-        get
+        ("", "전체"), ("unread", "안 읽음"),
+        ("Match", "경기"), ("Transfer", "이적"), ("Board", "이사회"),
+        ("Injury", "부상"), ("Staff", "스태프"), ("News", "소식"),
+    };
+
+    IEnumerable<InboxItem> All => Session.World?.Inbox ?? [];
+
+    IEnumerable<InboxItem> Items => Where(filter);
+
+    IEnumerable<InboxItem> Where(string key) => key switch
+    {
+        "" => All,
+        "unread" => All.Where(i => !i.read),
+        _ => All.Where(i => i.kind.ToString() == key),
+    };
+
+    int Count(string key) => Where(key).Count();
+
+    InboxItem? Selected(List<InboxItem> items)
+    {
+        if (selected is not null && items.Contains(selected)) return selected;
+        return items.FirstOrDefault(i => !i.read) ?? items.FirstOrDefault();
+    }
+
+    void SetFilter(string key)
+    {
+        filter = key;
+        showDetail = false;
+    }
+
+    void Open(InboxItem item)
+    {
+        selected = item;
+        showDetail = true;
+        if (!item.read)
         {
-            var all = Session.World?.Inbox ?? [];
-            return string.IsNullOrEmpty(filter)
-                ? all
-                : all.Where(i => i.kind.ToString() == filter);
+            item.read = true;
+            Session.NotifyChanged();     // 메뉴의 안 읽은 수 배지를 갱신한다
         }
+    }
+
+    /// <summary>목록에서 ↑↓ 로 넘겨 본다.</summary>
+    void ListKey(KeyboardEventArgs e)
+    {
+        if (e.Key is not ("ArrowDown" or "ArrowUp")) return;
+        var items = Items.ToList();
+        if (items.Count == 0) return;
+
+        int at = Selected(items) is { } cur ? items.IndexOf(cur) : -1;
+        at = Math.Clamp(at + (e.Key == "ArrowDown" ? 1 : -1), 0, items.Count - 1);
+        Open(items[at]);
     }
 
     void MarkAllRead()
     {
-        foreach (var i in Session.World?.Inbox ?? []) i.read = true;
+        foreach (var i in All) i.read = true;
         Session.NotifyChanged();
+    }
+
+    /// <summary>목록의 한 줄 미리 보기. 여러 줄 소식은 첫 줄만.</summary>
+    static string Preview(string? body)
+    {
+        if (string.IsNullOrEmpty(body)) return "";
+        int nl = body.IndexOf('\n');
+        return nl < 0 ? body : body[..nl];
     }
 }

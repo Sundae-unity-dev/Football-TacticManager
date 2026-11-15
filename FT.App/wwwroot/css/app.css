@@ -858,3 +858,55 @@ table.ft th.sorted { color: var(--emerald); }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb { background: var(--navy-500); border-radius: 999px; border: 2px solid var(--navy-900); }
 *::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
+
+/* ── 받은 소식: 목록 · 본문 ──────────────────────────────────────────
+   왼쪽 목록은 화면 높이에 맞춰 혼자 스크롤하고, 오른쪽 본문은 그 옆에 붙어 있는다. */
+.mail { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 1rem; align-items: start; }
+.mail .card { margin-bottom: 0; }
+.mail-list {
+  padding: .35rem; max-height: calc(100vh - 13rem); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.mail-list:focus-visible { outline: 2px solid var(--emerald); outline-offset: 2px; }
+.mail-row {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: transparent; border: 0; color: inherit; font: inherit;
+  padding: .55rem .7rem .55rem .8rem; border-radius: 8px;
+  border-left: 3px solid var(--line);
+}
+.mail-row:hover { background: rgba(255,255,255,.04); }
+.mail-row.on { background: rgba(61,220,163,.10); }
+.mail-row-top { display: flex; align-items: center; gap: .4rem; }
+.mail-row-title {
+  flex: 1; min-width: 0; font-size: .92rem; font-weight: 500; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mail-row.unread .mail-row-title { font-weight: 700; color: var(--text); }
+.mail-row-meta { font-size: .72rem; color: var(--text-mute); font-family: var(--font-mono); }
+.mail-row-preview {
+  font-size: .8rem; color: var(--text-mute); margin-top: .1rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mail-row.kind-Board, .mail-kind.kind-Board { border-left-color: var(--amber); }
+.mail-row.kind-Match, .mail-kind.kind-Match { border-left-color: var(--emerald); }
+.mail-row.kind-Injury, .mail-kind.kind-Injury { border-left-color: var(--coral); }
+.mail-row.kind-Transfer, .mail-kind.kind-Transfer { border-left-color: var(--violet); }
+.mail-row.kind-Staff, .mail-kind.kind-Staff { border-left-color: var(--sky); }
+.mail-kind { border-left-width: 3px; }
+
+.mail-detail { position: sticky; top: 4.2rem; min-height: 14rem; }
+.mail-detail-meta { display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem; }
+.mail-detail-title { font-size: 1.35rem; margin: 0 0 .7rem; }
+.mail-detail-body { white-space: pre-line; color: var(--text-dim); line-height: 1.75; }
+.mail-back { display: none; margin-bottom: .6rem; }
+
+/* 폰 너비 — 한 번에 한쪽만 */
+@media (max-width: 860px) {
+  .mail { grid-template-columns: 1fr; }
+  .mail-list { max-height: none; }
+  .mail .mail-detail { display: none; position: static; }
+  .mail.show-detail .mail-list { display: none; }
+  .mail.show-detail .mail-detail { display: block; }
+  .mail-back { display: inline-flex; }
+}
+
