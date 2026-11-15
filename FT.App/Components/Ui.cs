@@ -135,6 +135,21 @@ public static class Ui
         _ => "동료",
     };
 
+    /// <summary>최근 경기 결과 한 글자. 순위표·대시보드·구단 화면이 같이 쓴다.</summary>
+    public static string FormLabel(char c) => c switch { 'W' => "승", 'D' => "무", 'L' => "패", _ => c.ToString() };
+    public static string FormLabel(string s) => s is { Length: 1 } ? FormLabel(s[0]) : s ?? "";
+
+    /// <summary>순위 구간의 색 이름. 줄의 왼쪽 막대와 범례가 같은 색을 쓴다.</summary>
+    public static string ZoneClass(LeagueZones.Zone z) => z switch
+    {
+        LeagueZones.Zone.Title or LeagueZones.Zone.ChampionPlayoff or LeagueZones.Zone.Promotion => "zone-champ",
+        LeagueZones.Zone.Continental => "zone-euro",
+        LeagueZones.Zone.PromotionPlayoff => "zone-po",
+        LeagueZones.Zone.SurvivalPlayoff => "zone-safe",
+        LeagueZones.Zone.Relegation => "zone-releg",
+        _ => "",
+    };
+
     public static string BoardLabel(BoardConfidenceLevel l) => l switch
     {
         BoardConfidenceLevel.FullSupport => "전폭 지지",

@@ -19,7 +19,15 @@ else
     <div class="grid grid-4">
         <div class="stat">
             <div class="stat-label">리그 순위</div>
-            <div class="stat-value accent">@me.position<span style="font-size:.9rem">위</span></div>
+            @if (me.played == 0)
+            {
+                @* 한 경기도 치르지 않은 순위는 이름 순일 뿐이다. *@
+                <div class="stat-value dim">—</div>
+            }
+            else
+            {
+                <div class="stat-value accent">@me.position<span style="font-size:.9rem">위</span></div>
+            }
             <div class="stat-sub">@(me.played)경기 · 승점 @me.points</div>
         </div>
         <div class="stat">
@@ -28,7 +36,7 @@ else
                 @if (form.Count == 0) { <span class="dim" style="font-size:.9rem">아직 없음</span> }
                 @foreach (var c in form)
                 {
-                    <span class="form-dot form-@c">@c</span>
+                    <span class="form-dot form-@c">@Ui.FormLabel(c)</span>
                 }
             </div>
             <div class="stat-sub">@(me.won)승 @(me.drawn)무 @(me.lost)패</div>
@@ -137,7 +145,7 @@ else
                 <tbody>
                     @foreach (var e in NearbyTable)
                     {
-                        <tr class="@(e.clubId == club.id ? "me" : "")">
+                        <tr class="@((e.clubId == club.id ? "me " : "") + Ui.ZoneClass(LeagueZones.Of(w, league, e.position)))">
                             <td class="mono">@e.position</td>
                             <td><ClubLink Id="e.clubId" /></td>
                             <td class="num">@e.played</td>

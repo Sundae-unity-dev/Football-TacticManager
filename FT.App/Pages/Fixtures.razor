@@ -49,7 +49,7 @@ else
                                 var us = home ? r.homeGoals : r.awayGoals;
                                 var them = home ? r.awayGoals : r.homeGoals;
                                 var mark = us > them ? 'W' : us == them ? 'D' : 'L';
-                                <span class="form-dot form-@mark">@mark</span>
+                                <span class="form-dot form-@mark">@Ui.FormLabel(mark)</span>
                                 <span class="mono">@us-@them</span>
                             }
                             else

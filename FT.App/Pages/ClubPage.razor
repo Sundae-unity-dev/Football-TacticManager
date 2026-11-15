@@ -93,7 +93,7 @@ else
                 {
                     @foreach (var ch in Standings.RecentForm(league, c.id))
                     {
-                        <span class="form-dot form-@ch">@ch</span>
+                        <span class="form-dot form-@ch">@Ui.FormLabel(ch)</span>
                     }
                 }
             </div>
@@ -117,7 +117,7 @@ else
                                 <td class="nowrap"><ClubLink Id="opp" Kit="true" /></td>
                                 <td class="center"><span class="badge">@(home ? "홈" : "원정")</span></td>
                                 <td class="right nowrap">
-                                    <span class="form-dot form-@mark">@mark</span>
+                                    <span class="form-dot form-@mark">@Ui.FormLabel(mark)</span>
                                     <span class="mono">@us-@them</span>
                                 </td>
                             </tr>
