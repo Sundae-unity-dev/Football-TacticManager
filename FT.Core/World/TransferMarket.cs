@@ -421,7 +421,9 @@ namespace FootballTactician.World
 
             // 포지션 색인은 창구 한 번에 한 벌이면 된다. 시도마다 6000명을 훑으면
             // 창구가 열린 주의 비용이 라운드 전체를 끌고 간다.
-            var index = IndexByPosition(w);
+            Dictionary<Position, PositionIndex> index;
+            using (SimProfile.Measure("      · 포지션 색인"))
+                index = IndexByPosition(w);
             void Trace(string why) { if (Diagnostics != null) Diagnostics[why] = Diagnostics.GetValueOrDefault(why) + 1; }
 
             for (int i = 0; i < attempts; i++)
@@ -438,7 +440,11 @@ namespace FootballTactician.World
                 if (buyer.playerIds.Count >= BalanceConfig.SquadMax) { Trace("스쿼드 가득"); continue; }
 
                 // 인원이 모자라면 이적료 없는 자유계약 선수부터 본다.
-                if (buyer.playerIds.Count < BalanceConfig.SquadTarget && TrySignFreeAgent(w, buyer, rng))
+                bool signed = false;
+                if (buyer.playerIds.Count < BalanceConfig.SquadTarget)
+                    using (SimProfile.Measure("      · 자유계약"))
+                        signed = TrySignFreeAgent(w, buyer, rng);
+                if (signed)
                 {
                     done++;
                     continue;

@@ -34,8 +34,43 @@ namespace FootballTactician.World
             public float Ratio => Target <= 0 ? 1f : Math.Clamp(Progress / (float)Target, 0f, 1f);
         }
 
+        /// <summary>
+        /// 한 번의 검사 동안 같이 쓰는 값. 매주 내 선수 스물다섯 명을 차례로 볼 때,
+        /// 스쿼드 서열과 나라별 대표 발탁선은 그사이 바뀌지 않는다.
+        ///
+        /// 발탁선은 부를 때마다 선수 6,000명을 훑고 그 나라 선수를 정렬하던 값이라,
+        /// 선수마다 다시 구하면 주간 진행에서 이적 요청 하나가 라운드의 10%를 먹었다.
+        /// 값은 같다 — 같은 순간의 같은 계산을 한 번만 할 뿐이다.
+        /// </summary>
+        public sealed class Snapshot
+        {
+            internal readonly Dictionary<int, float[]> squadCa = new();
+            internal readonly Dictionary<Nationality, float> callUpLine = new();
+
+            internal float[] SquadCaDescending(GameWorld w, int clubId)
+            {
+                if (!squadCa.TryGetValue(clubId, out var arr))
+                {
+                    arr = w.Squad(clubId).Select(GameWorld.Ca).OrderByDescending(x => x).ToArray();
+                    squadCa[clubId] = arr;
+                }
+                return arr;
+            }
+
+            internal bool IsCallUpCandidate(GameWorld w, PlayerData p)
+            {
+                if (p == null || p.clubId <= 0) return false;
+                if (!callUpLine.TryGetValue(p.nationality, out float line))
+                    callUpLine[p.nationality] = line = NationalTeam.Threshold(w, p.nationality);
+                return GameWorld.Ca(p) >= line - BalanceConfig.CallUpHopeGap;
+            }
+        }
+
         /// <summary>그 선수가 이번 시즌 바라는 것들.</summary>
-        public static List<Goal> For(GameWorld w, PlayerData p)
+        public static List<Goal> For(GameWorld w, PlayerData p) => For(w, p, new Snapshot());
+
+        /// <summary>여러 선수를 잇달아 볼 때. <paramref name="snap"/> 을 같이 넘기면 공통 계산을 한 번만 한다.</summary>
+        public static List<Goal> For(GameWorld w, PlayerData p, Snapshot snap)
         {
             var list = new List<Goal>();
             if (p == null || p.clubId <= 0) return list;
@@ -45,13 +80,13 @@ namespace FootballTactician.World
 
             int age = w.Age(p);
             float ca = GameWorld.Ca(p);
-            var squad = w.Squad(club.id).ToList();
-            int rank = squad.Count(x => GameWorld.Ca(x) > ca) + 1;
+            var ordered = snap.SquadCaDescending(w, club.id);
+            int rank = 1;
+            while (rank - 1 < ordered.Length && ordered[rank - 1] > ca) rank++;
 
             // 주전 자리를 요구할 만한지는 <b>선발 11인의 끝자락</b>과 대 봐야 한다.
             // 팀 최고 선수와 비교하면 아무도 요구하지 못해 이 목표가 영영 나오지 않는다.
-            var ordered = squad.Select(GameWorld.Ca).OrderByDescending(x => x).ToList();
-            float xiCutoff = ordered.Count >= 11 ? ordered[10] : (ordered.Count > 0 ? ordered[^1] : ca);
+            float xiCutoff = ordered.Length >= 11 ? ordered[10] : (ordered.Length > 0 ? ordered[^1] : ca);
 
             var stats = p.seasonStats ?? new PlayerStats();
             int played = w.MyLeague?.currentSeason?.standings
@@ -104,7 +139,7 @@ namespace FootballTactician.World
             }
 
             // 국가대표 — 될 만한 실력이면 바란다.
-            if (NationalTeam.IsCandidate(w, p))
+            if (snap.IsCallUpCandidate(w, p))
                 list.Add(new Goal(Kind.CallUp, 1, p.caps > 0 ? 1 : 0, "국가대표 발탁"));
 
             return list;
@@ -114,11 +149,11 @@ namespace FootballTactician.World
         /// 못 이룬 목표의 무게. 탈의실 불만에 더해진다.
         /// 시즌 중에는 아직 이룰 시간이 남았으므로 진행도에 비례해 깎는다.
         /// </summary>
-        public static float Frustration(GameWorld w, PlayerData p, float seasonProgress)
+        public static float Frustration(GameWorld w, PlayerData p, float seasonProgress, Snapshot snap = null)
         {
             float sum = 0f;
 
-            foreach (var g in For(w, p))
+            foreach (var g in For(w, p, snap ?? new Snapshot()))
             {
                 if (g.Met) continue;
 

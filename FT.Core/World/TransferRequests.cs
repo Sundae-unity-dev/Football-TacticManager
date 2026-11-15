@@ -13,11 +13,14 @@ namespace FootballTactician.World
         /// 이 선수가 지금 이적을 요청할 만한지. 불만의 크기로 잰다.
         /// </summary>
         public static float Pressure(GameWorld w, PlayerData p)
+            => Pressure(w, p, PlayerAmbition.SeasonProgress(w), new PlayerAmbition.Snapshot());
+
+        static float Pressure(GameWorld w, PlayerData p, float progress, PlayerAmbition.Snapshot snap)
         {
             var club = w.Club(p.clubId);
             if (club == null) return 0f;
 
-            float pressure = PlayerAmbition.Frustration(w, p, PlayerAmbition.SeasonProgress(w));
+            float pressure = PlayerAmbition.Frustration(w, p, progress, snap);
 
             // 탈의실 전체가 흔들리면 개인도 흔들린다.
             float harmony = club.dressingRoom?.overallHarmony ?? 50f;
@@ -41,6 +44,11 @@ namespace FootballTactician.World
         {
             if (w.ManagedClubId <= 0 || w.MyClub is not { } club) return;
 
+            // 스쿼드 서열·대표 발탁선·시즌 진행도는 이 검사 동안 바뀌지 않는다.
+            // 요청이 올라오면 명단이 아니라 요청 목록만 바뀌므로 그대로 써도 된다.
+            float progress = PlayerAmbition.SeasonProgress(w);
+            var snap = new PlayerAmbition.Snapshot();
+
             foreach (var p in w.Squad(club.id).ToList())
             {
                 // 답하지 않은 요청이 쌓이는 동안에는 새 요청이 올라오지 않는다.
@@ -61,7 +69,7 @@ namespace FootballTactician.World
                     && GameDate.DaysBetween(last.madeOn, w.Date) < BalanceConfig.RequestCooldownDays)
                     continue;
 
-                float pressure = Pressure(w, p);
+                float pressure = Pressure(w, p, progress, snap);
                 if (pressure < BalanceConfig.RequestThreshold) continue;
 
                 // 참다 못하는 데도 시간이 걸린다. 임계를 넘자마자 전원이 요청하면
