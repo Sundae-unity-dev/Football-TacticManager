@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using FootballTactician.Data;
 using FootballTactician.Simulation;
 
 namespace FootballTactician.World
@@ -31,12 +33,30 @@ namespace FootballTactician.World
             /// <summary>마지막 줄에 적을 말 — "승격" 또는 "우승".</summary>
             public readonly string WinnerWord;
 
-            public Rules(int seedKey, int fixtureBase, string winnerWord)
+            /// <summary>
+            /// 감독이 직접 뛸 때 경기 화면에 적을 대회 이름 — "챔피언십 승격 플레이오프".
+            /// 그 뒤에 "준결승 1차전" 이 붙는다.
+            /// </summary>
+            public readonly string Title;
+
+            public Rules(int seedKey, int fixtureBase, string winnerWord, string title = null)
             {
                 SeedKey = seedKey;
                 FixtureBase = fixtureBase;
                 WinnerWord = winnerWord;
+                Title = title;
             }
+
+            public Rules Titled(string title) => new(SeedKey, FixtureBase, WinnerWord, title);
+        }
+
+        /// <summary>
+        /// 시즌 넘김이 내 경기 앞에서 멈췄다. <see cref="GameWorld.pendingMatch"/> 에
+        /// 그 경기가 얹혀 있다 — 대진을 걷던 길을 통째로 빠져나가는 데만 쓴다.
+        /// </summary>
+        public sealed class Paused : Exception
+        {
+            public Paused() : base("내 플레이오프 경기 앞에서 멈췄다") { }
         }
 
         /// <summary>
@@ -56,6 +76,7 @@ namespace FootballTactician.World
             {
                 round++;
                 bool final = slots.Count == 2;
+                string stage = RoundName(slots.Count);
                 var next = new List<int>();
 
                 for (int i = 0; i < slots.Count; i += 2)
@@ -67,7 +88,7 @@ namespace FootballTactician.World
 
                     next.Add(final
                         ? PlayFinal(w, high, low, rules, round, log)
-                        : PlayTwoLegs(w, high, low, rules, round, log));
+                        : PlayTwoLegs(w, high, low, rules, round, stage, log));
                 }
 
                 slots = next;
@@ -79,10 +100,10 @@ namespace FootballTactician.World
 
         /// <summary>준결승까지. 아래 씨드가 1차전 홈이고, 합산이 같으면 위 씨드가 오른다.</summary>
         static int PlayTwoLegs(GameWorld w, int high, int low, Rules rules, int round,
-                               List<string> log)
+                               string stage, List<string> log)
         {
-            var leg1 = Leg(w, low, high, rules, round * 10 + 1);
-            var leg2 = Leg(w, high, low, rules, round * 10 + 2);
+            var leg1 = Leg(w, low, high, rules, round * 10 + 1, $"{stage} 1차전");
+            var leg2 = Leg(w, high, low, rules, round * 10 + 2, $"{stage} 2차전");
 
             int highGoals = leg1.away + leg2.home;
             int lowGoals = leg1.home + leg2.away;
@@ -101,7 +122,7 @@ namespace FootballTactician.World
         static int PlayFinal(GameWorld w, int high, int low, Rules rules, int round,
                              List<string> log)
         {
-            var (h, a) = Leg(w, high, low, rules, round * 10 + 3);
+            var (h, a) = Leg(w, high, low, rules, round * 10 + 3, "결승");
 
             int winner = h >= a ? high : low;
             string how = h == a ? " (비겨 순위가 높은 쪽)" : "";
@@ -110,14 +131,72 @@ namespace FootballTactician.World
             return winner;
         }
 
-        /// <summary>한 경기. 씨드는 구단과 회차에서 뽑아 같은 세계면 같은 결과가 나온다.</summary>
+        /// <summary>
+        /// 한 경기. 씨드는 구단과 회차에서 뽑아 같은 세계면 같은 결과가 나온다.
+        ///
+        /// 시즌 넘김 중이면(<see cref="GameWorld.rollover"/>) 두 가지가 더 붙는다.
+        /// <b>이미 치른 경기</b>는 다시 치르지 않고 적어 둔 점수를 준다 — 멈췄다 이어 붙일 때
+        /// 대진을 처음부터 다시 걷기 때문이다. <b>내 경기</b>면 치르지 않고 감독에게 넘긴 뒤
+        /// <see cref="Paused"/> 로 빠져나간다.
+        /// </summary>
         public static (int home, int away) Leg(GameWorld w, int homeId, int awayId,
-                                               Rules rules, int tag)
+                                               Rules rules, int tag, string stage = null)
         {
-            int seed = SeedMix.Of(w.Seed, homeId * 7919 + awayId * 31 + tag, rules.SeedKey);
-            return MatchDay.SimulateOneOff(w, homeId, awayId,
-                                           rules.FixtureBase + homeId * 100 + tag, seed);
+            var ro = w.rollover;
+            if (ro != null && ro.TryGet(rules.SeedKey, homeId, awayId, tag, out var done))
+                return done;
+
+            var leg = new PlayoffLeg
+            {
+                seedKey = rules.SeedKey, homeClubId = homeId, awayClubId = awayId, tag = tag,
+            };
+
+            if (ro is { deferClubId: > 0 } && (homeId == ro.deferClubId || awayId == ro.deferClubId))
+            {
+                w.pendingMatch = new PendingMatch
+                {
+                    leg = leg,
+                    label = string.Join(" ", new[] { rules.Title, stage }
+                                                .Where(x => !string.IsNullOrEmpty(x))),
+                    fixture = new FixtureData
+                    {
+                        id = FixtureId(rules.FixtureBase, homeId, tag),
+                        homeClubId = homeId,
+                        awayClubId = awayId,
+                        date = w.Date,
+                        isPlayed = false,
+                    },
+                };
+                throw new Paused();
+            }
+
+            var r = MatchDay.SimulateOneOff(w, homeId, awayId,
+                                            FixtureId(rules.FixtureBase, homeId, tag),
+                                            LegSeed(w, leg));
+            if (ro != null)
+            {
+                (leg.homeGoals, leg.awayGoals) = r;
+                ro.Add(leg);
+            }
+            return r;
         }
+
+        static int FixtureId(int fixtureBase, int homeId, int tag) => fixtureBase + homeId * 100 + tag;
+
+        /// <summary>
+        /// 그 한 판의 씨드. 감독이 "바로 결과 보기" 를 누르면 이 씨드로 돌린다 —
+        /// 그래야 미루지 않고 넘긴 세계와 한 점도 다르지 않다.
+        /// </summary>
+        public static int LegSeed(GameWorld w, PlayoffLeg leg)
+            => SeedMix.Of(w.Seed, leg.homeClubId * 7919 + leg.awayClubId * 31 + leg.tag, leg.seedKey);
+
+        /// <summary>남은 자리 수로 라운드 이름을 붙인다.</summary>
+        static string RoundName(int slots) => slots switch
+        {
+            2 => "결승",
+            4 => "준결승",
+            _ => $"{slots}강",
+        };
 
         public static string Score((int home, int away) r) => $"{r.home}-{r.away}";
 

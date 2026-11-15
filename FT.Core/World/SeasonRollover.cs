@@ -287,20 +287,38 @@ namespace FootballTactician.World
         }
 
         /// <summary>
-        /// 1부 하위 N 팀과 2부 상위 N 팀이 자리를 바꾼다.
-        /// 리그가 바뀌면 수입과 선수 가치도 등급에 맞춰 다시 매긴다.
+        /// 플레이오프를 전부 치르고 누가 오르내리는지만 정한다. 세계는 아직 옮기지 않는다.
+        ///
+        /// <b>여기서 하는 일은 경기 말고는 다시 해도 같은 답이 나와야 한다.</b> 내 경기 앞에서
+        /// 멈추면(<see cref="Knockout.Paused"/>) 이 길을 처음부터 다시 걷는데, 치른 경기는
+        /// 적어 둔 점수를 그대로 쓰므로 같은 자리까지 똑같이 온다. 구단을 옮기거나 우편을
+        /// 보내는 일은 그래서 전부 <see cref="ApplyPlan"/> 쪽에 둔다 — 여기 두면 두 번 일어난다.
         /// </summary>
-        public static void ApplyPromotionAndRelegation(GameWorld w)
+        static PlayoffPlan PlanPlayoffs(GameWorld w)
         {
+            var plan = new PlayoffPlan();
+
+            // 챔피언 결정전(⑥)이 먼저다. 우승팀이 정해져야 명예를 새긴다.
+            foreach (var nation in w.Nations)
+            {
+                var log = new List<string>();
+                foreach (int id in nation.LeagueIds)
+                {
+                    var league = w.League(id);
+                    if (league?.currentSeason == null) continue;
+                    ChampionPlayoff.Resolve(w, league, log);
+                }
+                plan.ChampionLogs.Add(log);
+            }
+
             foreach (var nation in w.Nations)
             {
                 // 인접한 단계마다 따로 처리한다. 1·2부만 보면 3부는 영영 갇힌다.
                 //
                 // 먼저 내려갈 팀과 올라갈 팀을 전부 추려 둔 뒤에 옮긴다. 한 쌍씩 옮기면
                 // 2부에서 1부로 올라간 팀이 곧바로 3부와의 처리에 끼어든다.
-                var moves = new List<(int clubId, LeagueData from, LeagueData to, bool down)>();
+                var nm = new NationMoves();
                 var spec = NameForge.ByCode(nation.Code);
-                var playoffLog = new List<string>();
 
                 for (int t = 0; t + 1 < nation.LeagueIds.Count; t++)
                 {
@@ -315,10 +333,62 @@ namespace FootballTactician.World
                     // 플레이오프로 가리는 나라가 많다(docs/리그-제도.md ④).
                     var rng = new Random(SeedMix.Of(w.Seed, top.id * 131 + w.SeasonYear, 60611));
                     var (goingDown, goingUp) =
-                        PromotionPlayoff.Resolve(w, spec, t + 1, top, below, spots, rng, playoffLog);
+                        PromotionPlayoff.Resolve(w, spec, t + 1, top, below, spots, rng, nm.Log);
 
                     if (goingDown.Count == 0 || goingUp.Count == 0) continue;
+                    nm.Swaps.Add((top, below, goingDown, goingUp));
+                }
 
+                plan.Nations.Add(nm);
+            }
+
+            return plan;
+        }
+
+        /// <summary>플레이오프까지 치르고 정한 것. 나라 순서는 <see cref="GameWorld.Nations"/> 그대로다.</summary>
+        sealed class PlayoffPlan
+        {
+            public readonly List<List<string>> ChampionLogs = new();
+            public readonly List<NationMoves> Nations = new();
+        }
+
+        sealed class NationMoves
+        {
+            public readonly List<(LeagueData top, LeagueData below, List<int> down, List<int> up)> Swaps = new();
+            public readonly List<string> Log = new();
+        }
+
+        /// <summary>챔피언 결정전 결과를 알린다. 우승팀은 대진을 걸을 때 이미 적혔다.</summary>
+        static void ReportChampionPlayoffs(GameWorld w, PlayoffPlan plan)
+        {
+            for (int i = 0; i < w.Nations.Count; i++)
+            {
+                var nation = w.Nations[i];
+                var log = plan.ChampionLogs[i];
+
+                // 순위만 보면 왜 저 팀이 우승인지 알 수 없다 — 대진을 그대로 붙여 준다.
+                if (log.Count > 0 && w.ManagedClubId > 0
+                    && nation.LeagueIds.Contains(w.LeagueOf(w.ManagedClubId)?.id ?? -1))
+                {
+                    w.Post($"{nation.Country} 챔피언 결정전",
+                           string.Join("\n", log), InboxKind.News);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 정해 둔 대로 구단을 옮긴다. 리그가 바뀌면 수입과 선수 가치도 등급에 맞춰 다시 매긴다.
+        /// </summary>
+        static void ApplyPlan(GameWorld w, PlayoffPlan plan)
+        {
+            for (int i = 0; i < w.Nations.Count; i++)
+            {
+                var nation = w.Nations[i];
+                var nm = plan.Nations[i];
+                var moves = new List<(int clubId, LeagueData from, LeagueData to, bool down)>();
+
+                foreach (var (top, below, goingDown, goingUp) in nm.Swaps)
+                {
                     foreach (int id in goingDown) moves.Add((id, top, below, true));
                     foreach (int id in goingUp) moves.Add((id, below, top, false));
 
@@ -338,11 +408,11 @@ namespace FootballTactician.World
                     if (!down) ContractBonuses.ApplyPromotionRaises(w, id);
 
                 // 플레이오프는 따로 알린다 — 순위만 보면 왜 그 팀이 올라갔는지 알 수 없다.
-                if (w.ManagedClubId > 0 && playoffLog.Count > 0
+                if (w.ManagedClubId > 0 && nm.Log.Count > 0
                     && nation.LeagueIds.Contains(w.LeagueOf(w.ManagedClubId)?.id ?? -1))
                 {
                     w.Post($"{nation.Country} 플레이오프",
-                           string.Join("\n", playoffLog), InboxKind.News);
+                           string.Join("\n", nm.Log), InboxKind.News);
                 }
 
                 // 내 나라의 승강은 단계를 가리지 않고 알린다 — 3부 승강도 내 다음 상대를 바꾼다.
@@ -396,10 +466,6 @@ namespace FootballTactician.World
         }
 
         /// <summary>
-        /// 다음 시즌을 연다. 성적을 기록하고 일정을 새로 짜며 시즌 통계를 비운다.
-        /// 승강은 아직 없다 — 하부 리그가 생기면 여기에 붙인다.
-        /// </summary>
-        /// <summary>
         /// 아직 치르지 않은 경기를 모두 치른다.
         ///
         /// 리그마다 라운드 수가 다르다 — 내 리그가 38라운드면 46라운드짜리 2부는
@@ -434,30 +500,58 @@ namespace FootballTactician.World
             }
         }
 
-        public static void StartNextSeason(GameWorld w)
+        /// <summary>다음 시즌을 연다. 플레이오프의 내 경기도 대신 치른다.</summary>
+        public static void StartNextSeason(GameWorld w) => StartNextSeason(w, deferMyPlayoff: false);
+
+        /// <summary>
+        /// 다음 시즌을 연다. 새 시즌이 열렸으면 true.
+        ///
+        /// <paramref name="deferMyPlayoff"/> 가 true 면 승격·챔피언 플레이오프의 <b>내 경기</b>
+        /// 앞에서 멈추고 false 를 돌려준다. 그 경기는 <see cref="GameWorld.pendingMatch"/> 에
+        /// 얹혀 있다. 치른 뒤 다시 부르면 멈춘 자리부터 이어진다 — 한 해에 몇 번이든.
+        ///
+        /// 끄면 지금까지와 한 글자도 다르지 않다. 켜고 매번 "바로 결과 보기" 를 눌러도
+        /// 같은 세계가 나온다 — 그 경기를 같은 씨드로 돌리기 때문이다.
+        /// </summary>
+        public static bool StartNextSeason(GameWorld w, bool deferMyPlayoff)
         {
-            int nextYear = w.SeasonYear + 1;
-            var rng = new Random(SeedMix.Of(w.Seed, nextYear, 20259));
+            // 치르지 않은 내 경기가 남아 있으면 넘기지 않는다.
+            if (w.pendingMatch != null) return false;
 
-            // 남은 경기를 먼저 치른다. 미완성 순위표로 올리고 내리면 안 된다.
-            FinishRemainingFixtures(w);
+            if (w.rollover != null && w.rollover.year != w.SeasonYear) w.rollover = null;
+            var ro = w.rollover ??= new RolloverState { year = w.SeasonYear };
 
-            // 시상과 명예는 순위표·기록을 비우기 전에, 그리고 승강으로 리그가 바뀌기 전에 끝낸다.
-            // 뒤로 밀면 우승팀이 다른 리그 소속으로 기록된다.
-            SeasonAwards.RunAll(w, w.SeasonYear);
+            if (!ro.closed)
+            {
+                // 남은 경기를 먼저 치른다. 미완성 순위표로 올리고 내리면 안 된다.
+                FinishRemainingFixtures(w);
 
-            // 챔피언 결정전은 시상 **뒤**다(docs/리그-제도.md ⑥).
+                // 시상과 명예는 순위표·기록을 비우기 전에, 그리고 승강으로 리그가 바뀌기 전에 끝낸다.
+                // 뒤로 밀면 우승팀이 다른 리그 소속으로 기록된다.
+                SeasonAwards.RunAll(w, w.SeasonYear);
+                ro.closed = true;
+            }
+
+            // 플레이오프는 시상 **뒤**다(docs/리그-제도.md ④⑥).
             //
             // 일정에 없는 경기도 득점과 평점을 선수 기록에 남긴다. 시상보다 먼저 치르면
-            // 득점왕이 플레이오프 골로 뒤집힌다 — 실제로는 정규리그만 센다. 승격
-            // 플레이오프(④)도 같은 이유로 시상 뒤에 있다.
+            // 득점왕이 플레이오프 골로 뒤집힌다 — 실제로는 정규리그만 센다.
             //
             // 다만 명예(RecordSeasonTitles)보다는 앞서야 한다. 누가 우승인지 먼저 정해져야 한다.
-            RunChampionPlayoffs(w);
+            ro.deferClubId = deferMyPlayoff ? w.ManagedClubId : 0;
+            PlayoffPlan plan;
+            try { plan = PlanPlayoffs(w); }
+            catch (Knockout.Paused) { return false; }
 
+            // 여기서부터는 끊기지 않는다. 멈춘 자리를 비운다.
+            w.rollover = null;
+
+            ReportChampionPlayoffs(w, plan);
             RecordSeasonTitles(w);
+            ApplyPlan(w, plan);
 
-            ApplyPromotionAndRelegation(w);
+            int nextYear = w.SeasonYear + 1;
+            var rng = new Random(SeedMix.Of(w.Seed, nextYear, 20259));
 
             // 순위표를 비우기 전에 대륙 대회 출전권을 확정한다.
             var continentalEntrants = CupCompetition.QualifiersByRegion(w);
@@ -571,35 +665,8 @@ namespace FootballTactician.World
                        $"새 시즌 목표: {string.Join(" / ", w.Objectives.Select(o => o.description))}",
                        InboxKind.Board);
             }
-        }
 
-        /// <summary>
-        /// 우승팀을 토너먼트로 가리는 나라들의 챔피언 결정전 (docs/리그-제도.md ⑥).
-        ///
-        /// 미국·호주·멕시코·인도·인도네시아는 정규리그를 순위를 매기는 과정으로만 쓴다.
-        /// 순위표가 완성된 뒤, 시상보다는 앞서 치러야 한다.
-        /// </summary>
-        static void RunChampionPlayoffs(GameWorld w)
-        {
-            foreach (var nation in w.Nations)
-            {
-                var log = new List<string>();
-
-                foreach (int id in nation.LeagueIds)
-                {
-                    var league = w.League(id);
-                    if (league?.currentSeason == null) continue;
-                    ChampionPlayoff.Resolve(w, league, log);
-                }
-
-                // 순위만 보면 왜 저 팀이 우승인지 알 수 없다 — 대진을 그대로 붙여 준다.
-                if (log.Count > 0 && w.ManagedClubId > 0
-                    && nation.LeagueIds.Contains(w.LeagueOf(w.ManagedClubId)?.id ?? -1))
-                {
-                    w.Post($"{nation.Country} 챔피언 결정전",
-                           string.Join("\n", log), InboxKind.News);
-                }
-            }
+            return true;
         }
 
         /// <summary>

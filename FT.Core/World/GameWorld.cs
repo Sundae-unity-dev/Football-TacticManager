@@ -64,6 +64,12 @@ namespace FootballTactician.World
         /// </summary>
         public PendingMatch pendingMatch;
 
+        /// <summary>
+        /// 시즌 넘김이 내 플레이오프 경기 앞에서 멈춰 있으면 그 자리. 아니면 null.
+        /// <see cref="SeasonRollover.StartNextSeason(GameWorld, bool)"/> 를 다시 부르면 이어진다.
+        /// </summary>
+        public RolloverState rollover;
+
         /// <summary>새로 만들 구단과 선수의 id. 유스 승격과 자유계약 생성에 쓴다.</summary>
         public int NextClubId = 1;
         public int NextPlayerId = 1;

@@ -87,7 +87,7 @@ namespace FootballTactician.World
             log.Add($"  정규리그 1위 {Knockout.Name(w, byPos[0])}");
 
             int year = league.currentSeason?.year ?? 0;
-            return Knockout.Run(w, field, RulesFor(year, stage), log);
+            return Knockout.Run(w, field, RulesFor(year, stage).Titled($"{league.name} 챔피언 결정전"), log);
         }
 
         /// <summary>

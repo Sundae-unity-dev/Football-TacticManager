@@ -205,5 +205,33 @@ namespace FT.Core.Tests
             Assert.All(veterans, p => Assert.True(p.careerStats.appearances >= p.seasonStats.appearances));
         }
 
+        /// <summary>
+        /// 다른 세계의 은퇴가 이 세계의 은퇴 확률을 바꾸면 안 된다.
+        ///
+        /// 리그 평균 기량을 정적 사전에 리그 id·시즌으로 담아 두었더니, 같은 나라로 만든
+        /// 두 세계가 서로의 평균을 읽었다. 테스트를 나란히 돌리면 은퇴자가 바뀌어 절반쯤
+        /// 실패했다 — 한 번 돌려서는 안 보인다.
+        /// </summary>
+        [Fact]
+        public void 다른_세계의_은퇴가_확률을_바꾸지_않는다()
+        {
+            var mine = WorldGenerator.Create(31415);
+            var other = WorldGenerator.Create(31415);
+
+            // 같은 리그 id·같은 시즌이되 리그 평균이 다르게 한다.
+            foreach (var p in other.Players.Values) { p.technical.passing = 1; p.InvalidateAbilityCache(); }
+
+            var veteran = mine.Players.Values
+                .Where(p => p.clubId > 0 && Retirement.CanRetire(mine.Age(p)))
+                .OrderBy(p => p.id)
+                .First(p => Retirement.Chance(mine, p) is > 0f and < BalanceConfig.RetireChanceCap);
+
+            float before = Retirement.Chance(mine, veteran);
+            Retirement.RunAll(other, new Random(1));
+            float after = Retirement.Chance(mine, veteran);
+
+            Assert.Equal(before, after);
+        }
+
     }
 }

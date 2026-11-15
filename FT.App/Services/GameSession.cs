@@ -139,6 +139,7 @@ public sealed class GameSession(SaveStore store)
             LastFixture = pending.fixture;
             LastLabel = pending.label;
             LastResult = GameEngine.SimulatePending(World);
+            ContinueRollover(World);
             NotifyChanged();
             return;
         }
@@ -175,9 +176,14 @@ public sealed class GameSession(SaveStore store)
     /// </summary>
     public async Task PlayNextRoundAsync(int rounds = 1)
     {
+        int year = World?.SeasonYear ?? 0;
         for (int i = 0; i < rounds; i++)
         {
             if (World == null || World.Sacked || NextFixture == null) break;
+
+            // 플레이오프 마지막 경기를 치르면 새 시즌이 열린다. "5라운드 빠르게" 가
+            // 그대로 새 시즌 개막전까지 치러 버리면 안 된다 — 여름 이적 창구를 건너뛴다.
+            if (World.SeasonYear != year) break;
             PlayNextRound();
         }
 
@@ -240,6 +246,7 @@ public sealed class GameSession(SaveStore store)
             : GameEngine.CompleteUserMatch(w, LiveFixture, Live, deferMyCupTie: true);
         Live = null;
         LiveFixture = null;
+        ContinueRollover(w);
 
         NotifyChanged();
         await SaveAsync();
@@ -1074,11 +1081,26 @@ public sealed class GameSession(SaveStore store)
     public async Task StartNextSeasonAsync()
     {
         if (World is not { } w) return;
-        SeasonRollover.StartNextSeason(w);
         LastResult = null;
         LastFixture = null;
+        LastLabel = null;
+
+        // 승격·챔피언 플레이오프에 내 경기가 있으면 거기서 멈춘다. 화면이 그 경기를 띄운다.
+        SeasonRollover.StartNextSeason(w, deferMyPlayoff: true);
         NotifyChanged();
         await SaveAsync();
+    }
+
+    /// <summary>
+    /// 플레이오프 경기를 막 치렀으면 멈춰 있던 시즌 넘김을 이어 간다.
+    ///
+    /// 다음 내 경기(2차전·결승)가 있으면 또 멈추고, 없으면 새 시즌이 열린다. 결과 화면은
+    /// 방금 치른 경기를 그대로 보여 준다 — LastResult 는 건드리지 않는다.
+    /// </summary>
+    static void ContinueRollover(GameWorld w)
+    {
+        if (w.rollover != null && w.pendingMatch == null)
+            SeasonRollover.StartNextSeason(w, deferMyPlayoff: true);
     }
 
     /// <summary>경기가 없는 주를 넘긴다. 이적 창구와 훈련이 돌아간다.</summary>
