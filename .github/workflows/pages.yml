@@ -16,6 +16,7 @@ on:
       - 'FT.Core/**'
       - 'FT.Core.Tests/**'
       - 'FootballTactician.slnx'
+      - 'global.json'
       - 'tools/prepare-pages.sh'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -38,9 +39,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # SDK 는 global.json 이 정해요. 러너 이미지에 SDK 11 이 먼저 깔려 있으면 dotnet 이
+      # 그쪽을 집어서, net10 프로젝트가 wasm-tools-net10 워크로드를 찾다가 빌드가 깨졌어요
+      # (2026-11-15). 로컬과 러너가 같은 SDK 를 쓰도록 한 곳에 못 박아 둬요.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: NuGet 캐시
         uses: actions/cache@v4
