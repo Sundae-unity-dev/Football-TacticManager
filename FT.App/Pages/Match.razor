@@ -16,25 +16,7 @@ else if (Session.Live is { } live && Session.LiveFixture is { } lf)
 
     <h1>@(live.Finished ? "경기 종료" : $"{live.Minute}분 진행 중")</h1>
 
-    <div class="scorebug">
-        <div class="side">
-            <span class="kit" style="background:@homeClub.colors.primaryHex"></span>
-            <div>
-                <div class="club">@homeClub.name</div>
-                <div class="meta">홈 · 점유 @live.HomePossession%</div>
-            </div>
-        </div>
-        <div class="score">
-            <span>@live.HomeGoals</span><span class="dim">:</span><span>@live.AwayGoals</span>
-        </div>
-        <div class="side away">
-            <span class="kit" style="background:@awayClub.colors.primaryHex"></span>
-            <div>
-                <div class="club">@awayClub.name</div>
-                <div class="meta">원정 · 점유 @(100 - live.HomePossession)%</div>
-            </div>
-        </div>
-    </div>
+    @Scorebug(homeClub, awayClub, live.HomeGoals, live.AwayGoals, live.HomePossession, 100 - live.HomePossession)
 
     <div class="clock">
         <div class="clock-bar"><i style="width:@(live.Minute * 100 / 100)%"></i></div>
@@ -171,28 +153,7 @@ else if (Session.Live is { } live && Session.LiveFixture is { } lf)
                 }
                 else
                 {
-                    <div class="timeline">
-                        @foreach (var e in notable)
-                        {
-                            <div class="tl-row @(e.clubId == lf.awayClubId ? "away" : "")">
-                                <span class="tl-min">@e.minute'</span>
-                                <span class="@EventClass(e.eventType)">
-                                    @Ui.EventLabel(e.eventType)
-                                    @if (w.Player(e.playerId) is { } who)
-                                    {
-                                        <span class="muted"> · @who.FullName</span>
-                                    }
-                                    @if (e.assistPlayerId is int aid && w.Player(aid) is { } other)
-                                    {
-                                        <span class="tiny dim">
-                                            @(e.eventType == MatchEventType.Substitution ? " ← " : " (도움 ")@other.ShortName@(e.eventType == MatchEventType.Substitution ? "" : ")")
-                                        </span>
-                                    }
-                                    <span class="tiny dim"> — @w.Club(e.clubId)?.shortName</span>
-                                </span>
-                            </div>
-                        }
-                    </div>
+                    @Timeline(w, notable, lf.awayClubId)
                 }
             </div>
 
@@ -224,25 +185,8 @@ else
         var us = weHome ? result.homeGoals : result.awayGoals;
         var them = weHome ? result.awayGoals : result.homeGoals;
 
-        <div class="scorebug">
-            <div class="side">
-                <span class="kit" style="background:@homeClub.colors.primaryHex"></span>
-                <div>
-                    <div class="club">@homeClub.name</div>
-                    <div class="meta">홈 · 점유 @result.homeStats.possession%</div>
-                </div>
-            </div>
-            <div class="score">
-                <span>@result.homeGoals</span><span class="dim">:</span><span>@result.awayGoals</span>
-            </div>
-            <div class="side away">
-                <span class="kit" style="background:@awayClub.colors.primaryHex"></span>
-                <div>
-                    <div class="club">@awayClub.name</div>
-                    <div class="meta">원정 · 점유 @result.awayStats.possession%</div>
-                </div>
-            </div>
-        </div>
+        @Scorebug(homeClub, awayClub, result.homeGoals, result.awayGoals,
+                  result.homeStats.possession, result.awayStats.possession)
 
         <p class="center mt1" style="font-family:var(--font-display); font-size:1.1rem;
              color:@(us > them ? "var(--emerald)" : us == them ? "var(--text-dim)" : "var(--coral)")">
@@ -295,26 +239,7 @@ else
                 }
                 else
                 {
-                    <div class="timeline">
-                        @foreach (var e in notable)
-                        {
-                            <div class="tl-row @(e.clubId == fixture.awayClubId ? "away" : "")">
-                                <span class="tl-min">@e.minute'</span>
-                                <span class="@EventClass(e.eventType)">
-                                    @Ui.EventLabel(e.eventType)
-                                    @if (w.Player(e.playerId) is { } who)
-                                    {
-                                        <span class="muted"> · @who.FullName</span>
-                                    }
-                                    @if (e.assistPlayerId is int aid2 && w.Player(aid2) is { } other2)
-                                    {
-                                        <span class="tiny dim"> (@(e.eventType == MatchEventType.Substitution ? "투입 " : "도움 ")@other2.ShortName)</span>
-                                    }
-                                    <span class="tiny dim"> — @w.Club(e.clubId)?.shortName</span>
-                                </span>
-                            </div>
-                        }
-                    </div>
+                    @Timeline(w, notable, fixture.awayClubId)
                 }
             </div>
         </div>
@@ -503,6 +428,56 @@ else
         MatchEventType.Substitution => "tl-sub",
         _ => "muted",
     };
+
+    /// <summary>점수판. 진행 중인 경기와 끝난 경기가 같은 모양을 쓴다.</summary>
+    static RenderFragment Scorebug(ClubData home, ClubData away, int homeGoals, int awayGoals,
+                                   int homePossession, int awayPossession) =>
+        @<div class="scorebug">
+            <div class="side">
+                <span class="kit" style="background:@home.colors.primaryHex"></span>
+                <div>
+                    <div class="club">@home.name</div>
+                    <div class="meta">홈 · 점유 @homePossession%</div>
+                </div>
+            </div>
+            <div class="score">
+                <span>@homeGoals</span><span class="dim">:</span><span>@awayGoals</span>
+            </div>
+            <div class="side away">
+                <span class="kit" style="background:@away.colors.primaryHex"></span>
+                <div>
+                    <div class="club">@away.name</div>
+                    <div class="meta">원정 · 점유 @awayPossession%</div>
+                </div>
+            </div>
+        </div>;
+
+    /// <summary>
+    /// 장면 목록. 교체는 <c>playerId</c> 가 나간 선수, <c>assistPlayerId</c> 가 들어온 선수다.
+    /// 두 곳에 따로 적혀 있을 때 진행 중 화면은 "나간 ← 들어온", 끝난 화면은 "(투입 …)" 으로
+    /// 같은 교체를 다르게 보여 줬다. 뜻이 분명한 쪽으로 맞춘다.
+    /// </summary>
+    static RenderFragment Timeline(GameWorld w, IEnumerable<MatchEvent> events, int awayClubId) =>
+        @<div class="timeline">
+            @foreach (var e in events)
+            {
+                <div class="tl-row @(e.clubId == awayClubId ? "away" : "")">
+                    <span class="tl-min">@e.minute'</span>
+                    <span class="@EventClass(e.eventType)">
+                        @Ui.EventLabel(e.eventType)
+                        @if (w.Player(e.playerId) is { } who)
+                        {
+                            <span class="muted"> · @who.FullName</span>
+                        }
+                        @if (e.assistPlayerId is int aid && w.Player(aid) is { } other)
+                        {
+                            <span class="tiny dim"> (@(e.eventType == MatchEventType.Substitution ? "투입 " : "도움 ")@other.ShortName)</span>
+                        }
+                        <span class="tiny dim"> — @w.Club(e.clubId)?.shortName</span>
+                    </span>
+                </div>
+            }
+        </div>;
 
     RenderFragment StatRow(string label, object home, object away) => @<tr>
         <td class="num">@home</td>

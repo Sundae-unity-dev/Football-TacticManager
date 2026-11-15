@@ -2763,6 +2763,60 @@ namespace FT.Sim
         }
 
         /// <summary>
+        /// 시즌 넘김을 건너는 지문. <see cref="Fingerprint"/> 은 한 시즌 안만 보므로
+        /// 승강·플레이오프·재계약처럼 넘길 때만 도는 길이 바뀌어도 잡지 못한다.
+        /// 플레이오프가 있는 나라들로 시드 셋을 돌려, 넘길 때마다 저장 바이트 지문을 찍는다.
+        /// </summary>
+        public static void RolloverFingerprint(int seasons)
+        {
+            var codes = new[] { "ENG", "ITA", "GER", "USA", "MEX", "AUS" };
+            foreach (int seed in new[] { 777, 31415, 2024 })
+            {
+                var w = WorldGenerator.Create(seed, nations: codes.Select(NameForge.ByCode).ToList());
+                var club = w.Clubs.Values.First(c => c.reputation == 3);
+                ManagerCareer.TakeCharge(w, club.id, "하네스");
+
+                var line = new List<string>();
+                for (int s = 0; s < seasons; s++)
+                {
+                    int guard = 0;
+                    while (!w.SeasonFinished && guard++ < 90) GameEngine.PlayNextRound(w);
+                    SeasonRollover.StartNextSeason(w);
+                    line.Add(SaveGame.Fingerprint(w));
+                }
+                Console.WriteLine($"  시드 {seed,6}: {string.Join(" ", line)}");
+            }
+        }
+
+        /// <summary>
+        /// 화면 확인용 세이브. 한 시즌을 끝까지 돌린 뒤, 플레이오프에 나갈 구단을 맡긴다 —
+        /// 잉글랜드 2부 승격 플레이오프의 막차(6위)와 독일 1부 승강 플레이오프 팀(16위).
+        /// 앱 저장소에 그대로 넣을 수 있는 base64 를 파일로 쓴다.
+        /// </summary>
+        public static void PlayoffSaves(string dir)
+        {
+            foreach (var (code, tier, pos, file) in new[]
+                     {
+                         ("ENG", 1, 6, "po_eng.txt"),
+                         ("GER", 0, 16, "po_ger.txt"),
+                     })
+            {
+                var w = WorldGenerator.Create(4242);
+                ManagerCareer.TakeCharge(w, w.Clubs.Values.First(c => c.reputation == 3).id, "확인");
+                for (int guard = 0; guard < 90 && !w.SeasonFinished; guard++) GameEngine.PlayNextRound(w);
+                SeasonRollover.FinishRemainingFixtures(w);
+
+                var nation = w.Nations.First(n => n.Code == code);
+                var league = w.League(nation.LeagueIds[tier]);
+                int id = league.currentSeason.standings.First(e => e.position == pos).clubId;
+                ManagerCareer.TakeJob(w, id);
+
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, file), SaveGame.ToBase64(w, "플레이오프 확인"));
+                Console.WriteLine($"  {file}: {w.Club(id).name} ({league.name} {pos}위)");
+            }
+        }
+
+        /// <summary>
         /// 세계 한 시즌의 지문. 같은 시드로 돌린 두 빌드가 같은 값을 내면 동작이 같다.
         ///
         /// "동작은 그대로, 더 빠르게" 는 말로 주장할 수 없다. 빠르게 고친 자리는

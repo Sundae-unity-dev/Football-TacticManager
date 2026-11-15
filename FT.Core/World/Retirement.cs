@@ -25,7 +25,9 @@ namespace FootballTactician.World
         /// <summary>
         /// 그만둘 확률. 나이가 밀어 올리고, 출전과 기량이 붙잡는다.
         /// </summary>
-        public static float Chance(GameWorld w, PlayerData p)
+        public static float Chance(GameWorld w, PlayerData p) => Chance(w, p, null);
+
+        static float Chance(GameWorld w, PlayerData p, Dictionary<int, float> peerCache)
         {
             int age = w.Age(p);
             if (!CanRetire(age)) return 0f;
@@ -41,7 +43,7 @@ namespace FootballTactician.World
             // 절대 수준을 쓰면 하부 리그 선수가 서른둘에 전부 사라진다.
             float ca = GameWorld.Ca(p);
             float peers = w.LeagueOf(p.clubId) is { } lg
-                ? AverageCa(w, lg)
+                ? AverageCa(w, lg, peerCache)
                 : ca;
             chance -= (ca - peers) * BalanceConfig.RetirePerCaOverPeers;
 
@@ -54,29 +56,27 @@ namespace FootballTactician.World
             return Math.Clamp(chance, 0f, BalanceConfig.RetireChanceCap);
         }
 
-        static readonly Dictionary<int, (int year, float avg)> _peerCache = new();
-
-        static float AverageCa(GameWorld w, LeagueData league)
+        /// <summary>
+        /// 리그 평균 기량. 한 번 은퇴를 돌리는 동안 리그마다 한 번만 센다 — 선수 6,000명 ×
+        /// 리그 전체를 매번 훑으면 시즌 넘김이 느려진다.
+        ///
+        /// <b>캐시는 부르는 쪽이 들고 있다.</b> 예전에는 정적 사전이었는데, 열쇠가 리그 id 와
+        /// 시즌이라 같은 나라로 만든 두 세계가 서로의 평균을 읽었다. 화면에는 세계가 하나라
+        /// 드러나지 않았지만, 테스트가 나란히 돌면 은퇴자가 바뀌어 결과가 흔들렸다.
+        /// </summary>
+        static float AverageCa(GameWorld w, LeagueData league, Dictionary<int, float> cache)
         {
-            // 리그마다 한 번만 센다. 선수 6,000명 × 리그 전체를 매번 훑으면 시즌 넘김이 느려진다.
-            if (_peerCache.TryGetValue(league.id, out var hit) && hit.year == w.SeasonYear)
-                return hit.avg;
+            if (cache != null && cache.TryGetValue(league.id, out float hit)) return hit;
 
             var squad = league.clubIds.SelectMany(id => w.Squad(id)).ToList();
             float avg = squad.Count == 0 ? 100f : squad.Average(GameWorld.Ca);
-            _peerCache[league.id] = (w.SeasonYear, avg);
+            if (cache != null) cache[league.id] = avg;
             return avg;
         }
 
-        /// <summary>
-        /// 시즌이 끝나면 그만둘 사람이 그만둔다.
-        ///
-        /// 계약 정리보다 <b>앞서</b> 돌아야 한다. 뒤에 두면 떠날 선수와 재계약을 맺고,
-        /// 인원 보충이 빈자리를 보지 못한다.
-        /// </summary>
         public static List<PlayerData> RunAll(GameWorld w, Random rng)
         {
-            _peerCache.Clear();
+            var peerCache = new Dictionary<int, float>();
             var gone = new List<PlayerData>();
 
             // 소속이 없는 선수도 본다. 자유계약은 경기를 못 뛰니 더 빨리 접는다 —
@@ -86,7 +86,7 @@ namespace FootballTactician.World
             foreach (var p in w.Players.Values.OrderBy(x => x.id).ToList())
             {
                 bool forced = w.Age(p) >= BalanceConfig.RetireHardAge;
-                if (!forced && rng.NextDouble() >= Chance(w, p)) continue;
+                if (!forced && rng.NextDouble() >= Chance(w, p, peerCache)) continue;
 
                 // 마지막 한 명까지 그만두면 구단이 빈다. 인원 보충이 메우지만 그 전에 터질 수 있다.
                 // 다만 나이 상한은 이 보호를 넘는다 — 넘지 않으면 얇은 구단에 마흔넷이 남는다.

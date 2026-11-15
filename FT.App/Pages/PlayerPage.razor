@@ -247,7 +247,7 @@ else
                     @foreach (var rel in relations.Take(6))
                     {
                         <tr>
-                            <td class="nowrap" style="width:7rem">@RelName(rel.type)</td>
+                            <td class="nowrap" style="width:7rem">@Ui.RelationName(rel.type)</td>
                             <td class="nowrap">
                                 <a href="@($"player/{rel.targetPlayerId}")">
                                     @Session.World!.Player(rel.targetPlayerId)?.FullName
@@ -277,16 +277,6 @@ else
             .OrderByDescending(x => x.fit)
             .Take(5)
             .ToList();
-
-    static string RelName(RelationshipType t) => t switch
-    {
-        RelationshipType.Captain => "주장",
-        RelationshipType.Mentor => "멘토",
-        RelationshipType.Mentee => "멘티",
-        RelationshipType.Rival => "경쟁자",
-        RelationshipType.NationalTeam => "동향",
-        _ => "동료",
-    };
 
     // ── 능력치 ────────────────────────────────────────────────────────────
     //

@@ -53,7 +53,8 @@ else
                 var home = next.homeClubId == club.id;
                 var oppId = home ? next.awayClubId : next.homeClubId;
                 var opp = w.Club(oppId)!;
-                var oppEntry = Standings.EntryOf(league, oppId)!;
+                // 컵·승강 플레이오프 상대는 내 리그 순위표에 없을 수 있다.
+                var oppEntry = Standings.EntryOf(league, oppId);
 
                 <div class="scorebug">
                     <div class="side">
@@ -63,7 +64,16 @@ else
                             <div class="meta">홈</div>
                         </div>
                     </div>
-                    <div class="score"><span class="dim" style="font-size:1rem">@next.matchday R</span></div>
+                    <div class="score">
+                        @if (Session.PendingLabel is { } tag)
+                        {
+                            <span class="dim tiny">@tag</span>
+                        }
+                        else
+                        {
+                            <span class="dim" style="font-size:1rem">@next.matchday R</span>
+                        }
+                    </div>
                     <div class="side away">
                         <span class="kit" style="background:@(home ? opp.colors.primaryHex : club.colors.primaryHex)"></span>
                         <div>
@@ -74,7 +84,8 @@ else
                 </div>
 
                 <p class="tiny muted mt1 mb0">
-                    @Ui.DateLabel(next.date) · 상대 @(oppEntry.position)위 ·
+                    @Ui.DateLabel(next.date) ·
+                    @(oppEntry is not null ? $"상대 {oppEntry.position}위" : $"상대 {w.LeagueOf(oppId)?.name}") ·
                     전력 @Math.Round(w.Strength(oppId)) (우리 @Math.Round(w.Strength(club.id)))
                 </p>
                 <div class="btn-row mt1">
@@ -105,7 +116,7 @@ else
                             <tr>
                                 <td>@o.description</td>
                                 <td class="right nowrap">
-                                    <span class="badge @ObjBadge(o.result)">@ObjLabel(o.result)</span>
+                                    <span class="badge @ObjBadge(o.result)">@SeasonReview.ResultLabel(o.result)</span>
                                 </td>
                             </tr>
                         }
@@ -213,14 +224,6 @@ else
             .OrderByDescending(p => p.seasonStats.goals * 3 + p.seasonStats.assists * 2)
             .ThenByDescending(GameWorld.Ca)
             .Take(3);
-
-    static string ObjLabel(BoardObjectiveResult r) => r switch
-    {
-        BoardObjectiveResult.Achieved => "달성",
-        BoardObjectiveResult.Failed => "실패",
-        BoardObjectiveResult.PartiallyMet => "부분 달성",
-        _ => "진행 중",
-    };
 
     static string ObjBadge(BoardObjectiveResult r) => r switch
     {

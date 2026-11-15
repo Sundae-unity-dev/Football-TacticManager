@@ -11,6 +11,22 @@ namespace FootballTactician.World
     /// </summary>
     public static class FixtureScheduler
     {
+        /// <summary>
+        /// 서클 방식의 r 번째 라운드 짝. 첫 구단은 제자리에 두고 나머지(<paramref name="rot"/>)를
+        /// r 칸 돌린다. 리그 일정과 스플릿 일정이 같은 짝을 쓴다 — 홈을 고르는 법만 다르다.
+        /// 부전승 자리(-1)가 낀 짝도 그대로 돌려주니 받는 쪽에서 건너뛴다.
+        /// </summary>
+        internal static List<(int, int)> CirclePairs(List<int> ids, List<int> rot, int r)
+        {
+            int n = ids.Count;
+            var ring = rot.Skip(r).Concat(rot.Take(r)).ToList();
+
+            var pairs = new List<(int, int)> { (ids[0], ring[n - 2]) };
+            for (int k = 0; k < n / 2 - 1; k++)
+                pairs.Add((ring[k], ring[n - 3 - k]));
+            return pairs;
+        }
+
         public static List<FixtureData> Build(
             IReadOnlyList<int> clubIds, GameDate firstMatchday, int fixtureIdBase, Random rng)
         {
@@ -38,11 +54,7 @@ namespace FootballTactician.World
 
             for (int r = 0; r < rounds; r++)
             {
-                var ring = rot.Skip(r).Concat(rot.Take(r)).ToList();
-
-                var pairs = new List<(int, int)> { (ids[0], ring[n - 2]) };
-                for (int k = 0; k < n / 2 - 1; k++)
-                    pairs.Add((ring[k], ring[n - 3 - k]));
+                var pairs = CirclePairs(ids, rot, r);
 
                 foreach (var (x, y) in pairs)
                 {

@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace FootballTactician.Data
 {
@@ -26,5 +27,15 @@ namespace FootballTactician.Data
 
         /// <summary>"FA컵 8강" 처럼 화면에 적을 말.</summary>
         public string label;
+
+        /// <summary>
+        /// 시즌 넘김 중의 플레이오프 경기면 그 한 판. 컵 경기면 null.
+        ///
+        /// 점수를 채워 <see cref="RolloverState.legs"/> 에 넣으면, 다시 걷는 대진이
+        /// 그 점수를 받아 다음으로 넘어간다.
+        /// </summary>
+        public PlayoffLeg leg;
+
+        [JsonIgnore] public bool IsPlayoff => leg != null;
     }
 }

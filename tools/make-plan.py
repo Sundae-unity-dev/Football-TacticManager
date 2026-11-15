@@ -21,13 +21,14 @@ OUT = os.path.join(ROOT, 'docs', 'plan.html')
 
 # 순서가 곧 차례다. 기획서가 맨 앞에 온다.
 DOCS = [
-    ('리그 제도', 'docs/리그-제도.md', '나라마다의 팀 수·승강·스플릿, 그리고 넣을 순서'),
-    ('처음으로', 'README.md', '무슨 게임이고 어떻게 돌리나'),
-    ('구조', 'docs/구조.md', '계층과 의존 방향'),
-    ('밸런싱', 'docs/밸런싱.md', '20시즌을 돌려 수치를 맞추는 하네스'),
-    ('성능', 'docs/성능.md', '어디가 느렸고 어떻게 쟀나'),
-    ('배포', 'docs/배포.md', 'GitHub Pages · 태그 · 릴리스'),
-    ('조심할 것', 'docs/조심할-것.md', '데여 본 것들'),
+    ('리그 제도', 'docs/리그-제도.md', '나라마다 다른 팀 수·승강·스플릿, 그리고 무엇을 넣었는지'),
+    ('처음으로', 'README.md', '어떤 게임이고, 어떻게 돌려 보나요'),
+    ('구조', 'docs/구조.md', '프로젝트를 어떻게 나눴고, 참조는 어느 쪽으로 흐르나요'),
+    ('밸런싱', 'docs/밸런싱.md', '20시즌을 돌려 가며 수치를 맞추는 하네스'),
+    ('성능', 'docs/성능.md', '어디가 느렸고, 어떻게 재서 줄였나요'),
+    ('배포', 'docs/배포.md', 'GitHub Pages · 태그 · 릴리스 올리는 순서'),
+    ('UI 개선 분석', 'docs/UI-개선-분석.md', 'FM24 화면을 뜯어보며 가져올 것을 고른 기록'),
+    ('조심할 것', 'docs/조심할-것.md', '한 번씩 데이고 나서 적어 둔 것들'),
 ]
 
 INLINE_HTML = r'(</?(?:b|i|em|strong|br|kbd|sub|sup)\s*/?>)'
@@ -345,12 +346,12 @@ def main():
         '<div class="ver">' + version() + ' · ' + stamp + ' 기준</div>\n'
         + ''.join(navs) +
         '<a class="doc" href="https://github.com/Sundae-unity-dev/Football-TacticManager"'
-        ' target="_blank" rel="noopener">GitHub<small>저장소와 릴리스</small></a>\n'
+        ' target="_blank" rel="noopener">GitHub<small>저장소와 릴리스 보기</small></a>\n'
         '<a class="doc" href="https://sundae-unity-dev.github.io/Football-TacticManager/"'
-        ' target="_blank" rel="noopener">플레이<small>배포된 게임</small></a>\n'
+        ' target="_blank" rel="noopener">플레이<small>지금 바로 해 보기</small></a>\n'
         '</nav>\n<main><div class="top"><span class="pill">기획서</span>'
         '<span class="pill">문서 ' + str(len(sections)) + '개</span>'
-        '<span class="pill">' + stamp + ' 에 만듦</span></div>\n'
+        '<span class="pill">' + stamp + ' 에 만들었어요</span></div>\n'
         + ''.join(sections) +
         '\n</main></div><script>' + JS + '</script></body></html>\n')
 

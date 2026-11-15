@@ -38,6 +38,23 @@ namespace FootballTactician.World
         }
 
         /// <summary>
+        /// 한 리그의 한 라운드를 닫는다. 순위를 다시 매기고, 순위가 정해진 뒤에야 할 수 있는
+        /// 스플릿(상·하위 가르기)과 아페르투라 우승(⑦)을 이어서 본다.
+        /// 평소 라운드와 시즌 끝의 남은 경기가 같은 순서를 밟도록 한 곳에 둔다 —
+        /// 두 곳에 따로 적어 두면 한쪽만 고쳐지는 일이 생긴다.
+        /// </summary>
+        internal static void CloseMatchday(GameWorld w, LeagueData league, int matchday)
+        {
+            var season = league.currentSeason;
+            season.currentMatchday = Math.Max(season.currentMatchday, matchday);
+            using (SimProfile.Measure("  ├ 순위 재계산"))
+                Standings.Recalculate(league);
+
+            LeagueSplit.ApplyIfDue(w, league);
+            TwoStage.ApplyIfDue(w, league);
+        }
+
+        /// <summary>
         /// 세계가 아직 치르지 않은 가장 이른 경기. 없으면 null.
         ///
         /// <b>내 경기가 아니라 세계를 기준으로 삼는 이유</b> — 리그마다 라운드 수가
@@ -107,15 +124,7 @@ namespace FootballTactician.World
                         var result = MatchDay.SimulateFixture(w, f, seedSalt);
                         if (fixture != null && league == myLeague && f.id == fixture.id) mine = result;
                     }
-                    season.currentMatchday = Math.Max(season.currentMatchday, matchday);
-                    using (SimProfile.Measure("  ├ 순위 재계산"))
-                        Standings.Recalculate(league);
-
-                    // 정규리그가 끝났으면 상·하위로 가른다. 순위가 정해진 뒤여야 한다.
-                    LeagueSplit.ApplyIfDue(w, league);
-
-                    // 아페르투라가 끝났으면 전반기 우승을 가린다(⑦). 역시 순위 뒤다.
-                    TwoStage.ApplyIfDue(w, league);
+                    CloseMatchday(w, league, matchday);
                 }
             }
 
@@ -401,6 +410,18 @@ namespace FootballTactician.World
         {
             if (w.pendingMatch is not { } pending) return;
 
+            // 시즌 넘김 중의 플레이오프 경기면 점수만 적어 둔다. 대진은 넘김을 다시 부를 때
+            // 그 점수를 받아 이어진다(SeasonRollover.StartNextSeason) — 여기서 넘김을 부르면
+            // 진행 엔진과 시즌 넘김이 서로를 부르게 된다.
+            if (pending.leg is { } leg)
+            {
+                leg.homeGoals = homeGoals;
+                leg.awayGoals = awayGoals;
+                w.rollover?.Add(leg);
+                w.pendingMatch = null;
+                return;
+            }
+
             int matchday = pending.matchday;
             var date = pending.fixture.date;
             var rng = CupRng(w, matchday);
@@ -434,7 +455,12 @@ namespace FootballTactician.World
             if (w.pendingMatch is not { } pending) return null;
 
             var f = pending.fixture;
-            int seed = SeedMix.Of(w.Seed, f.id, seedSalt);
+
+            // 플레이오프는 대진이 쓰던 씨드 그대로 돌린다. 그래야 "바로 결과 보기" 가
+            // 미루지 않고 넘긴 세계와 한 점도 다르지 않다.
+            int seed = pending.leg != null
+                ? Knockout.LegSeed(w, pending.leg)
+                : SeedMix.Of(w.Seed, f.id, seedSalt);
 
             // 통째로 받아 둔다 — 화면이 점유율과 슈팅까지 그린다.
             var result = MatchDay.SimulateOneOffFull(w, f.homeClubId, f.awayClubId, f.id, seed);
@@ -443,7 +469,9 @@ namespace FootballTactician.World
             f.result = result;
             f.isPlayed = true;
 
-            MatchDay.ApplyMatchMorale(w, f, result);
+            // 플레이오프는 대진이 사기를 건드리지 않는다. 여기서만 건드리면 같은 경기가
+            // 미뤘느냐에 따라 다른 세계를 남긴다.
+            if (!pending.IsPlayoff) MatchDay.ApplyMatchMorale(w, f, result);
 
             ResumeAfterPending(w, result.homeGoals, result.awayGoals);
             return result;
@@ -467,7 +495,7 @@ namespace FootballTactician.World
             f.isPlayed = true;
 
             MatchDay.ApplyMatchFatigue(w, session.Context, result);
-            MatchDay.ApplyMatchMorale(w, f, result);
+            if (!pending.IsPlayoff) MatchDay.ApplyMatchMorale(w, f, result);
 
             ResumeAfterPending(w, result.homeGoals, result.awayGoals);
             return result;

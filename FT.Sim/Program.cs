@@ -63,6 +63,8 @@ namespace FT.Sim
             if (mode is "perfround") WorldHarness.PerfRound(args.Length > 1 ? int.Parse(args[1]) : 38);
             if (mode is "perfgen") WorldHarness.PerfGen(args.Length > 1 ? int.Parse(args[1]) : 0);
             if (mode is "fingerprint") WorldHarness.Fingerprint(args.Length > 1 ? int.Parse(args[1]) : 38);
+            if (mode is "posave") WorldHarness.PlayoffSaves(args[1]);
+            if (mode is "rollprint") WorldHarness.RolloverFingerprint(args.Length > 1 ? int.Parse(args[1]) : 2);
             return 0;
         }
 
