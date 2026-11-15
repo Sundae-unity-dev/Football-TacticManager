@@ -38,6 +38,23 @@ namespace FootballTactician.World
         }
 
         /// <summary>
+        /// 한 리그의 한 라운드를 닫는다. 순위를 다시 매기고, 순위가 정해진 뒤에야 할 수 있는
+        /// 스플릿(상·하위 가르기)과 아페르투라 우승(⑦)을 이어서 본다.
+        /// 평소 라운드와 시즌 끝의 남은 경기가 같은 순서를 밟도록 한 곳에 둔다 —
+        /// 두 곳에 따로 적어 두면 한쪽만 고쳐지는 일이 생긴다.
+        /// </summary>
+        internal static void CloseMatchday(GameWorld w, LeagueData league, int matchday)
+        {
+            var season = league.currentSeason;
+            season.currentMatchday = Math.Max(season.currentMatchday, matchday);
+            using (SimProfile.Measure("  ├ 순위 재계산"))
+                Standings.Recalculate(league);
+
+            LeagueSplit.ApplyIfDue(w, league);
+            TwoStage.ApplyIfDue(w, league);
+        }
+
+        /// <summary>
         /// 세계가 아직 치르지 않은 가장 이른 경기. 없으면 null.
         ///
         /// <b>내 경기가 아니라 세계를 기준으로 삼는 이유</b> — 리그마다 라운드 수가
@@ -107,15 +124,7 @@ namespace FootballTactician.World
                         var result = MatchDay.SimulateFixture(w, f, seedSalt);
                         if (fixture != null && league == myLeague && f.id == fixture.id) mine = result;
                     }
-                    season.currentMatchday = Math.Max(season.currentMatchday, matchday);
-                    using (SimProfile.Measure("  ├ 순위 재계산"))
-                        Standings.Recalculate(league);
-
-                    // 정규리그가 끝났으면 상·하위로 가른다. 순위가 정해진 뒤여야 한다.
-                    LeagueSplit.ApplyIfDue(w, league);
-
-                    // 아페르투라가 끝났으면 전반기 우승을 가린다(⑦). 역시 순위 뒤다.
-                    TwoStage.ApplyIfDue(w, league);
+                    CloseMatchday(w, league, matchday);
                 }
             }
 

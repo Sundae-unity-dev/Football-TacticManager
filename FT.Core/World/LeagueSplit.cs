@@ -114,11 +114,7 @@ namespace FootballTactician.World
 
             for (int r = 0; r < n - 1; r++)
             {
-                var ring = rot.Skip(r).Concat(rot.Take(r)).ToList();
-
-                var pairs = new List<(int, int)> { (ids[0], ring[n - 2]) };
-                for (int k = 0; k < n / 2 - 1; k++)
-                    pairs.Add((ring[k], ring[n - 3 - k]));
+                var pairs = FixtureScheduler.CirclePairs(ids, rot, r);
 
                 int matchday = baseMatchday + r + 1;
 

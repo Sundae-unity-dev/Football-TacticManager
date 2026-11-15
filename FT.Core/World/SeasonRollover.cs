@@ -492,10 +492,7 @@ namespace FootballTactician.World
                                             .ToList())
                         MatchDay.SimulateFixture(w, f);
 
-                    season.currentMatchday = Math.Max(season.currentMatchday, matchday);
-                    Standings.Recalculate(league);
-                    LeagueSplit.ApplyIfDue(w, league);
-                    TwoStage.ApplyIfDue(w, league);
+                    GameEngine.CloseMatchday(w, league, matchday);
                 }
             }
         }

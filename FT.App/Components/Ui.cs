@@ -118,6 +118,23 @@ public static class Ui
         _ => "bad",
     };
 
+    /// <summary>
+    /// 선수 사이 관계의 이름. 선수 화면과 라커룸이 같은 이름을 쓴다 — 따로 적어 두었을 때
+    /// 선수 화면에는 친한 동료·비호감·갈등이 빠져 있어서 갈등 관계가 '동료'로 보였다.
+    /// </summary>
+    public static string RelationName(RelationshipType t) => t switch
+    {
+        RelationshipType.Captain => "주장",
+        RelationshipType.Mentor => "멘토",
+        RelationshipType.Mentee => "멘티",
+        RelationshipType.Rival => "경쟁자",
+        RelationshipType.NationalTeam => "동향",
+        RelationshipType.Friend => "친한 동료",
+        RelationshipType.Dislike => "비호감",
+        RelationshipType.Conflict => "갈등",
+        _ => "동료",
+    };
+
     public static string BoardLabel(BoardConfidenceLevel l) => l switch
     {
         BoardConfidenceLevel.FullSupport => "전폭 지지",

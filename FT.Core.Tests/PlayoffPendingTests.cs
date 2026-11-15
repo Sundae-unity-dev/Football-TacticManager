@@ -164,6 +164,25 @@ namespace FT.Core.Tests
             Assert.Contains(labels, l => l.EndsWith("2차전"));
         }
 
+        /// <summary>
+        /// 승강 플레이오프 이름은 화면에 그대로 뜬다. 리그 약호('GER1·GER2')로 붙였더니
+        /// 대시보드와 경기 화면에 암호처럼 보였다.
+        /// </summary>
+        [Fact]
+        public void 승강_플레이오프_이름에_약호가_없다()
+        {
+            var w = Ready(777, Kind.Survival);
+            var labels = new List<string>();
+            RunDeferred(w, labels);
+
+            Assert.NotEmpty(labels);
+            Assert.All(labels, l =>
+            {
+                Assert.Contains("1부·2부 승강 플레이오프", l);
+                Assert.DoesNotMatch(@"[A-Z]{3}\d", l);
+            });
+        }
+
         // ── 2. 내 점수가 대진을 정한다 ───────────────────────────────────
 
         static void Score(GameWorld w, bool win)

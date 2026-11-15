@@ -81,7 +81,8 @@ namespace FootballTactician.World
                         + $"대 {Knockout.Name(w, challenger)}({below.shortName})");
 
                 // 아래 팀이 먼저 홈에서 치른다. 두 경기 합산이 같으면 위 팀이 남는다.
-                var titled = rules.Titled($"{top.shortName}·{below.shortName} 승강 플레이오프");
+                // 경기 이름은 화면에 그대로 뜬다 — 'GER1·GER2' 같은 약호 대신 '독일 1부·2부' 로 쓴다.
+                var titled = rules.Titled($"{top.name}·{below.name.Split(' ')[^1]} 승강 플레이오프");
                 var leg1 = Knockout.Leg(w, challenger, safe, titled, 1, "1차전");
                 var leg2 = Knockout.Leg(w, safe, challenger, titled, 2, "2차전");
                 int challengerGoals = leg1.home + leg2.away;

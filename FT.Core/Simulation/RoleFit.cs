@@ -195,8 +195,7 @@ namespace FootballTactician.Simulation
         /// 반반을 요구하면 안 된다 — 4-2-3-1 처럼 최전방이 한 명인 정상 포메이션까지
         /// 깎여 리그 전체 득점이 내려간다. 비율이 아니라 <b>부재</b>를 본다.
         /// 만들어 줄 사람이 없거나 넣어 줄 사람이 없을 때만 공격이 겉돈다.
-        /// </summary>
-        /// <summary>
+        ///
         /// 슬롯 목록을 그대로 받는다. 경기마다 두 번 불리는 자리라
         /// 역할만 뽑아내는 LINQ 한 겹도 아깝다 — 보는 것과 값은 같다.
         /// </summary>
@@ -205,17 +204,7 @@ namespace FootballTactician.Simulation
             int creators = 0, finishers = 0, assigned = 0;
 
             for (int i = 0; i < slots.Count; i++)
-            {
-                var r = slots[i].role;
-                if (r == null || !Archetypes.TryGetValue(r.role, out var kind)) continue;
-
-                assigned++;
-                switch (kind)
-                {
-                    case Archetype.Creator: creators++; break;
-                    case Archetype.Finisher: finishers++; break;
-                }
-            }
+                Tally(slots[i].role, ref creators, ref finishers, ref assigned);
 
             return Verdict(creators, finishers, assigned);
         }
@@ -225,18 +214,19 @@ namespace FootballTactician.Simulation
             int creators = 0, finishers = 0, assigned = 0;
 
             foreach (var r in roles)
-            {
-                if (r == null || !Archetypes.TryGetValue(r.role, out var kind)) continue;
-
-                assigned++;
-                switch (kind)
-                {
-                    case Archetype.Creator: creators++; break;
-                    case Archetype.Finisher: finishers++; break;
-                }
-            }
+                Tally(r, ref creators, ref finishers, ref assigned);
 
             return Verdict(creators, finishers, assigned);
+        }
+
+        /// <summary>역할 하나를 센다. 두 입구가 같은 기준으로 세도록 한 곳에 둔다.</summary>
+        static void Tally(RoleAssignment r, ref int creators, ref int finishers, ref int assigned)
+        {
+            if (r == null || !Archetypes.TryGetValue(r.role, out var kind)) return;
+
+            assigned++;
+            if (kind == Archetype.Creator) creators++;
+            else if (kind == Archetype.Finisher) finishers++;
         }
 
         /// <summary>센 결과를 배수로. 두 입구가 같은 판정을 쓰도록 한 곳에 둔다.</summary>

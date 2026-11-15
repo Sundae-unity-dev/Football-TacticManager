@@ -243,7 +243,7 @@ else
                             var other = w.Player(rel.targetPlayerId);
                             <tr>
                                 <td class="nowrap" style="width:9rem">
-                                    <span class="badge @RelClass(rel.type)">@RelName(rel.type)</span>
+                                    <span class="badge @RelClass(rel.type)">@Ui.RelationName(rel.type)</span>
                                 </td>
                                 <td class="nowrap"><a href="@($"player/{rel.targetPlayerId}")">@other?.FullName</a></td>
                                 <td class="dim tiny">@RelWhy(rel.type)</td>
@@ -279,19 +279,6 @@ else
         >= 45 => "평범함",
         >= 30 => "삐걱거림",
         _ => "갈라져 있음",
-    };
-
-    static string RelName(RelationshipType t) => t switch
-    {
-        RelationshipType.Captain => "주장",
-        RelationshipType.Mentor => "멘토",
-        RelationshipType.Mentee => "멘티",
-        RelationshipType.Rival => "경쟁자",
-        RelationshipType.NationalTeam => "동향",
-        RelationshipType.Friend => "친한 동료",
-        RelationshipType.Dislike => "비호감",
-        RelationshipType.Conflict => "갈등",
-        _ => "동료",
     };
 
     static string RelClass(RelationshipType t) => t switch

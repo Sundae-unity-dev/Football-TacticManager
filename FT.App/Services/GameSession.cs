@@ -41,8 +41,7 @@ public sealed class GameSession(SaveStore store)
     {
         if (World == null) return;
         ManagerCareer.TakeCharge(World, clubId, managerName);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     /// <summary>
@@ -105,6 +104,16 @@ public sealed class GameSession(SaveStore store)
     {
         if (World == null) return;
         await store.SaveAsync(World, World.MyClub?.name ?? "");
+    }
+
+    /// <summary>
+    /// 바꾼 것을 화면에 알리고 저장한다. 감독이 무언가를 결정한 뒤의 마무리는 늘 이 둘이다 —
+    /// 순서도 같다. 화면을 먼저 갱신해야 저장을 기다리는 동안 결과가 보인다.
+    /// </summary>
+    async Task CommitAsync()
+    {
+        NotifyChanged();
+        await SaveAsync();
     }
 
     // ── 진행 ──────────────────────────────────────────────────────────────
@@ -248,8 +257,7 @@ public sealed class GameSession(SaveStore store)
         LiveFixture = null;
         ContinueRollover(w);
 
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     public MatchSession.SubResult LiveSubstitute(int outId, int inId)
@@ -296,8 +304,7 @@ public sealed class GameSession(SaveStore store)
             w.Post($"{target.FullName} 영입",
                    $"{w.Club(offer.toClubId)?.name} 에서 이적료 {fee / 1_000_000d:F1}M€ 에 영입했습니다.",
                    InboxKind.Transfer, playerId: target.id);
-            NotifyChanged();
-            await SaveAsync();
+            await CommitAsync();
         }
 
         return outcome;
@@ -309,8 +316,7 @@ public sealed class GameSession(SaveStore store)
         p.transferStatus = p.transferStatus == TransferStatus.ListedForTransfer
             ? TransferStatus.NotListed
             : TransferStatus.ListedForTransfer;
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 재계약 ────────────────────────────────────────────────────────────
@@ -331,8 +337,7 @@ public sealed class GameSession(SaveStore store)
         {
             ContractTalks.Sign(w, p, weeklyWage, years);
             w.ContractWarnings.Remove(p.id);
-            NotifyChanged();
-            await SaveAsync();
+            await CommitAsync();
         }
         return outcome;
     }
@@ -376,8 +381,7 @@ public sealed class GameSession(SaveStore store)
                $"주 {terms.weeklyWage / 1000d:F0}K€ · {terms.years}년 · "
                + $"{ContractNegotiation.RoleLabel(terms.role)} 자리로 합의했습니다.",
                InboxKind.Transfer, playerId: p.id);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     /// <summary>
@@ -425,8 +429,7 @@ public sealed class GameSession(SaveStore store)
                $"이적료 {fee / 1_000_000d:F1}M€ · 주 {terms.weeklyWage / 1000d:F0}K€ · "
                + $"{terms.years}년 · {ContractNegotiation.RoleLabel(terms.role)} 자리.",
                InboxKind.Transfer, playerId: p.id);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
         return null;
     }
 
@@ -438,8 +441,7 @@ public sealed class GameSession(SaveStore store)
     {
         if (World is not { } w) return;
         change(w.Training);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 임대 ──────────────────────────────────────────────────────────────
@@ -464,8 +466,7 @@ public sealed class GameSession(SaveStore store)
             LoanMarket.Send(w, p, host);
             w.Post($"{p.FullName} 임대",
                    $"{host.name} 으로 시즌 말까지 임대 보냈습니다.", InboxKind.Transfer, playerId: p.id);
-            NotifyChanged();
-            await SaveAsync();
+            await CommitAsync();
         }
         return outcome;
     }
@@ -478,8 +479,7 @@ public sealed class GameSession(SaveStore store)
 
         LoanMarket.Recall(w, p);
         w.Post($"{p.FullName} 임대 복귀", "임대를 중도에 끝내고 불러들였습니다.", InboxKind.Transfer, playerId: p.id);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 세트피스 ──────────────────────────────────────────────────────────
@@ -780,8 +780,7 @@ public sealed class GameSession(SaveStore store)
 
         var answer = BoardTalks.Request(w, ask, new Random(w.Seed ^ (w.Date.year * 7919 + w.Date.month * 31 + w.Date.day)));
 
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
         return answer;
     }
 
@@ -859,8 +858,7 @@ public sealed class GameSession(SaveStore store)
         if (w.StaffMember(staffId) is not { } s) return;
         if (!StaffRoom.Hire(w, c, s)) return;
 
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     public async Task ReleaseStaffAsync(int staffId)
@@ -869,8 +867,7 @@ public sealed class GameSession(SaveStore store)
         if (w.StaffMember(staffId) is not { } s) return;
         if (!StaffRoom.Release(w, c, s)) return;
 
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 스카우트 ──────────────────────────────────────────────────────────
@@ -901,8 +898,7 @@ public sealed class GameSession(SaveStore store)
         if (World is not { } w || w.Player(playerId) is not { } p) return;
         if (!Scouting.SendScout(w, p)) return;
 
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 2군 ───────────────────────────────────────────────────────────────
@@ -951,16 +947,14 @@ public sealed class GameSession(SaveStore store)
     {
         if (World is not { } w || w.Player(playerId) is not { } p) return;
         TransferRequests.Accept(w, p);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     public async Task RejectRequestAsync(int playerId)
     {
         if (World is not { } w || w.Player(playerId) is not { } p) return;
         TransferRequests.Reject(w, p);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     /// <summary>이번 A매치 주간에 우리 구단에서 뽑혀 나가는 선수.</summary>
@@ -999,8 +993,7 @@ public sealed class GameSession(SaveStore store)
     {
         if (World?.MyClub is not { } club) return;
         DressingRoom.SetCaptain(World, club, playerId);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 기자회견 ──────────────────────────────────────────────────────────
@@ -1026,16 +1019,14 @@ public sealed class GameSession(SaveStore store)
     {
         if (World == null) return;
         PressRoom.Answer(World, optionIndex);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     public async Task SkipPressAsync()
     {
         if (World == null) return;
         PressRoom.Skip(World);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 컵 ────────────────────────────────────────────────────────────────
@@ -1070,8 +1061,7 @@ public sealed class GameSession(SaveStore store)
         LastFixture = null;
         Live = null;
         LiveFixture = null;
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 시즌 ──────────────────────────────────────────────────────────────
@@ -1087,8 +1077,7 @@ public sealed class GameSession(SaveStore store)
 
         // 승격·챔피언 플레이오프에 내 경기가 있으면 거기서 멈춘다. 화면이 그 경기를 띄운다.
         SeasonRollover.StartNextSeason(w, deferMyPlayoff: true);
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     /// <summary>
@@ -1108,8 +1097,7 @@ public sealed class GameSession(SaveStore store)
     {
         if (World is not { } w) return;
         WeekCycle.Advance(w, w.Date.AddDays(7));
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     // ── 조회 헬퍼 ─────────────────────────────────────────────────────────
@@ -1140,8 +1128,7 @@ public sealed class GameSession(SaveStore store)
     /// </summary>
     public async Task TouchAsync()
     {
-        NotifyChanged();
-        await SaveAsync();
+        await CommitAsync();
     }
 
     /// <summary>전술의 포메이션을 바꾸고 선발을 다시 뽑는다.</summary>

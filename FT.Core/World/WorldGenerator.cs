@@ -399,17 +399,19 @@ namespace FootballTactician.World
 
         // ── 스쿼드 ────────────────────────────────────────────────────────
 
+        static PlayerFactory.Naming NamingOf(NationNames nation) => new()
+        {
+            First = nation.FirstNames,
+            Last = nation.LastNames,
+            Nationality = nation.Nationality,
+        };
+
         static void FillSquad(
             Random rng, ClubData club, NationNames nation, int stars,
             GameDate today, ref int nextPlayerId, GameWorld w, LeagueTier tier)
         {
             float rep = GameWorld.RepCoef(stars) * GameWorld.TierFactor(tier) * nation.Strength;
-            var naming = new PlayerFactory.Naming
-            {
-                First = nation.FirstNames,
-                Last = nation.LastNames,
-                Nationality = nation.Nationality,
-            };
+            var naming = NamingOf(nation);
             var used = new HashSet<string>();
 
             for (int i = 0; i < SquadSize; i++)
@@ -475,12 +477,7 @@ namespace FootballTactician.World
             Random rng, int id, ClubData club, NationNames nation,
             float reputation, Position position, GameDate today, int? ageOverride = null)
         {
-            var naming = new PlayerFactory.Naming
-            {
-                First = nation.FirstNames,
-                Last = nation.LastNames,
-                Nationality = nation.Nationality,
-            };
+            var naming = NamingOf(nation);
 
             int age = ageOverride ?? 17 + rng.Next(3);
             // 아카데미가 좋을수록 잠재력이 높다. 평판 계수를 살짝 끌어올려 반영한다.

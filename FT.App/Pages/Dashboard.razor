@@ -116,7 +116,7 @@ else
                             <tr>
                                 <td>@o.description</td>
                                 <td class="right nowrap">
-                                    <span class="badge @ObjBadge(o.result)">@ObjLabel(o.result)</span>
+                                    <span class="badge @ObjBadge(o.result)">@SeasonReview.ResultLabel(o.result)</span>
                                 </td>
                             </tr>
                         }
@@ -224,14 +224,6 @@ else
             .OrderByDescending(p => p.seasonStats.goals * 3 + p.seasonStats.assists * 2)
             .ThenByDescending(GameWorld.Ca)
             .Take(3);
-
-    static string ObjLabel(BoardObjectiveResult r) => r switch
-    {
-        BoardObjectiveResult.Achieved => "달성",
-        BoardObjectiveResult.Failed => "실패",
-        BoardObjectiveResult.PartiallyMet => "부분 달성",
-        _ => "진행 중",
-    };
 
     static string ObjBadge(BoardObjectiveResult r) => r switch
     {

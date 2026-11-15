@@ -72,7 +72,7 @@ namespace FootballTactician.World
             ManagerCareer.RollVacancies(w, new Random(SeedMix.Of(w.Seed, w.SeasonYear, 4242)));
 
             string summary = string.Join(" · ", w.Objectives.Select(o =>
-                $"{o.description}: {Label(o.result)}"));
+                $"{o.description}: {ResultLabel(o.result)}"));
             w.Post("시즌 결산",
                    $"리그 {pos}위. {summary} · 감독 평판 {repBefore} → {w.ManagerReputation}",
                    InboxKind.Board);
@@ -84,7 +84,8 @@ namespace FootballTactician.World
             }
         }
 
-        static string Label(BoardObjectiveResult r) => r switch
+        /// <summary>목표 결과를 부르는 이름. 시즌 평가 기사와 대시보드가 같은 말을 쓴다.</summary>
+        public static string ResultLabel(BoardObjectiveResult r) => r switch
         {
             BoardObjectiveResult.Achieved => "달성",
             BoardObjectiveResult.Failed => "실패",
