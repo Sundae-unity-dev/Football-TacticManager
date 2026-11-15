@@ -29,9 +29,13 @@
     [Parameter, EditorRequired] public InboxItem Item { get; set; } = default!;
     [Parameter] public bool ShowKind { get; set; }
 
-    (string? href, string? label) Target()
+    (string? href, string? label) Target() => TargetOf(Session.World, Item);
+
+    /// <summary>
+    /// 소식이 가리키는 곳. 대시보드의 소식 카드와 받은 소식 화면의 본문이 같은 규칙을 쓴다.
+    /// </summary>
+    public static (string? href, string? label) TargetOf(GameWorld? w, InboxItem Item)
     {
-        var w = Session.World;
         if (w is null) return (null, null);
 
         if (Item.playerId > 0 && w.Player(Item.playerId) is { } p)
